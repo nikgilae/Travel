@@ -1,3 +1,9 @@
+# ORM модели для системы правил.
+# Rule — единая таблица всех правил (переиспользуемые).
+# CountryRule, CityRule, POIRule — связующие таблицы many-to-many
+# с дополнительным атрибутом is_strict (обязательное / рекомендательное).
+# Одно правило может быть привязано к стране, городу и POI одновременно.
+
 import uuid
 from datetime import datetime
 
@@ -16,6 +22,8 @@ class Rule(Base):
         primary_key=True,
         default=uuid.uuid4,
     )
+
+    # Текст правила — например "Закрытые плечи и колени обязательны".
     content: Mapped[str] = mapped_column(
         Text,
         nullable=False,
@@ -30,7 +38,7 @@ class Rule(Base):
         onupdate=func.now(),
     )
 
-    # Relationships
+    # Связи со всеми типами объектов к которым может быть привязано правило.
     country_rules: Mapped[list["CountryRule"]] = relationship(
         back_populates="rule",
         cascade="all, delete-orphan",
@@ -48,6 +56,8 @@ class Rule(Base):
 class CountryRule(Base):
     __tablename__ = "country_rules"
 
+    # Составной первичный ключ — одно правило привязывается
+    # к одной стране только один раз.
     country_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("countries.id", ondelete="CASCADE"),
@@ -58,24 +68,26 @@ class CountryRule(Base):
         ForeignKey("rules.id", ondelete="CASCADE"),
         primary_key=True,
     )
+
+    # True — обязательное правило, False — рекомендация.
+    # Хранится на связующей таблице, а не на самом правиле —
+    # одно правило может быть строгим для одной страны
+    # и рекомендательным для другой.
     is_strict: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
         default=True,
     )
 
-    # Relationships
-    country: Mapped["Country"] = relationship(
-        back_populates="rules",
-    )
-    rule: Mapped["Rule"] = relationship(
-        back_populates="country_rules",
-    )
+    country: Mapped["Country"] = relationship(back_populates="rules")
+    rule: Mapped["Rule"] = relationship(back_populates="country_rules")
 
 
 class CityRule(Base):
     __tablename__ = "city_rules"
 
+    # Составной первичный ключ — одно правило привязывается
+    # к одному городу только один раз.
     city_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("cities.id", ondelete="CASCADE"),
@@ -92,18 +104,15 @@ class CityRule(Base):
         default=True,
     )
 
-    # Relationships
-    city: Mapped["City"] = relationship(
-        back_populates="rules",
-    )
-    rule: Mapped["Rule"] = relationship(
-        back_populates="city_rules",
-    )
+    city: Mapped["City"] = relationship(back_populates="rules")
+    rule: Mapped["Rule"] = relationship(back_populates="city_rules")
 
 
 class POIRule(Base):
     __tablename__ = "poi_rules"
 
+    # Составной первичный ключ — одно правило привязывается
+    # к одному POI только один раз.
     poi_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("pois.id", ondelete="CASCADE"),
@@ -120,10 +129,5 @@ class POIRule(Base):
         default=True,
     )
 
-    # Relationships
-    poi: Mapped["POI"] = relationship(
-        back_populates="rules",
-    )
-    rule: Mapped["Rule"] = relationship(
-        back_populates="poi_rules",
-    )
+    poi: Mapped["POI"] = relationship(back_populates="rules")
+    rule: Mapped["Rule"] = relationship(back_populates="poi_rules")

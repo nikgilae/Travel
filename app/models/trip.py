@@ -1,3 +1,9 @@
+# ORM модели таблиц trips и trip_pois.
+# Trip — поездка пользователя с параметрами (страна, город, бюджет и т.д.).
+# TripPOI — связующая таблица между поездкой и местами маршрута.
+# sequence_order хранится как Float для вставки мест без перенумерации
+# (между 1.0 и 2.0 можно вставить 1.5).
+
 import uuid
 from datetime import datetime, date
 
@@ -8,6 +14,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
 
+# ENUM типы создаются в PostgreSQL один раз и переиспользуются.
+# create_type=True — SQLAlchemy создаст тип при миграции автоматически.
 trip_purpose_enum = ENUM(
     "leisure",
     "business",
@@ -28,6 +36,9 @@ budget_level_enum = ENUM(
 
 class Trip(Base):
     __tablename__ = "trips"
+
+    # CheckConstraint — бизнес-правила на уровне БД.
+    # Защищают от некорректных данных даже при прямых SQL запросах в обход ORM.
     __table_args__ = (
         CheckConstraint("end_date >= start_date", name="chk_trips_dates"),
         CheckConstraint("group_size >= 1", name="chk_trips_group_size"),
@@ -38,12 +49,18 @@ class Trip(Base):
         primary_key=True,
         default=uuid.uuid4,
     )
+
+    # ondelete="CASCADE" — при удалении пользователя все его поездки удаляются.
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
+
+    # ondelete="RESTRICT" — нельзя удалить страну или город
+    # пока существуют привязанные поездки.
+    # Защита от случайного удаления справочных данных.
     country_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("countries.id", ondelete="RESTRICT"),
@@ -69,6 +86,9 @@ class Trip(Base):
         nullable=False,
         default=1,
     )
+
+    # Массив строк — дополнительные предпочтения путешественника.
+    # Например: ["вегетарианец", "нужен лифт", "с детьми"].
     other_information: Mapped[list[str] | None] = mapped_column(
         ARRAY(String),
         nullable=True,
@@ -86,16 +106,11 @@ class Trip(Base):
         server_default=func.now(),
     )
 
-    # Relationships
-    user: Mapped["User"] = relationship(
-        back_populates="trips",
-    )
-    country: Mapped["Country"] = relationship(
-        back_populates="trips",
-    )
-    city: Mapped["City"] = relationship(
-        back_populates="trips",
-    )
+    user: Mapped["User"] = relationship(back_populates="trips")
+    country: Mapped["Country"] = relationship(back_populates="trips")
+    city: Mapped["City"] = relationship(back_populates="trips")
+
+    # cascade — при удалении поездки все её POI удаляются автоматически.
     pois: Mapped[list["TripPOI"]] = relationship(
         back_populates="trip",
         cascade="all, delete-orphan",
@@ -104,10 +119,13 @@ class Trip(Base):
 
 class TripPOI(Base):
     __tablename__ = "trip_pois"
+
     __table_args__ = (
+        # sequence_order должен быть положительным числом.
         CheckConstraint("sequence_order > 0", name="chk_trip_pois_order"),
     )
 
+    # Составной первичный ключ — одно место может быть в поездке только один раз.
     trip_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("trips.id", ondelete="CASCADE"),
@@ -118,19 +136,21 @@ class TripPOI(Base):
         ForeignKey("pois.id", ondelete="CASCADE"),
         primary_key=True,
     )
+
+    # Float вместо Integer — позволяет вставлять места между существующими
+    # без перенумерации всего маршрута.
+    # Пример: между 1.0 и 2.0 можно вставить 1.5.
     sequence_order: Mapped[float] = mapped_column(
         Float,
         nullable=False,
     )
+
+    # timezone=True — хранит время с учётом часового пояса (TIMESTAMPTZ).
+    # Важно для поездок в другие страны — время в Токио и Москве разное.
     planned_start_time: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
     )
 
-    # Relationships
-    trip: Mapped["Trip"] = relationship(
-        back_populates="pois",
-    )
-    poi: Mapped["POI"] = relationship(
-        back_populates="trip_pois",
-    )
+    trip: Mapped["Trip"] = relationship(back_populates="pois")
+    poi: Mapped["POI"] = relationship(back_populates="trip_pois")
