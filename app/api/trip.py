@@ -1,0 +1,289 @@
+import uuid
+
+from fastapi import APIRouter, Depends, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import get_db
+from app.dependencies import get_current_user
+from app.models.user import User
+from app.schemas.trip import (
+    TripCreate, TripUpdate, TripPOICreate,
+    TripResponse, TripWithPOIsResponse,
+    TripPOIWithWarningsResponse,
+)
+from app.schemas.rule import RuleWithStrictResponse
+from app.services.trip import TripService
+
+
+router = APIRouter(prefix="/trips", tags=["Trips"])
+
+
+def get_trip_service(session: AsyncSession = Depends(get_db)) -> TripService:
+    """
+    Dependency для получения TripService.
+
+    Parameters
+    ----------
+    session : AsyncSession
+        Сессия БД.
+
+    Returns
+    -------
+    TripService
+        Экземпляр сервиса поездок.
+    """
+    return TripService(session)
+
+
+@router.post(
+    "",
+    response_model=TripResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Создать поездку",
+)
+async def create_trip(
+    data: TripCreate,
+    service: TripService = Depends(get_trip_service),
+    current_user: User = Depends(get_current_user),
+) -> TripResponse:
+    """
+    Создать новую поездку для текущего пользователя.
+
+    Parameters
+    ----------
+    data : TripCreate
+        Параметры поездки: страна, город, цель, бюджет и т.д.
+    service : TripService
+        Сервис поездок.
+    current_user : User
+        Текущий авторизованный пользователь — владелец поездки.
+
+    Returns
+    -------
+    TripResponse
+        Созданный объект поездки с trip_id.
+    """
+    return await service.create(
+        user_id=current_user.id,
+        country_id=data.country_id,
+        city_id=data.city_id,
+        purpose=data.purpose,
+        budget=data.budget,
+        group_size=data.group_size,
+        other_information=data.other_information,
+        start_date=data.start_date,
+        end_date=data.end_date,
+    )
+
+
+@router.get(
+    "",
+    response_model=list[TripResponse],
+    summary="Список поездок пользователя",
+)
+async def get_trips(
+    service: TripService = Depends(get_trip_service),
+    current_user: User = Depends(get_current_user),
+) -> list[TripResponse]:
+    """
+    Получить все поездки текущего пользователя.
+
+    Parameters
+    ----------
+    service : TripService
+        Сервис поездок.
+    current_user : User
+        Текущий авторизованный пользователь.
+
+    Returns
+    -------
+    list[TripResponse]
+        Список поездок пользователя.
+    """
+    return await service.get_user_trips(current_user.id)
+
+
+@router.get(
+    "/{trip_id}",
+    response_model=TripWithPOIsResponse,
+    summary="Детали поездки",
+)
+async def get_trip(
+    trip_id: uuid.UUID,
+    service: TripService = Depends(get_trip_service),
+    current_user: User = Depends(get_current_user),
+) -> TripWithPOIsResponse:
+    """
+    Получить поездку с полным маршрутом.
+
+    Возвращает только если поездка принадлежит текущему пользователю.
+
+    Parameters
+    ----------
+    trip_id : uuid.UUID
+        UUID поездки.
+    service : TripService
+        Сервис поездок.
+    current_user : User
+        Текущий авторизованный пользователь.
+
+    Returns
+    -------
+    TripWithPOIsResponse
+        Поездка с местами маршрута отсортированными по sequence_order.
+    """
+    return await service.get_with_details(trip_id, current_user.id)
+
+
+@router.put(
+    "/{trip_id}",
+    response_model=TripResponse,
+    summary="Обновить поездку",
+)
+async def update_trip(
+    trip_id: uuid.UUID,
+    data: TripUpdate,
+    service: TripService = Depends(get_trip_service),
+    current_user: User = Depends(get_current_user),
+) -> TripResponse:
+    """
+    Обновить параметры поездки (partial update).
+
+    Обновляются только переданные поля.
+    Возвращает ошибку если поездка не принадлежит пользователю.
+
+    Parameters
+    ----------
+    trip_id : uuid.UUID
+        UUID поездки.
+    data : TripUpdate
+        Поля для обновления. Все опциональны.
+    service : TripService
+        Сервис поездок.
+    current_user : User
+        Текущий авторизованный пользователь.
+
+    Returns
+    -------
+    TripResponse
+        Обновлённый объект поездки.
+    """
+    update_data = data.model_dump(exclude_unset=True)
+    return await service.update(trip_id, current_user.id, **update_data)
+
+
+@router.delete(
+    "/{trip_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Удалить поездку",
+)
+async def delete_trip(
+    trip_id: uuid.UUID,
+    service: TripService = Depends(get_trip_service),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """
+    Удалить поездку и все её места.
+
+    Каскадное удаление trip_pois через FK.
+    Возвращает 204 No Content при успехе.
+
+    Parameters
+    ----------
+    trip_id : uuid.UUID
+        UUID поездки.
+    service : TripService
+        Сервис поездок.
+    current_user : User
+        Текущий авторизованный пользователь.
+    """
+    await service.delete(trip_id, current_user.id)
+
+
+@router.post(
+    "/{trip_id}/pois",
+    response_model=TripPOIWithWarningsResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Добавить POI в маршрут",
+)
+async def add_poi_to_trip(
+    trip_id: uuid.UUID,
+    data: TripPOICreate,
+    service: TripService = Depends(get_trip_service),
+    current_user: User = Depends(get_current_user),
+) -> TripPOIWithWarningsResponse:
+    """
+    Добавить точку интереса в маршрут поездки.
+
+    Core Feature — Contextual Engine. При добавлении места
+    автоматически возвращает contextual_warnings — правила
+    которые нужно соблюдать при посещении.
+
+    Parameters
+    ----------
+    trip_id : uuid.UUID
+        UUID поездки.
+    data : TripPOICreate
+        poi_id, sequence_order, planned_start_time.
+    service : TripService
+        Сервис поездок.
+    current_user : User
+        Текущий авторизованный пользователь.
+
+    Returns
+    -------
+    TripPOIWithWarningsResponse
+        trip_id, poi_id, sequence_order и contextual_warnings.
+    """
+    trip_poi, poi_rules = await service.add_poi(
+        trip_id=trip_id,
+        user_id=current_user.id,
+        poi_id=data.poi_id,
+        sequence_order=data.sequence_order,
+        planned_start_time=data.planned_start_time,
+    )
+
+    warnings = [
+        RuleWithStrictResponse(
+            id=pr.rule.id,
+            is_strict=pr.is_strict,
+            content=pr.rule.content,
+        )
+        for pr in poi_rules
+    ]
+
+    return TripPOIWithWarningsResponse(
+        trip_id=trip_poi.trip_id,
+        poi_id=trip_poi.poi_id,
+        sequence_order=trip_poi.sequence_order,
+        planned_start_time=trip_poi.planned_start_time,
+        contextual_warnings=warnings,
+    )
+
+
+@router.delete(
+    "/{trip_id}/pois/{poi_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Удалить POI из маршрута",
+)
+async def remove_poi_from_trip(
+    trip_id: uuid.UUID,
+    poi_id: uuid.UUID,
+    service: TripService = Depends(get_trip_service),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """
+    Удалить точку интереса из маршрута поездки.
+
+    Parameters
+    ----------
+    trip_id : uuid.UUID
+        UUID поездки.
+    poi_id : uuid.UUID
+        UUID точки интереса для удаления.
+    service : TripService
+        Сервис поездок.
+    current_user : User
+        Текущий авторизованный пользователь.
+    """
+    await service.remove_poi(trip_id, current_user.id, poi_id)

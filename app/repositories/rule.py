@@ -1,8 +1,3 @@
-# Репозитории для работы с таблицами rules, country_rules, city_rules, poi_rules.
-# RuleRepository — базовые операции с правилами + поиск правил по объекту.
-# CountryRuleRepository, CityRuleRepository, POIRuleRepository —
-# управление связями между правилами и объектами (страна/город/POI).
-
 from uuid import UUID
 
 from sqlalchemy import select
@@ -14,13 +9,34 @@ from app.repositories.base import BaseRepository
 
 
 class RuleRepository(BaseRepository[Rule]):
+    """
+    Репозиторий для работы с таблицей rules.
+
+    Правила переиспользуемые — одно правило может быть
+    привязано к стране, городу и POI одновременно.
+    Методы get_by_* используют JOIN со связующими таблицами.
+    """
 
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(Rule, session)
 
     async def get_by_country(self, country_id: UUID) -> list[Rule]:
-        # JOIN с country_rules — получаем все правила привязанные к стране.
-        # Без JOIN пришлось бы делать два отдельных запроса.
+        """
+        Получить все правила привязанные к стране.
+
+        Использует JOIN с country_rules чтобы получить
+        правила за один запрос вместо двух.
+
+        Parameters
+        ----------
+        country_id : UUID
+            UUID страны.
+
+        Returns
+        -------
+        list[Rule]
+            Список правил страны.
+        """
         result = await self.session.execute(
             select(Rule)
             .join(CountryRule, CountryRule.rule_id == Rule.id)
@@ -29,7 +45,19 @@ class RuleRepository(BaseRepository[Rule]):
         return list(result.scalars().all())
 
     async def get_by_city(self, city_id: UUID) -> list[Rule]:
-        # Аналогично get_by_country но для города.
+        """
+        Получить все правила привязанные к городу.
+
+        Parameters
+        ----------
+        city_id : UUID
+            UUID города.
+
+        Returns
+        -------
+        list[Rule]
+            Список правил города.
+        """
         result = await self.session.execute(
             select(Rule)
             .join(CityRule, CityRule.rule_id == Rule.id)
@@ -38,7 +66,19 @@ class RuleRepository(BaseRepository[Rule]):
         return list(result.scalars().all())
 
     async def get_by_poi(self, poi_id: UUID) -> list[Rule]:
-        # Аналогично get_by_country но для POI.
+        """
+        Получить все правила привязанные к POI.
+
+        Parameters
+        ----------
+        poi_id : UUID
+            UUID точки интереса.
+
+        Returns
+        -------
+        list[Rule]
+            Список правил POI.
+        """
         result = await self.session.execute(
             select(Rule)
             .join(POIRule, POIRule.rule_id == Rule.id)
@@ -48,14 +88,34 @@ class RuleRepository(BaseRepository[Rule]):
 
 
 class CountryRuleRepository(BaseRepository[CountryRule]):
+    """
+    Репозиторий для управления связями между странами и правилами.
+
+    Работает со связующей таблицей country_rules.
+    В отличие от RuleRepository возвращает объекты CountryRule
+    вместе с флагом is_strict.
+    """
 
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(CountryRule, session)
 
     async def get_by_country(self, country_id: UUID) -> list[CountryRule]:
-        # joinedload загружает связанный Rule в одном запросе.
-        # Без joinedload при обращении к country_rule.rule
-        # SQLAlchemy делал бы отдельный запрос для каждого правила.
+        """
+        Получить все связи правил для страны с загрузкой Rule.
+
+        Использует joinedload чтобы избежать проблемы N+1 запросов:
+        связанные Rule загружаются в одном запросе через LEFT JOIN.
+
+        Parameters
+        ----------
+        country_id : UUID
+            UUID страны.
+
+        Returns
+        -------
+        list[CountryRule]
+            Список объектов CountryRule с заполненным полем rule.
+        """
         result = await self.session.execute(
             select(CountryRule)
             .where(CountryRule.country_id == country_id)
@@ -64,9 +124,24 @@ class CountryRuleRepository(BaseRepository[CountryRule]):
         return list(result.scalars().all())
 
     async def exists(self, country_id: UUID, rule_id: UUID) -> bool:
-        # Проверка существования связи перед созданием дубликата.
-        # Составной PK в БД тоже защищает, но лучше проверить заранее
-        # чтобы вернуть понятную ошибку а не исключение БД.
+        """
+        Проверить существование связи страна-правило.
+
+        Используется перед созданием чтобы вернуть понятную
+        ошибку вместо исключения БД о дублировании составного PK.
+
+        Parameters
+        ----------
+        country_id : UUID
+            UUID страны.
+        rule_id : UUID
+            UUID правила.
+
+        Returns
+        -------
+        bool
+            True если связь уже существует.
+        """
         result = await self.session.execute(
             select(CountryRule).where(
                 CountryRule.country_id == country_id,
@@ -77,11 +152,29 @@ class CountryRuleRepository(BaseRepository[CountryRule]):
 
 
 class CityRuleRepository(BaseRepository[CityRule]):
+    """
+    Репозиторий для управления связями между городами и правилами.
+
+    Аналогичен CountryRuleRepository но для таблицы city_rules.
+    """
 
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(CityRule, session)
 
     async def get_by_city(self, city_id: UUID) -> list[CityRule]:
+        """
+        Получить все связи правил для города с загрузкой Rule.
+
+        Parameters
+        ----------
+        city_id : UUID
+            UUID города.
+
+        Returns
+        -------
+        list[CityRule]
+            Список объектов CityRule с заполненным полем rule.
+        """
         result = await self.session.execute(
             select(CityRule)
             .where(CityRule.city_id == city_id)
@@ -90,6 +183,21 @@ class CityRuleRepository(BaseRepository[CityRule]):
         return list(result.scalars().all())
 
     async def exists(self, city_id: UUID, rule_id: UUID) -> bool:
+        """
+        Проверить существование связи город-правило.
+
+        Parameters
+        ----------
+        city_id : UUID
+            UUID города.
+        rule_id : UUID
+            UUID правила.
+
+        Returns
+        -------
+        bool
+            True если связь уже существует.
+        """
         result = await self.session.execute(
             select(CityRule).where(
                 CityRule.city_id == city_id,
@@ -100,11 +208,29 @@ class CityRuleRepository(BaseRepository[CityRule]):
 
 
 class POIRuleRepository(BaseRepository[POIRule]):
+    """
+    Репозиторий для управления связями между POI и правилами.
+
+    Аналогичен CountryRuleRepository но для таблицы poi_rules.
+    """
 
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(POIRule, session)
 
     async def get_by_poi(self, poi_id: UUID) -> list[POIRule]:
+        """
+        Получить все связи правил для POI с загрузкой Rule.
+
+        Parameters
+        ----------
+        poi_id : UUID
+            UUID точки интереса.
+
+        Returns
+        -------
+        list[POIRule]
+            Список объектов POIRule с заполненным полем rule.
+        """
         result = await self.session.execute(
             select(POIRule)
             .where(POIRule.poi_id == poi_id)
@@ -113,6 +239,21 @@ class POIRuleRepository(BaseRepository[POIRule]):
         return list(result.scalars().all())
 
     async def exists(self, poi_id: UUID, rule_id: UUID) -> bool:
+        """
+        Проверить существование связи POI-правило.
+
+        Parameters
+        ----------
+        poi_id : UUID
+            UUID точки интереса.
+        rule_id : UUID
+            UUID правила.
+
+        Returns
+        -------
+        bool
+            True если связь уже существует.
+        """
         result = await self.session.execute(
             select(POIRule).where(
                 POIRule.poi_id == poi_id,

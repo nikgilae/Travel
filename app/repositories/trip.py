@@ -1,8 +1,3 @@
-# Репозитории для работы с таблицами trips и trip_pois.
-# TripRepository — CRUD операции с поездками пользователя.
-# TripPOIRepository — управление местами внутри маршрута:
-# добавление, удаление, изменение порядка через Float sequence_order.
-
 from uuid import UUID
 
 from sqlalchemy import select
@@ -10,37 +5,67 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app.models.trip import Trip, TripPOI
-from app.models.poi import POI
-from app.models.geography import Country, City
 from app.repositories.base import BaseRepository
 
 
 class TripRepository(BaseRepository[Trip]):
+    """
+    Репозиторий для работы с таблицей trips.
+
+    Содержит методы получения поездок пользователя
+    и защиту от доступа к чужим поездкам через
+    get_by_user_and_id.
+    """
 
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(Trip, session)
 
     async def get_by_user_id(self, user_id: UUID) -> list[Trip]:
-        # Все поездки конкретного пользователя.
-        # Используется на главной странице — список поездок.
+        """
+        Получить все поездки пользователя.
+
+        Используется на главной странице для отображения
+        списка поездок.
+
+        Parameters
+        ----------
+        user_id : UUID
+            UUID пользователя.
+
+        Returns
+        -------
+        list[Trip]
+            Список всех поездок пользователя.
+        """
         result = await self.session.execute(
             select(Trip).where(Trip.user_id == user_id)
         )
         return list(result.scalars().all())
 
     async def get_with_details(self, trip_id: UUID) -> Trip | None:
-        # Загружаем поездку со всеми связанными данными за один запрос:
-        # страна, город, и список мест маршрута вместе с POI.
-        # Используется на странице конкретной поездки.
+        """
+        Получить поездку со всеми связанными данными за один запрос.
+
+        Загружает страну, город и список мест маршрута вместе
+        с данными POI через цепочку joinedload.
+
+        Parameters
+        ----------
+        trip_id : UUID
+            UUID поездки.
+
+        Returns
+        -------
+        Trip | None
+            Объект поездки с заполненными country, city и pois,
+            иначе None если не найдена.
+        """
         result = await self.session.execute(
             select(Trip)
             .where(Trip.id == trip_id)
             .options(
-                # Загружаем страну и город — нужны для отображения заголовка.
                 joinedload(Trip.country),
                 joinedload(Trip.city),
-                # Цепочка: TripPOI → POI.
-                # Загружаем места маршрута сразу с данными POI.
                 joinedload(Trip.pois).joinedload(TripPOI.poi),
             )
         )
@@ -51,9 +76,26 @@ class TripRepository(BaseRepository[Trip]):
         trip_id: UUID,
         user_id: UUID,
     ) -> Trip | None:
-        # Получаем поездку только если она принадлежит этому пользователю.
-        # Используется перед любым изменением поездки — защита от того
-        # чтобы один пользователь не мог изменить поездку другого.
+        """
+        Получить поездку только если она принадлежит пользователю.
+
+        Защита от доступа к чужим поездкам: если пользователь
+        запрашивает чужую поездку — возвращает None как будто
+        она не существует (не раскрывает факт существования).
+
+        Parameters
+        ----------
+        trip_id : UUID
+            UUID поездки.
+        user_id : UUID
+            UUID пользователя запрашивающего поездку.
+
+        Returns
+        -------
+        Trip | None
+            Объект поездки если принадлежит пользователю,
+            иначе None.
+        """
         result = await self.session.execute(
             select(Trip).where(
                 Trip.id == trip_id,
@@ -64,14 +106,32 @@ class TripRepository(BaseRepository[Trip]):
 
 
 class TripPOIRepository(BaseRepository[TripPOI]):
+    """
+    Репозиторий для управления местами в маршруте (таблица trip_pois).
+
+    Составной PK (trip_id + poi_id) требует специальных методов
+    удаления и проверки существования — базовый delete(id) не применим.
+    sequence_order хранится как Float для вставки мест без перенумерации.
+    """
 
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(TripPOI, session)
 
     async def get_by_trip(self, trip_id: UUID) -> list[TripPOI]:
-        # Все места маршрута отсортированные по порядку.
-        # ORDER BY sequence_order — места идут в правильном порядке:
-        # 1.0, 1.5, 2.0, 3.0 и т.д.
+        """
+        Получить все места маршрута отсортированные по порядку.
+
+        Parameters
+        ----------
+        trip_id : UUID
+            UUID поездки.
+
+        Returns
+        -------
+        list[TripPOI]
+            Список мест маршрута отсортированных по sequence_order
+            с заполненными данными POI.
+        """
         result = await self.session.execute(
             select(TripPOI)
             .where(TripPOI.trip_id == trip_id)
@@ -81,10 +141,23 @@ class TripPOIRepository(BaseRepository[TripPOI]):
         return list(result.scalars().all())
 
     async def get_last_sequence_order(self, trip_id: UUID) -> float:
-        # Получаем максимальный sequence_order в маршруте.
-        # Нужно чтобы добавить новое место в конец маршрута:
-        # новый sequence_order = последний + 1.0
-        # Если маршрут пустой — возвращаем 0.0, первое место получит 1.0.
+        """
+        Получить максимальный sequence_order в маршруте.
+
+        Используется для добавления нового места в конец маршрута:
+        новый order = последний + 1.0.
+
+        Parameters
+        ----------
+        trip_id : UUID
+            UUID поездки.
+
+        Returns
+        -------
+        float
+            Максимальное значение sequence_order,
+            или 0.0 если маршрут пустой.
+        """
         from sqlalchemy import func
         result = await self.session.execute(
             select(func.max(TripPOI.sequence_order))
@@ -98,8 +171,24 @@ class TripPOIRepository(BaseRepository[TripPOI]):
         trip_id: UUID,
         poi_id: UUID,
     ) -> TripPOI | None:
-        # Проверяем существует ли уже это место в маршруте.
-        # Используется перед добавлением — чтобы не дублировать места.
+        """
+        Проверить наличие POI в маршруте.
+
+        Используется перед добавлением места чтобы не
+        допустить дублирования в маршруте.
+
+        Parameters
+        ----------
+        trip_id : UUID
+            UUID поездки.
+        poi_id : UUID
+            UUID точки интереса.
+
+        Returns
+        -------
+        TripPOI | None
+            Объект TripPOI если место уже в маршруте, иначе None.
+        """
         result = await self.session.execute(
             select(TripPOI).where(
                 TripPOI.trip_id == trip_id,
@@ -113,10 +202,25 @@ class TripPOIRepository(BaseRepository[TripPOI]):
         trip_id: UUID,
         poi_id: UUID,
     ) -> bool:
-        # Удаление конкретного места из маршрута.
-        # У TripPOI нет отдельного id — составной PK из trip_id + poi_id.
-        # Поэтому нельзя использовать базовый delete(id) из BaseRepository —
-        # нужен специальный метод с двумя параметрами.
+        """
+        Удалить место из маршрута по составному ключу.
+
+        Нельзя использовать базовый delete(id) так как у TripPOI
+        нет отдельного поля id — PK составной (trip_id + poi_id).
+
+        Parameters
+        ----------
+        trip_id : UUID
+            UUID поездки.
+        poi_id : UUID
+            UUID точки интереса для удаления.
+
+        Returns
+        -------
+        bool
+            True если место найдено и удалено,
+            False если места нет в маршруте.
+        """
         instance = await self.get_by_trip_and_poi(trip_id, poi_id)
         if not instance:
             return False

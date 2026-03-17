@@ -1,66 +1,85 @@
-# ORM модели таблиц trips и trip_pois.
-# Trip — поездка пользователя с параметрами (страна, город, бюджет и т.д.).
-# TripPOI — связующая таблица между поездкой и местами маршрута.
-# sequence_order хранится как Float для вставки мест без перенумерации
-# (между 1.0 и 2.0 можно вставить 1.5).
-
 import uuid
 from datetime import datetime, date
 
-from sqlalchemy import Integer, Text, Date, DateTime, Float, ForeignKey, func, CheckConstraint, ARRAY, String
+from sqlalchemy import Integer, Date, DateTime, Float, ForeignKey, func, CheckConstraint, ARRAY, String
 from sqlalchemy.dialects.postgresql import UUID, ENUM
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
 
-# ENUM типы создаются в PostgreSQL один раз и переиспользуются.
-# create_type=True — SQLAlchemy создаст тип при миграции автоматически.
 trip_purpose_enum = ENUM(
-    "leisure",
-    "business",
-    "education",
-    "other",
+    "leisure", "business", "education", "other",
     name="trip_purpose",
     create_type=True,
 )
 
 budget_level_enum = ENUM(
-    "low",
-    "medium",
-    "high",
+    "low", "medium", "high",
     name="budget_level",
     create_type=True,
 )
 
 
 class Trip(Base):
-    __tablename__ = "trips"
+    """
+    ORM модель таблицы trips.
 
-    # CheckConstraint — бизнес-правила на уровне БД.
-    # Защищают от некорректных данных даже при прямых SQL запросах в обход ORM.
+    Поездка пользователя с параметрами путешествия.
+    Содержит CHECK constraints на уровне БД как второй
+    уровень защиты после валидации в Python.
+
+    Attributes
+    ----------
+    id : uuid.UUID
+        Первичный ключ.
+    user_id : uuid.UUID
+        FK на users.id. CASCADE — поездка удаляется с пользователем.
+    country_id : uuid.UUID
+        FK на countries.id. RESTRICT — нельзя удалить страну
+        пока есть привязанные поездки.
+    city_id : uuid.UUID
+        FK на cities.id. RESTRICT — аналогично country_id.
+    purpose : str
+        Цель поездки. ENUM: leisure, business, education, other.
+    budget : str
+        Уровень бюджета. ENUM: low, medium, high.
+    group_size : int
+        Количество путешественников. Минимум 1 (CHECK constraint).
+    other_information : list[str] or None
+        Массив дополнительных предпочтений.
+        Например: ['вегетарианец', 'с детьми'].
+    start_date : date or None
+        Дата начала поездки.
+    end_date : date or None
+        Дата окончания. Должна быть >= start_date (CHECK constraint).
+    created_at : datetime
+        Время создания записи.
+    user : User
+        Владелец поездки.
+    country : Country
+        Страна назначения.
+    city : City
+        Город назначения.
+    pois : list[TripPOI]
+        Места маршрута. Каскадное удаление при удалении поездки.
+    """
+
+    __tablename__ = "trips"
     __table_args__ = (
         CheckConstraint("end_date >= start_date", name="chk_trips_dates"),
         CheckConstraint("group_size >= 1", name="chk_trips_group_size"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-
-    # ondelete="CASCADE" — при удалении пользователя все его поездки удаляются.
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-
-    # ondelete="RESTRICT" — нельзя удалить страну или город
-    # пока существуют привязанные поездки.
-    # Защита от случайного удаления справочных данных.
     country_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("countries.id", ondelete="RESTRICT"),
@@ -72,45 +91,26 @@ class Trip(Base):
         nullable=False,
     )
     purpose: Mapped[str] = mapped_column(
-        trip_purpose_enum,
-        nullable=False,
-        default="leisure",
+        trip_purpose_enum, nullable=False, default="leisure"
     )
     budget: Mapped[str] = mapped_column(
-        budget_level_enum,
-        nullable=False,
-        default="medium",
+        budget_level_enum, nullable=False, default="medium"
     )
     group_size: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-        default=1,
+        Integer, nullable=False, default=1
     )
-
-    # Массив строк — дополнительные предпочтения путешественника.
-    # Например: ["вегетарианец", "нужен лифт", "с детьми"].
     other_information: Mapped[list[str] | None] = mapped_column(
-        ARRAY(String),
-        nullable=True,
+        ARRAY(String), nullable=True
     )
-    start_date: Mapped[date | None] = mapped_column(
-        Date,
-        nullable=True,
-    )
-    end_date: Mapped[date | None] = mapped_column(
-        Date,
-        nullable=True,
-    )
+    start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        server_default=func.now(),
+        DateTime, server_default=func.now()
     )
 
     user: Mapped["User"] = relationship(back_populates="trips")
     country: Mapped["Country"] = relationship(back_populates="trips")
     city: Mapped["City"] = relationship(back_populates="trips")
-
-    # cascade — при удалении поездки все её POI удаляются автоматически.
     pois: Mapped[list["TripPOI"]] = relationship(
         back_populates="trip",
         cascade="all, delete-orphan",
@@ -118,14 +118,36 @@ class Trip(Base):
 
 
 class TripPOI(Base):
-    __tablename__ = "trip_pois"
+    """
+    ORM модель связующей таблицы trip_pois.
 
+    Место в маршруте поездки. Составной PK (trip_id + poi_id)
+    исключает дублирование места в одном маршруте.
+
+    Attributes
+    ----------
+    trip_id : uuid.UUID
+        FK на trips.id. Часть составного PK. CASCADE удаление.
+    poi_id : uuid.UUID
+        FK на pois.id. Часть составного PK. CASCADE удаление.
+    sequence_order : float
+        Порядковый номер в маршруте. Float позволяет вставлять
+        места без перенумерации: между 1.0 и 2.0 можно вставить 1.5.
+        Должен быть > 0 (CHECK constraint).
+    planned_start_time : datetime or None
+        Запланированное время посещения с учётом timezone (TIMESTAMPTZ).
+        Важно для поездок в другие страны — разные часовые пояса.
+    trip : Trip
+        Поездка к которой принадлежит место.
+    poi : POI
+        Точка интереса.
+    """
+
+    __tablename__ = "trip_pois"
     __table_args__ = (
-        # sequence_order должен быть положительным числом.
         CheckConstraint("sequence_order > 0", name="chk_trip_pois_order"),
     )
 
-    # Составной первичный ключ — одно место может быть в поездке только один раз.
     trip_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("trips.id", ondelete="CASCADE"),
@@ -136,20 +158,9 @@ class TripPOI(Base):
         ForeignKey("pois.id", ondelete="CASCADE"),
         primary_key=True,
     )
-
-    # Float вместо Integer — позволяет вставлять места между существующими
-    # без перенумерации всего маршрута.
-    # Пример: между 1.0 и 2.0 можно вставить 1.5.
-    sequence_order: Mapped[float] = mapped_column(
-        Float,
-        nullable=False,
-    )
-
-    # timezone=True — хранит время с учётом часового пояса (TIMESTAMPTZ).
-    # Важно для поездок в другие страны — время в Токио и Москве разное.
+    sequence_order: Mapped[float] = mapped_column(Float, nullable=False)
     planned_start_time: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
+        DateTime(timezone=True), nullable=True
     )
 
     trip: Mapped["Trip"] = relationship(back_populates="pois")
