@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     # Формат: postgresql+asyncpg://USER:PASSWORD@HOST:PORT/DB_NAME
     DATABASE_URL: str
 
+    # URL подключения к тестовой БД.
+    # Используется в pytest тестах — не трогает продакшн данные.
+    TEST_DATABASE_URL: str = ""
+
     # Секретный ключ для подписи JWT токенов.
     # В продакшне должен быть длинной случайной строкой:
     # uv run python -c "import secrets; print(secrets.token_hex(32))"
@@ -25,7 +29,6 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
     model_config = SettingsConfigDict(
-        # Путь к файлу с переменными окружения.
         # Файл .env не коммитится в git — используй .env.example как шаблон.
         env_file=".env",
         env_file_encoding="utf-8",

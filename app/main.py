@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import text
+from app.core.database import AsyncSessionLocal
 
 from app.api.auth import router as auth_router
 from app.api.geography import router as geo_router
@@ -68,7 +70,7 @@ async def validation_exception_handler(
             "issue": error["msg"],
         })
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         content={
             "error_code": "VALIDATION_FAILED",
             "message": "Input validation failed",
@@ -236,17 +238,30 @@ app.include_router(trip_router)
 
 
 # ── HEALTHCHECK ───────────────────────────────────────────────────────────────
+
+
 @app.get("/health", tags=["System"])
 async def health_check() -> dict:
     """
-    Проверка работоспособности сервера.
+    Проверка работоспособности сервера и базы данных.
 
-    Используется балансировщиком нагрузки и мониторингом
-    для проверки что сервер жив и принимает запросы.
+    Выполняет реальный запрос к PostgreSQL чтобы убедиться
+    что БД доступна и принимает соединения.
 
     Returns
     -------
     dict
-        Статус сервера и версия API.
+        Статус сервера, БД и версия API.
     """
-    return {"status": "ok", "version": "1.0.0"}
+    try:
+        async with AsyncSessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+        db_status = "ok"
+    except Exception:
+        db_status = "unavailable"
+
+    return {
+        "status": "ok" if db_status == "ok" else "degraded",
+        "version": "1.0.0",
+        "database": db_status,
+    }

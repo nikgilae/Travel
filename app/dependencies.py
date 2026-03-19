@@ -1,5 +1,5 @@
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import Depends, HTTPException, Security, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -8,11 +8,13 @@ from app.models.user import User
 from app.repositories.user import UserRepository
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+# HTTPBearer вместо OAuth2PasswordBearer —
+# показывает простое поле для токена в Swagger
+bearer_scheme = HTTPBearer()
 
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    credentials: HTTPAuthorizationCredentials = Security(bearer_scheme),
     session: AsyncSession = Depends(get_db),
 ) -> User:
     """
@@ -20,24 +22,24 @@ async def get_current_user(
 
     Извлекает JWT токен из заголовка Authorization: Bearer <token>,
     декодирует его, загружает пользователя из БД.
-    Используется во всех защищённых эндпоинтах через Depends.
 
     Parameters
     ----------
-    token : str
-        JWT токен извлечённый из заголовка FastAPI автоматически.
+    credentials : HTTPAuthorizationCredentials
+        Credentials извлечённые из заголовка Authorization.
+        Содержит scheme (Bearer) и credentials (сам токен).
     session : AsyncSession
-        Сессия БД предоставленная через get_db dependency.
+        Сессия БД.
 
     Returns
     -------
     User
-        Объект текущего пользователя из БД.
+        Объект текущего пользователя.
 
     Raises
     ------
     HTTPException
-        401 если токен невалидный, истёкший или пользователь не найден.
+        401 если токен невалидный или пользователь не найден.
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -45,7 +47,7 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    user_id = decode_access_token(token)
+    user_id = decode_access_token(credentials.credentials)
     if user_id is None:
         raise credentials_exception
 
