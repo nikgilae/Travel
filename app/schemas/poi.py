@@ -32,6 +32,7 @@ class POICreate(BaseModel):
     lat: Optional[float] = Field(None, ge=-90, le=90)
     lon: Optional[float] = Field(None, ge=-180, le=180)
     is_indoor: bool = False
+    city_id: uuid.UUID = Field(..., description="UUID города, к которому относится место")
 
 
 class POIResponse(BaseModel):
@@ -136,6 +137,8 @@ class POISearchResult(BaseModel):
     name: str
     coordinates: CoordinatesResponse
     is_indoor: bool
+    description: Optional[str] = None
+    information: Optional[str] = None
 
 
 class POISearchResponse(BaseModel):

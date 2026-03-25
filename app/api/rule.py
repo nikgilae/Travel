@@ -161,3 +161,60 @@ async def attach_to_poi(
     """
     await service.attach_to_poi(poi_id, data.rule_id, data.is_strict)
     return {"status": "attached"}
+
+
+@router.get(
+    "",
+    response_model=list[RuleResponse],
+    summary="Получить список всех правил",
+)
+async def get_rules(
+    service: RuleService = Depends(get_rule_service),
+    current_user: User = Depends(get_current_user),
+) -> list[RuleResponse]:
+    """
+    Получить все правила системы.
+
+    Parameters
+    ----------
+    service : RuleService
+        Сервис правил.
+    current_user : User
+        Текущий авторизованный пользователь.
+
+    Returns
+    -------
+    list[RuleResponse]
+        Список всех правил.
+    """
+    return await service.get_all()
+
+
+@router.get(
+    "/{rule_id}",
+    response_model=RuleResponse,
+    summary="Получить правило по ID",
+)
+async def get_rule(
+    rule_id: uuid.UUID,
+    service: RuleService = Depends(get_rule_service),
+    current_user: User = Depends(get_current_user),
+) -> RuleResponse:
+    """
+    Получить конкретное правило по ID.
+
+    Parameters
+    ----------
+    rule_id : uuid.UUID
+        UUID правила.
+    service : RuleService
+        Сервис правил.
+    current_user : User
+        Текущий авторизованный пользователь.
+
+    Returns
+    -------
+    RuleResponse
+        Объект правила.
+    """
+    return await service.get_by_id(rule_id)

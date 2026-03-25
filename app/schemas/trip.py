@@ -227,3 +227,93 @@ class TripWithPOIsResponse(TripResponse):
     """
 
     pois: list[TripPOIResponse] = []
+    
+    
+class TripGenerateRequest(BaseModel):
+    """
+    Схема запроса на генерацию маршрута через AI.
+
+    Attributes
+    ----------
+    days : int
+        Количество дней поездки. Минимум 1, максимум 30.
+    interests : list[str]
+        Интересы пользователя. Например: ['история', 'еда', 'шопинг'].
+    notes : Optional[str]
+        Дополнительные пожелания. Например: 'хотим посетить рынки'.
+    """
+
+    interests: list[str] = Field(..., description="Список интересов пользователя")
+    notes: str | None = Field(None, description="Дополнительные пожелания")
+
+
+class GeneratedPOIResponse(BaseModel):
+    """
+    Схема одного места в сгенерированном маршруте.
+
+    Attributes
+    ----------
+    poi_id : str
+        UUID точки интереса из нашей БД.
+    name : str
+        Название места.
+    start_time : str
+        Время начала посещения. Например: '09:00'.
+    duration_hours : float
+        Продолжительность посещения в часах.
+    budget_estimate : str
+        Оценка бюджета на посещение. Например: '120 юаней/чел'.
+    ai_tip : str
+        Персональный совет AI для этого места.
+    """
+
+    poi_id: str
+    name: str
+    start_time: str
+    duration_hours: float
+    budget_estimate: str
+    ai_tip: str
+
+
+class GeneratedDayResponse(BaseModel):
+    """
+    Схема одного дня в сгенерированном маршруте.
+
+    Attributes
+    ----------
+    day : int
+        Номер дня.
+    theme : str
+        Тема дня. Например: 'История и культура'.
+    pois : list[GeneratedPOIResponse]
+        Места для посещения в этот день.
+    """
+
+    day: int
+    theme: str
+    pois: list[GeneratedPOIResponse]
+
+
+class TripGenerateResponse(BaseModel):
+    """
+    Схема ответа с полностью сгенерированным маршрутом.
+
+    Attributes
+    ----------
+    trip_id : uuid.UUID
+        UUID поездки.
+    summary : str
+        Краткое описание маршрута от AI.
+    total_budget_estimate : str
+        Общая оценка бюджета на группу.
+    days : list[GeneratedDayResponse]
+        Маршрут по дням.
+    saved_pois_count : int
+        Количество мест сохранённых в БД из маршрута.
+    """
+
+    trip_id: uuid.UUID
+    summary: str
+    total_budget_estimate: str
+    days: list[GeneratedDayResponse]
+    saved_pois_count: int

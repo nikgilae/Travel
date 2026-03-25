@@ -1,7 +1,7 @@
 import uuid
 
 from geoalchemy2 import Geometry
-from sqlalchemy import String, Text, Boolean
+from sqlalchemy import String, Text, Boolean, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -56,6 +56,14 @@ class POI(Base):
     is_indoor: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False
     )
+    
+    city_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("cities.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    city: Mapped["City"] = relationship(back_populates="pois")
 
     rules: Mapped[list["POIRule"]] = relationship(
         back_populates="poi",

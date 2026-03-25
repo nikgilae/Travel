@@ -13,6 +13,8 @@ from app.schemas.trip import (
 )
 from app.schemas.rule import RuleWithStrictResponse
 from app.services.trip import TripService
+from app.services.trip_ai import TripAIService
+from app.schemas.trip import TripGenerateRequest, TripGenerateResponse
 
 
 router = APIRouter(prefix="/trips", tags=["Trips"])
@@ -287,3 +289,64 @@ async def remove_poi_from_trip(
         Текущий авторизованный пользователь.
     """
     await service.remove_poi(trip_id, current_user.id, poi_id)
+
+def get_trip_ai_service(session: AsyncSession = Depends(get_db)) -> TripAIService:
+    """
+    Dependency для получения TripAIService.
+
+    Parameters
+    ----------
+    session : AsyncSession
+        Сессия БД.
+
+    Returns
+    -------
+    TripAIService
+        Экземпляр сервиса генерации маршрута.
+    """
+    return TripAIService(session)
+
+
+@router.post(
+    "/{trip_id}/generate",
+    response_model=TripGenerateResponse,
+    summary="Сгенерировать маршрут через AI",
+)
+async def generate_trip(
+    trip_id: uuid.UUID,
+    data: TripGenerateRequest,
+    service: TripAIService = Depends(get_trip_ai_service),
+    current_user: User = Depends(get_current_user),
+) -> TripGenerateResponse:
+    """
+    Сгенерировать персонализированный маршрут через AI.
+
+    AI получает все POI города и правила из нашей БД,
+    параметры поездки и интересы пользователя.
+    Возвращает упорядоченный маршрут по дням с советами
+    и оценкой бюджета. Сохраняет маршрут в БД автоматически.
+
+    Parameters
+    ----------
+    trip_id : uuid.UUID
+        UUID поездки для которой генерируем маршрут.
+    data : TripGenerateRequest
+        days, interests, notes.
+    service : TripAIService
+        Сервис генерации маршрута.
+    current_user : User
+        Текущий авторизованный пользователь.
+
+    Returns
+    -------
+    TripGenerateResponse
+        Сгенерированный маршрут с summary, days, saved_pois_count.
+    """
+    result = await service.generate(
+        trip_id=trip_id,
+        user_id=current_user.id,
+        # days=data.days,  <--- ЭТУ СТРОКУ НУЖНО УДАЛИТЬ
+        interests=data.interests,
+        notes=data.notes,
+    )
+    return TripGenerateResponse(**result)

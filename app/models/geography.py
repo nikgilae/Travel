@@ -145,3 +145,8 @@ class City(Base):
         cascade="all, delete-orphan",
     )
     trips: Mapped[list["Trip"]] = relationship(back_populates="city")
+    
+    pois: Mapped[list["POI"]] = relationship(
+        back_populates="city",
+        cascade="all, delete-orphan",
+    )

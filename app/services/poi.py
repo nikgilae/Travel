@@ -34,6 +34,8 @@ class POIService:
         lat: float | None,
         lon: float | None,
         is_indoor: bool,
+        city_id: uuid.UUID,
+        
     ) -> POI:
         """
         Создать новую точку интереса.
@@ -71,9 +73,21 @@ class POIService:
             information=information,
             geom=geom,
             is_indoor=is_indoor,
+            city_id=city_id,
         )
         await self.session.commit()
         return poi
+
+    async def get_all(self) -> list[POI]:
+        """
+        Получить все POI.
+
+        Returns
+        -------
+        list[POI]
+            Список всех точек интереса.
+        """
+        return await self.poi_repo.get_all()
 
     async def get_by_id(self, poi_id: uuid.UUID) -> POI:
         """

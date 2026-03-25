@@ -116,7 +116,6 @@ class CityContextRuleResponse(BaseModel):
     Схема правила в контексте города.
 
     Используется в GET /cities/{city_id}/context-info.
-    Без поля category — убрано по решению команды.
 
     Attributes
     ----------
@@ -131,9 +130,13 @@ class CityContextRuleResponse(BaseModel):
     model_config = {
         "from_attributes": True,
         "populate_by_name": True,
+        "by_alias": True,
     }
 
-    rule_id: uuid.UUID = Field(alias="id")
+    rule_id: uuid.UUID = Field(
+        alias="id",
+        serialization_alias="rule_id",
+    )
     is_strict: bool
     content: str
 

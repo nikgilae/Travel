@@ -2,7 +2,8 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
+
 
 from app.models.trip import Trip, TripPOI
 from app.repositories.base import BaseRepository
@@ -45,28 +46,15 @@ class TripRepository(BaseRepository[Trip]):
     async def get_with_details(self, trip_id: UUID) -> Trip | None:
         """
         Получить поездку со всеми связанными данными за один запрос.
-
-        Загружает страну, город и список мест маршрута вместе
-        с данными POI через цепочку joinedload.
-
-        Parameters
-        ----------
-        trip_id : UUID
-            UUID поездки.
-
-        Returns
-        -------
-        Trip | None
-            Объект поездки с заполненными country, city и pois,
-            иначе None если не найдена.
         """
         result = await self.session.execute(
             select(Trip)
             .where(Trip.id == trip_id)
             .options(
-                joinedload(Trip.country),
-                joinedload(Trip.city),
-                joinedload(Trip.pois).joinedload(TripPOI.poi),
+                joinedload(Trip.country),  # Many-to-One (Оставляем joinedload)
+                joinedload(Trip.city),     # Many-to-One (Оставляем joinedload)
+                # Для коллекций One-to-Many ВСЕГДА используем selectinload!
+                selectinload(Trip.pois).joinedload(TripPOI.poi),
             )
         )
         return result.scalar_one_or_none()

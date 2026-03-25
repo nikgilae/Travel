@@ -220,6 +220,7 @@ async def sqlalchemy_error_handler(
     JSONResponse
         HTTP 500 с полями error_code и message.
     """
+    print(f"РЕАЛЬНАЯ ОШИБКА БАЗЫ: {exc}")
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={

@@ -45,10 +45,6 @@ class RuleWithStrictResponse(BaseModel):
     """
     Схема ответа с правилом и флагом строгости.
 
-    Используется в contextual_warnings при добавлении POI
-    и в context-info города. Поле rule_id вместо id —
-    соответствует API контракту аналитика.
-
     Attributes
     ----------
     rule_id : uuid.UUID
@@ -60,11 +56,14 @@ class RuleWithStrictResponse(BaseModel):
     """
 
     model_config = {
-    "from_attributes": True,
-    "populate_by_name": True,
+        "from_attributes": True,
+        "populate_by_name": True,
     }
 
-    rule_id: uuid.UUID = Field(alias="id")
+    rule_id: uuid.UUID = Field(
+        alias="id",                    # читаем из атрибута id объекта
+        serialization_alias="rule_id", # в JSON выводим как rule_id
+    )
     content: str
     is_strict: bool
 

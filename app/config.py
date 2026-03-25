@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     # Время жизни access токена в минутах.
     # После истечения пользователь должен авторизоваться заново.
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    
+    AI_API_KEY: str = ""
+    AI_BASE_URL: str = ""
+    AI_MODEL: str = ""
+    GOOGLE_MAPS_API_KEY: str = ""
 
     model_config = SettingsConfigDict(
         # Файл .env не коммитится в git — используй .env.example как шаблон.

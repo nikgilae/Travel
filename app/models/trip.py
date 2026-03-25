@@ -114,6 +114,7 @@ class Trip(Base):
     pois: Mapped[list["TripPOI"]] = relationship(
         back_populates="trip",
         cascade="all, delete-orphan",
+        order_by="TripPOI.sequence_order", # <-- Добавленная сортировка
     )
 
 

@@ -11,6 +11,8 @@ from app.schemas.poi import (
     POISearchResponse, NearbyPOIRequest,
 )
 from app.services.poi import POIService
+from app.core.maps import GoogleMapsClient
+from app.services.geography import CityService
 
 
 router = APIRouter(prefix="/pois", tags=["POI"])
@@ -36,38 +38,31 @@ def get_poi_service(session: AsyncSession = Depends(get_db)) -> POIService:
 @router.get(
     "/search",
     response_model=POISearchResponse,
-    summary="Поиск POI через картографический API",
+    summary="Поиск POI через Google Places API",
 )
 async def search_pois(
     query: str = Query(..., description="Поисковый запрос, например 'Мечеть Джумейра'"),
     city_id: uuid.UUID = Query(..., description="UUID города для фильтрации"),
     current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db), # <-- Добавили сессию
 ) -> POISearchResponse:
     """
-    Поиск точек интереса через картографический API.
-
-    Заглушка Sprint 1 — всегда возвращает пустой список.
-    В Sprint 2 будет реализована реальная интеграция с
-    Google Maps / Яндекс Картами через абстрактный адаптер.
-    NFR: ответ должен быть < 1.5 сек после реализации.
-
-    Parameters
-    ----------
-    query : str
-        Поисковый запрос.
-    city_id : uuid.UUID
-        UUID города для фильтрации результатов.
-    current_user : User
-        Текущий авторизованный пользователь.
-
-    Returns
-    -------
-    POISearchResponse
-        Список найденных мест. Сейчас всегда пустой.
+    Поиск точек интереса через Google Places API.
+    Не сохраняет результаты в базу данных, а только отдает пользователю.
     """
-    # TODO Sprint 2: реализовать интеграцию с картографическим API
-    # Абстрактный адаптер: Google Maps / Яндекс Карты / Mapbox
-    return POISearchResponse(results=[])
+    # 1. Получаем название города, чтобы сделать поиск умным
+    city_service = CityService(session)
+    city = await city_service.get_by_id(city_id)
+    
+    # "Музеи" -> "Музеи Токио" (чтобы Google не искал по всему миру)
+    smart_query = f"{query} {city.name}"
+    
+    # 2. Идем в Google
+    maps_client = GoogleMapsClient()
+    results = await maps_client.search_places(smart_query)
+    
+    # 3. Возвращаем результат
+    return {"results": results}
 
 
 @router.post(
@@ -108,6 +103,7 @@ async def create_poi(
         lat=data.lat,
         lon=data.lon,
         is_indoor=data.is_indoor,
+        city_id=data.city_id
     )
 
 
@@ -145,3 +141,60 @@ async def get_nearby_pois(
         Список POI в радиусе.
     """
     return await service.get_nearby(lat, lon, radius_meters)
+
+
+@router.get(
+    "",
+    response_model=list[POIResponse],
+    summary="Список всех POI",
+)
+async def get_pois(
+    service: POIService = Depends(get_poi_service),
+    current_user: User = Depends(get_current_user),
+) -> list[POIResponse]:
+    """
+    Получить список всех точек интереса.
+
+    Parameters
+    ----------
+    service : POIService
+        Сервис POI.
+    current_user : User
+        Текущий авторизованный пользователь.
+
+    Returns
+    -------
+    list[POIResponse]
+        Список всех POI.
+    """
+    return await service.get_all()
+
+
+@router.get(
+    "/{poi_id}",
+    response_model=POIResponse,
+    summary="Получить POI по ID",
+)
+async def get_poi(
+    poi_id: uuid.UUID,
+    service: POIService = Depends(get_poi_service),
+    current_user: User = Depends(get_current_user),
+) -> POIResponse:
+    """
+    Получить конкретную точку интереса по ID.
+
+    Parameters
+    ----------
+    poi_id : uuid.UUID
+        UUID точки интереса.
+    service : POIService
+        Сервис POI.
+    current_user : User
+        Текущий авторизованный пользователь.
+
+    Returns
+    -------
+    POIResponse
+        Объект точки интереса.
+    """
+    return await service.get_by_id(poi_id)

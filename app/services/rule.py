@@ -189,6 +189,41 @@ class RuleService:
         await self.session.commit()
         return poi_rule
 
+    async def get_all(self) -> list[Rule]:
+        """
+        Получить все правила.
+
+        Returns
+        -------
+        list[Rule]
+            Список всех правил.
+        """
+        return await self.rule_repo.get_all()
+
+    async def get_by_id(self, rule_id: uuid.UUID) -> Rule:
+        """
+        Получить правило по ID.
+
+        Parameters
+        ----------
+        rule_id : uuid.UUID
+            UUID правила.
+
+        Returns
+        -------
+        Rule
+            Объект правила.
+
+        Raises
+        ------
+        NotFoundException
+            Если правило не найдено.
+        """
+        rule = await self.rule_repo.get_by_id(rule_id)
+        if not rule:
+            raise NotFoundException("Rule not found")
+        return rule
+
     async def get_by_country(self, country_id: uuid.UUID) -> list[CountryRule]:
         """
         Получить все правила страны с флагом is_strict.
