@@ -10,6 +10,8 @@ from app.schemas.trip import (
     TripCreate, TripUpdate, TripPOICreate,
     TripResponse, TripWithPOIsResponse,
     TripPOIWithWarningsResponse,
+    TripGenerateRequest, TripGenerateResponse,
+    TripDayFinalizeRequest # <--- Эта схема нужна для ручного выбора
 )
 from app.schemas.rule import RuleWithStrictResponse
 from app.services.trip import TripService
@@ -350,3 +352,50 @@ async def generate_trip(
         notes=data.notes,
     )
     return TripGenerateResponse(**result)
+
+
+@router.post(
+    "/{trip_id}/finalize",
+    response_model=TripWithPOIsResponse,
+    summary="Финализировать маршрут (Ручной выбор)",
+)
+async def finalize_trip_route(
+    trip_id: uuid.UUID,
+    data: TripDayFinalizeRequest,
+    service: TripService = Depends(get_trip_service),
+    current_user: User = Depends(get_current_user),
+) -> TripWithPOIsResponse:
+    """
+    Принимает список UUID мест (poi_ids) в том порядке, в котором
+    пользователь хочет их посетить. 
+    Система автоматически пересортирует их для оптимальной логистики
+    и зафиксирует маршрут.
+    """
+    updated_trip = await service.finalize_route(
+        trip_id=trip_id,
+        user_id=current_user.id,
+        selected_poi_ids=data.poi_ids
+    )
+    return updated_trip
+
+
+@router.post(
+    "/{trip_id}/finalize/auto-main",
+    response_model=TripWithPOIsResponse,
+    summary="Авто-финализация (Только основные места)",
+)
+async def auto_finalize_trip_main(
+    trip_id: uuid.UUID,
+    service: TripService = Depends(get_trip_service),
+    current_user: User = Depends(get_current_user),
+) -> TripWithPOIsResponse:
+    """
+    Кнопка 'Сделать как предложил ИИ'. 
+    Берет все места со статусом 'main' из сгенерированного пула,
+    выстраивает их в удобный маршрут и сохраняет выбор.
+    """
+    updated_trip = await service.auto_finalize_main_pois(
+        trip_id=trip_id, 
+        user_id=current_user.id
+    )
+    return updated_trip

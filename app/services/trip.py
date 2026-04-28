@@ -305,3 +305,107 @@ class TripService:
             raise NotFoundException("POI not found in this trip")
 
         await self.session.commit()
+        
+        
+    async def finalize_route(
+        self,
+        trip_id: uuid.UUID,
+        user_id: uuid.UUID,
+        selected_poi_ids: list[uuid.UUID]
+    ) -> Trip:
+        """
+        Финализирует маршрут (FR 2.10) с умной логистической сортировкой.
+        Использует алгоритм "Ближайшего соседа" для минимизации расстояний.
+        """
+        import math
+        from sqlalchemy import select
+        from app.core.exceptions import NotFoundException
+        from app.models.trip import TripPOI
+        from app.models.poi import POI
+
+        # 1. Проверяем, что поездка существует и принадлежит юзеру
+        trip = await self.trip_repo.get_by_user_and_id(trip_id, user_id)
+        if not trip:
+            raise NotFoundException("Trip not found")
+
+        # Если пользователь прислал пустой список (очистил день), сбрасываем всё
+        if not selected_poi_ids:
+            sorted_ids = []
+        else:
+            # 2. Загружаем координаты выбранных мест из БД
+            result_pois = await self.session.execute(
+                select(POI).where(POI.id.in_(selected_poi_ids))
+            )
+            pois_data = result_pois.scalars().all()
+            poi_map = {poi.id: poi for poi in pois_data}
+
+            # 3. Функция расчета расстояния (Гаверсинус)
+            def calc_distance(id1: uuid.UUID, id2: uuid.UUID) -> float:
+                p1, p2 = poi_map.get(id1), poi_map.get(id2)
+                if not p1 or not p2 or p1.lat is None or p1.lon is None or p2.lat is None or p2.lon is None:
+                    return float('inf')
+                
+                R = 6371.0 # Радиус Земли в километрах
+                lat1, lon1 = math.radians(p1.lat), math.radians(p1.lon)
+                lat2, lon2 = math.radians(p2.lat), math.radians(p2.lon)
+                
+                dlat = lat2 - lat1
+                dlon = lon2 - lon1
+                
+                a = math.sin(dlat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2)**2
+                return R * (2 * math.asin(math.sqrt(a)))
+
+            # 4. Алгоритм "Ближайшего соседа"
+            current_id = selected_poi_ids[0]
+            unvisited = set(selected_poi_ids[1:])
+            sorted_ids = [current_id]
+
+            while unvisited:
+                next_id = min(unvisited, key=lambda x: calc_distance(current_id, x))
+                sorted_ids.append(next_id)
+                unvisited.remove(next_id)
+                current_id = next_id
+
+        # 5. Получаем все места в пуле этой поездки
+        result_tp = await self.session.execute(
+            select(TripPOI).where(TripPOI.trip_id == trip_id)
+        )
+        trip_pois = result_tp.scalars().all()
+
+        # 6. Применяем новые (умные) порядковые номера
+        for tp in trip_pois:
+            if tp.poi_id in sorted_ids:
+                tp.is_selected = True
+                tp.sequence_order = float(sorted_ids.index(tp.poi_id) + 1)
+            else:
+                tp.is_selected = False
+                tp.sequence_order = None
+
+        await self.session.commit()
+
+        # 7. Возвращаем обновленную поездку
+        return await self.trip_repo.get_with_details(trip_id)
+
+    async def auto_finalize_main_pois(
+        self, 
+        trip_id: uuid.UUID, 
+        user_id: uuid.UUID
+    ) -> Trip:
+        """
+        Автоматически финализирует маршрут, выбирая только 'main' POI,
+        и прогоняет их через умную сортировку.
+        """
+        from sqlalchemy import select
+        from app.models.trip import TripPOI
+
+        # 1. Находим все ID мест со статусом 'main' для этой поездки
+        result = await self.session.execute(
+            select(TripPOI.poi_id).where(
+                TripPOI.trip_id == trip_id,
+                TripPOI.poi_status == "main"
+            )
+        )
+        main_poi_ids = result.scalars().all()
+
+        # 2. Используем написанный выше метод finalize_route для сортировки и сохранения
+        return await self.finalize_route(trip_id, user_id, main_poi_ids)
