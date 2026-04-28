@@ -61,14 +61,14 @@ class GoogleMapsClient:
                     information = f"Рейтинг Google: {rating} ({reviews} отзывов). Адрес: {address}"
 
                     results.append({
-                        "poi_id": uuid.uuid4(), 
+                        # ДОБАВЛЯЕМ СЮДА ПАРСИНГ PLACE_ID
+                        "google_place_id": place.get("place_id"),
                         "name": place.get("name"),
                         "coordinates": {
                             "lat": lat,
                             "lng": lng
                         },
                         "is_indoor": False,
-                        # Теперь мы возвращаем еще и эти поля!
                         "description": description,
                         "information": information
                     })

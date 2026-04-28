@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from geoalchemy2.shape import to_shape
 
 
 class POI(Base):
@@ -70,3 +71,26 @@ class POI(Base):
         cascade="all, delete-orphan",
     )
     trip_pois: Mapped[list["TripPOI"]] = relationship(back_populates="poi")
+    
+    google_place_id: Mapped[str | None] = mapped_column(
+        String(255), 
+        unique=True, 
+        nullable=True, 
+        index=True
+    )
+    
+    @property
+    def lat(self) -> float:
+        """Достает широту из PostGIS объекта geom"""
+        if self.geom is not None:
+            # Превращаем бинарные данные geom в объект shapely и берем Y (широту)
+            return to_shape(self.geom).y
+        return 0.0
+
+    @property
+    def lon(self) -> float:
+        """Достает долготу из PostGIS объекта geom"""
+        if self.geom is not None:
+            # Превращаем бинарные данные geom в объект shapely и берем X (долготу)
+            return to_shape(self.geom).x
+        return 0.0

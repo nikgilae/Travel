@@ -6,6 +6,11 @@ from app.core.exceptions import NotFoundException
 from app.models.poi import POI
 from app.repositories.poi import POIRepository
 from app.repositories.rule import POIRuleRepository
+import logging
+from sqlalchemy import select
+from app.core.maps import GoogleMapsClient
+
+logger = logging.getLogger(__name__)
 
 
 class POIService:
@@ -161,3 +166,58 @@ class POIService:
             Список POI в радиусе.
         """
         return await self.poi_repo.get_nearby(lat, lon, radius_meters)
+    
+    async def enrich_city_from_google(self, city_id: uuid.UUID, city_name: str) -> int:
+        """
+        Автоматически наполняет базу местами для заданного города через Google Maps.
+        """
+        client = GoogleMapsClient()
+        
+        # Разные типы запросов, чтобы собрать разнообразный пул мест
+        search_queries = [
+            f"Главные достопримечательности {city_name}",
+            f"Интересные необычные места {city_name}",
+            f"Лучшие рестораны и кафе {city_name}",
+            f"Парки и природа {city_name}"
+            f"Музеи {city_name}"
+            f"Экстримальные места{city_name}"
+            f"Пешие маршруты {city_name}"
+        ]
+
+        added_count = 0
+
+        for query in search_queries:
+            places = await client.search_places(query)
+            
+            for place in places:
+                name = place.get("name")
+                lat = place.get("coordinates", {}).get("lat")
+                lon = place.get("coordinates", {}).get("lng")
+                
+                if not name or not lat or not lon:
+                    continue
+
+                # Проверяем, нет ли уже такого места в базе (простейшая защита от дублей)
+                # В идеале нужно искать через репозиторий, но для скорости напишем прямо тут
+                existing = await self.session.execute(
+                    select(self.poi_repo.model).where(
+                        self.poi_repo.model.name == name,
+                        self.poi_repo.model.city_id == city_id
+                    )
+                )
+                if existing.scalar_one_or_none():
+                    continue # Такое место уже есть, пропускаем
+
+                # Создаем новое место (используем твой метод create, который генерит PostGIS точку)
+                await self.create(
+                    name=name,
+                    description=place.get("description", "Интересное место"),
+                    information=place.get("information", ""),
+                    lat=lat,
+                    lon=lon,
+                    is_indoor=place.get("is_indoor", False),
+                    city_id=city_id
+                )
+                added_count += 1
+
+        return added_count

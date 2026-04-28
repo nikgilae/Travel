@@ -13,6 +13,7 @@ from app.schemas.poi import (
 from app.services.poi import POIService
 from app.core.maps import GoogleMapsClient
 from app.services.geography import CityService
+from app.api.geography import get_city_service
 
 
 router = APIRouter(prefix="/pois", tags=["POI"])
@@ -198,3 +199,26 @@ async def get_poi(
         Объект точки интереса.
     """
     return await service.get_by_id(poi_id)
+
+@router.post(
+    "/enrich/{city_id}",
+    summary="Авто-наполнение города через Google Maps",
+    description="Делает несколько запросов в Google API и массово сохраняет новые POI в базу."
+)
+async def enrich_city_pois(
+    city_id: uuid.UUID,
+    poi_service: POIService = Depends(get_poi_service),
+    city_service: CityService = Depends(get_city_service),
+    current_user: User = Depends(get_current_user),
+):
+    # 1. Получаем имя города для формирования запросов к Google
+    city = await city_service.get_by_id(city_id)
+    
+    # 2. Запускаем массовый парсинг
+    added_count = await poi_service.enrich_city_from_google(city_id, city.name)
+    
+    return {
+        "status": "success",
+        "message": f"База успешно обогащена. Добавлено новых мест: {added_count}",
+        "city": city.name
+    }

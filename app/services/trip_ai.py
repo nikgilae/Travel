@@ -14,10 +14,7 @@ from app.services.ai import generate_trip
 
 class TripAIService:
     """
-    Сервис генерации маршрута через AI.
-
-    Оркестрирует взаимодействие между AI и репозиториями:
-    достаёт данные из БД → передаёт в AI → сохраняет результат.
+    Сервис генерации пула мест для поездки через AI (FR 2.9).
     """
 
     def __init__(self, session: AsyncSession) -> None:
@@ -37,7 +34,7 @@ class TripAIService:
         interests: list[str],
         notes: str | None,
     ) -> dict:
-        """Сгенерировать маршрут для существующей поездки."""
+        """Сгенерировать пул мест для существующей поездки."""
         
         # ── 1. Загружаем поездку и проверяем даты ─────────────────────────────
         trip = await self.trip_repo.get_by_user_and_id(trip_id, user_id)
@@ -45,9 +42,8 @@ class TripAIService:
             raise NotFoundException("Trip not found")
 
         if not trip.start_date or not trip.end_date:
-            raise ValueError("Для генерации маршрута у поездки должны быть указаны даты (start_date и end_date)")
+            raise ValueError("Для генерации маршрута у поездки должны быть указаны даты")
 
-        # Автоматически высчитываем количество дней
         calculated_days = (trip.end_date - trip.start_date).days + 1
         if calculated_days <= 0:
             raise ValueError("Дата окончания должна быть больше или равна дате начала")
@@ -59,7 +55,6 @@ class TripAIService:
         # ── 3. Загружаем POI ТОЛЬКО для этого города ──────────────────────────
         city_pois = await self.poi_repo.get_by_city(trip.city_id)
         
-        # Защита от галлюцинаций: если в БД нет мест для этого города, прерываем процесс
         if not city_pois:
             raise NotFoundException(f"К сожалению, в нашей базе пока нет мест для города {city.name}")
 
@@ -87,7 +82,7 @@ class TripAIService:
             for cr in city_rules_raw
         ]
 
-        # ── 5. Вызываем AI передавая вычисленные дни ──────────────────────────
+        # ── 5. Вызываем AI ────────────────────────────────────────────────────
         ai_result = await generate_trip(
             city_name=city.name,
             country_name=country.name,
@@ -101,53 +96,56 @@ class TripAIService:
             notes=notes,
         )
 
-        # ── 6. Сохраняем маршрут в БД ─────────────────────────────────────────
+        # ── 6. Сохраняем пул мест в БД (FR 2.9) ───────────────────────────────
         saved_count = 0
-        sequence_order = 1.0
+
+        async def _save_poi_to_pool(poi_item: dict, status: str, selected: bool):
+            poi_id_str = poi_item.get("poi_id")
+            if not poi_id_str:
+                return 0
+            try:
+                poi_uuid = uuid.UUID(poi_id_str)
+            except ValueError:
+                return 0
+
+            poi = await self.poi_repo.get_by_id(poi_uuid)
+            if not poi:
+                return 0
+
+            existing = await self.trip_poi_repo.get_by_trip_and_poi(trip_id, poi_uuid)
+            if existing:
+                return 0
+
+            await self.trip_poi_repo.create(
+                trip_id=trip_id,
+                poi_id=poi_uuid,
+                sequence_order=None,  
+                planned_start_time=None,
+                poi_status=status,
+                is_selected=selected
+            )
+            return 1
 
         for day in ai_result.get("days", []):
-            day_number = day.get("day", 1)
-            for poi_item in day.get("pois", []):
-                poi_id_str = poi_item.get("poi_id")
-                if not poi_id_str:
-                    continue
-
-                try:
-                    poi_uuid = uuid.UUID(poi_id_str)
-                except ValueError:
-                    continue
-
-                poi = await self.poi_repo.get_by_id(poi_uuid)
-                if not poi:
-                    continue
-
-                existing = await self.trip_poi_repo.get_by_trip_and_poi(
-                    trip_id, poi_uuid
-                )
-                if existing:
-                    continue
-
-                planned_time = None
-                start_time_str = poi_item.get("start_time")
-                if start_time_str and trip.start_date:
-                    try:
-                        from datetime import timedelta
-                        visit_date = trip.start_date + timedelta(days=day_number - 1)
-                        hour, minute = map(int, start_time_str.split(":"))
-                        planned_time = datetime(
-                            visit_date.year, visit_date.month, visit_date.day, hour, minute
-                        )
-                    except (ValueError, AttributeError):
-                        planned_time = None
-
-                await self.trip_poi_repo.create(
-                    trip_id=trip_id,
-                    poi_id=poi_uuid,
-                    sequence_order=sequence_order,
-                    planned_start_time=planned_time,
-                )
-                sequence_order += 1.0
-                saved_count += 1
+            
+            # Защита от галлюцинаций (подстановка дефолтов для Pydantic)
+            for poi_item in day.get("main_pois", []):
+                poi_item.setdefault("name", "Неизвестное место")
+                poi_item.setdefault("start_time", "10:00")
+                poi_item.setdefault("duration_hours", 2.0)
+                poi_item.setdefault("budget_estimate", "Не указано")
+                poi_item.setdefault("ai_tip", "")
+                
+                saved_count += await _save_poi_to_pool(poi_item, status="main", selected=True)
+            
+            for poi_item in day.get("additional_pois", []):
+                poi_item.setdefault("name", "Неизвестное место")
+                poi_item.setdefault("start_time", "14:00")
+                poi_item.setdefault("duration_hours", 1.5)
+                poi_item.setdefault("budget_estimate", "Не указано")
+                poi_item.setdefault("ai_tip", "")
+                
+                saved_count += await _save_poi_to_pool(poi_item, status="additional", selected=False)
 
         await self.session.commit()
 

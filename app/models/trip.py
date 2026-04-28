@@ -1,6 +1,9 @@
 import uuid
 from datetime import datetime, date
 
+from sqlalchemy import Float, Boolean
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy import Integer, Date, DateTime, Float, ForeignKey, func, CheckConstraint, ARRAY, String
 from sqlalchemy.dialects.postgresql import UUID, ENUM
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -20,6 +23,11 @@ budget_level_enum = ENUM(
     create_type=True,
 )
 
+poi_status_enum = ENUM(
+    "main", "additional",
+    name="poi_status_enum",
+    create_type=True
+)
 
 class Trip(Base):
     """
@@ -159,9 +167,19 @@ class TripPOI(Base):
         ForeignKey("pois.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    sequence_order: Mapped[float] = mapped_column(Float, nullable=False)
+    sequence_order: Mapped[float | None] = mapped_column(Float, nullable=True)
     planned_start_time: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
+    )
+    poi_status: Mapped[str] = mapped_column(
+        poi_status_enum, 
+        nullable=False, 
+        default="main"
+    )
+    is_selected: Mapped[bool] = mapped_column(
+        Boolean, 
+        nullable=False, 
+        default=False
     )
 
     trip: Mapped["Trip"] = relationship(back_populates="pois")

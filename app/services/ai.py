@@ -1,9 +1,7 @@
 import json
 from openai import AsyncOpenAI
-
-from app.config import settings
 import httpx
-from openai import AsyncOpenAI
+
 from app.config import settings
 
 # Настраиваем кастомный таймаут: 15 секунд на коннект, 60 секунд на ожидание ответа
@@ -14,8 +12,6 @@ client = AsyncOpenAI(
     base_url=settings.AI_BASE_URL,
     timeout=custom_timeout,
 )
-
-\
 
 
 async def generate_trip(
@@ -31,60 +27,7 @@ async def generate_trip(
     notes: str | None = None,
 ) -> dict:
     """
-    Сгенерировать персонализированный маршрут через AI.
-
-    Передаёт AI контекст из нашей БД (POI, правила города)
-    и параметры пользователя. AI возвращает упорядоченный
-    маршрут с советами и оценкой бюджета.
-
-    Parameters
-    ----------
-    city_name : str
-        Название города назначения.
-    country_name : str
-        Название страны назначения.
-    days : int
-        Количество дней поездки.
-    purpose : str
-        Цель поездки: leisure, business, education, other.
-    budget : str
-        Уровень бюджета: low, medium, high.
-    group_size : int
-        Количество путешественников.
-    interests : list[str]
-        Интересы пользователя. Например: ['история', 'еда', 'шопинг'].
-    pois : list[dict]
-        Список доступных POI из нашей БД.
-        Каждый элемент: {id, name, description, is_indoor, rules}.
-    city_rules : list[dict]
-        Правила города из нашей БД.
-        Каждый элемент: {content, is_strict}.
-    notes : str or None
-        Дополнительные пожелания пользователя.
-
-    Returns
-    -------
-    dict
-        Сгенерированный маршрут в формате:
-        {
-            "summary": str,
-            "total_budget_estimate": str,
-            "days": [
-                {
-                    "day": int,
-                    "pois": [
-                        {
-                            "poi_id": str,
-                            "name": str,
-                            "start_time": str,
-                            "duration_hours": float,
-                            "budget_estimate": str,
-                            "ai_tip": str,
-                        }
-                    ]
-                }
-            ]
-        }
+    Сгенерировать персонализированный пул мест через AI.
     """
     budget_map = {
         "low": "эконом (минимальные расходы)",
@@ -127,25 +70,37 @@ async def generate_trip(
 {rules_text}
 
 ЗАДАЧА:
-Составь оптимальный маршрут используя места из списка выше.
-Учитывай: время работы мест, логистику между ними, интересы путешественника.
+Сформируй расширенный пул мест (минимум 5 объектов на каждый день).
+1. Основные (main_pois): 3-4 места, которые идеально подходят под интересы.
+2. Дополнительные (additional_pois): 3-4 запасных варианта поблизости или для смены настроения.
+Учитывай: время работы мест, логистику между ними, интересы.
 
 ОТВЕТЬ СТРОГО В JSON ФОРМАТЕ (без markdown, без ```json, только чистый JSON):
 {{
-    "summary": "краткое описание маршрута 2-3 предложения",
+    "summary": "краткое описание концепции поездки 2-3 предложения",
     "total_budget_estimate": "оценка общего бюджета на группу",
     "days": [
         {{
             "day": 1,
             "theme": "тема дня например: История и культура",
-            "pois": [
+            "main_pois": [
                 {{
                     "poi_id": "id из списка выше",
-                    "name": "название места",
-                    "start_time": "09:00",
+                    "name": "точное название места из списка",
+                    "start_time": "10:00",
                     "duration_hours": 2.5,
                     "budget_estimate": "120 юаней/чел",
                     "ai_tip": "конкретный совет для этого места"
+                }}
+            ],
+            "additional_pois": [
+                {{
+                    "poi_id": "id из списка выше",
+                    "name": "точное название места из списка",
+                    "start_time": "14:00",
+                    "duration_hours": 1.5,
+                    "budget_estimate": "0",
+                    "ai_tip": "почему стоит рассмотреть это место как запасное"
                 }}
             ]
         }}
@@ -171,7 +126,6 @@ async def generate_trip(
 
     raw = response.choices[0].message.content.strip()
 
-    # Очищаем от возможных markdown артефактов
     if raw.startswith("```"):
         raw = raw.split("```")[1]
         if raw.startswith("json"):
