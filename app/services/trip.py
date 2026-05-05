@@ -311,11 +311,11 @@ class TripService:
         self,
         trip_id: uuid.UUID,
         user_id: uuid.UUID,
+        day_number: int, # <--- НОВЫЙ ПАРАМЕТР
         selected_poi_ids: list[uuid.UUID]
     ) -> Trip:
         """
-        Финализирует маршрут (FR 2.10) с умной логистической сортировкой.
-        Использует алгоритм "Ближайшего соседа" для минимизации расстояний.
+        Финализирует маршрут (FR 2.10) для конкретного дня с умной логистической сортировкой.
         """
         import math
         from sqlalchemy import select
@@ -328,31 +328,27 @@ class TripService:
         if not trip:
             raise NotFoundException("Trip not found")
 
-        # Если пользователь прислал пустой список (очистил день), сбрасываем всё
         if not selected_poi_ids:
             sorted_ids = []
         else:
-            # 2. Загружаем координаты выбранных мест из БД
+            # 2. Загружаем координаты выбранных мест
             result_pois = await self.session.execute(
                 select(POI).where(POI.id.in_(selected_poi_ids))
             )
             pois_data = result_pois.scalars().all()
             poi_map = {poi.id: poi for poi in pois_data}
 
-            # 3. Функция расчета расстояния (Гаверсинус)
+            # 3. Функция расстояния (Гаверсинус)
             def calc_distance(id1: uuid.UUID, id2: uuid.UUID) -> float:
                 p1, p2 = poi_map.get(id1), poi_map.get(id2)
                 if not p1 or not p2 or p1.lat is None or p1.lon is None or p2.lat is None or p2.lon is None:
                     return float('inf')
                 
-                R = 6371.0 # Радиус Земли в километрах
+                R = 6371.0 
                 lat1, lon1 = math.radians(p1.lat), math.radians(p1.lon)
                 lat2, lon2 = math.radians(p2.lat), math.radians(p2.lon)
                 
-                dlat = lat2 - lat1
-                dlon = lon2 - lon1
-                
-                a = math.sin(dlat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2)**2
+                a = math.sin((lat2 - lat1) / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2)**2
                 return R * (2 * math.asin(math.sqrt(a)))
 
             # 4. Алгоритм "Ближайшего соседа"
@@ -366,13 +362,16 @@ class TripService:
                 unvisited.remove(next_id)
                 current_id = next_id
 
-        # 5. Получаем все места в пуле этой поездки
+        # 5. Получаем все места пула ТОЛЬКО ДЛЯ ЭТОГО ДНЯ
         result_tp = await self.session.execute(
-            select(TripPOI).where(TripPOI.trip_id == trip_id)
+            select(TripPOI).where(
+                TripPOI.trip_id == trip_id,
+                TripPOI.day_number == day_number # <--- ФИЛЬТР ПО ДНЮ
+            )
         )
         trip_pois = result_tp.scalars().all()
 
-        # 6. Применяем новые (умные) порядковые номера
+        # 6. Применяем новые порядковые номера
         for tp in trip_pois:
             if tp.poi_id in sorted_ids:
                 tp.is_selected = True
@@ -389,23 +388,55 @@ class TripService:
     async def auto_finalize_main_pois(
         self, 
         trip_id: uuid.UUID, 
-        user_id: uuid.UUID
+        user_id: uuid.UUID,
+        day_number: int # <--- НОВЫЙ ПАРАМЕТР
     ) -> Trip:
         """
-        Автоматически финализирует маршрут, выбирая только 'main' POI,
-        и прогоняет их через умную сортировку.
+        Автоматически финализирует маршрут на указанный день, 
+        выбирая только 'main' POI.
         """
         from sqlalchemy import select
         from app.models.trip import TripPOI
 
-        # 1. Находим все ID мест со статусом 'main' для этой поездки
+        # 1. Находим 'main' места только для текущего дня
         result = await self.session.execute(
             select(TripPOI.poi_id).where(
                 TripPOI.trip_id == trip_id,
-                TripPOI.poi_status == "main"
+                TripPOI.poi_status == "main",
+                TripPOI.day_number == day_number # <--- ФИЛЬТР ПО ДНЮ
             )
         )
         main_poi_ids = result.scalars().all()
 
-        # 2. Используем написанный выше метод finalize_route для сортировки и сохранения
-        return await self.finalize_route(trip_id, user_id, main_poi_ids)
+        # 2. Передаем day_number дальше в finalize_route
+        return await self.finalize_route(trip_id, user_id, day_number, main_poi_ids)
+    
+    # app/services/trip.py
+
+# app/services/trip.py
+
+    async def remove_poi_from_day(self, trip_id: uuid.UUID, user_id: uuid.UUID, poi_id: uuid.UUID) -> None:
+        """
+        Удаляет место из активного маршрута пользователя.
+        """
+        # 1. Используем trip_repo вместо несуществующего self.get
+        trip = await self.trip_repo.get_by_user_and_id(trip_id, user_id)
+        if not trip:
+            raise NotFoundException("Trip not found or access denied")
+
+        from sqlalchemy import update
+        from app.models.trip import TripPOI 
+
+        # 2. Используем self.session вместо self.db
+        stmt = (
+            update(TripPOI)
+            .where(TripPOI.trip_id == trip_id)
+            .where(TripPOI.poi_id == poi_id)
+            .values(
+                is_selected=False,
+                poi_status="additional",
+                sequence_order=None
+            )
+        )
+        await self.session.execute(stmt)
+        await self.session.commit()

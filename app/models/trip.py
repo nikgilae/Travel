@@ -167,6 +167,7 @@ class TripPOI(Base):
         ForeignKey("pois.id", ondelete="CASCADE"),
         primary_key=True,
     )
+    day_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
     sequence_order: Mapped[float | None] = mapped_column(Float, nullable=True)
     planned_start_time: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

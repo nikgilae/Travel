@@ -81,7 +81,9 @@ class TripPOICreate(BaseModel):
     # Новые поля статуса
     poi_status: str = Field("main", pattern="^(main|additional)$")
     is_selected: bool = False
-
+    
+    # НОВОЕ ПОЛЕ
+    day_number: Optional[int] = None
 
 class TripPOIResponse(BaseModel):
     """
@@ -95,7 +97,7 @@ class TripPOIResponse(BaseModel):
     planned_start_time: Optional[datetime]
     poi_status: str
     is_selected: bool
-
+    day_number: Optional[int] = None
 
 class TripPOIWithWarningsResponse(BaseModel):
     """
@@ -112,6 +114,8 @@ class TripPOIWithWarningsResponse(BaseModel):
     poi_status: str
     is_selected: bool
     contextual_warnings: list[RuleWithStrictResponse] = []
+    
+    day_number: Optional[int] = None
 
 
 class TripResponse(BaseModel):

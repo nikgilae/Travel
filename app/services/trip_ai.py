@@ -96,10 +96,11 @@ class TripAIService:
             notes=notes,
         )
 
-        # ── 6. Сохраняем пул мест в БД (FR 2.9) ───────────────────────────────
+# ── 6. Сохраняем пул мест в БД (FR 2.9) ───────────────────────────────
         saved_count = 0
 
-        async def _save_poi_to_pool(poi_item: dict, status: str, selected: bool):
+        # Добавили параметр day_number в функцию
+        async def _save_poi_to_pool(poi_item: dict, status: str, selected: bool, day_number: int):
             poi_id_str = poi_item.get("poi_id")
             if not poi_id_str:
                 return 0
@@ -114,6 +115,9 @@ class TripAIService:
 
             existing = await self.trip_poi_repo.get_by_trip_and_poi(trip_id, poi_uuid)
             if existing:
+                # ВАЖНО: Если место уже есть в базе (например, ИИ предложил один и тот же храм на 1 и 2 день),
+                # мы не можем добавить его второй раз из-за первичных ключей (trip_id, poi_id).
+                # В базовой версии мы его просто пропускаем.
                 return 0
 
             await self.trip_poi_repo.create(
@@ -122,11 +126,14 @@ class TripAIService:
                 sequence_order=None,  
                 planned_start_time=None,
                 poi_status=status,
-                is_selected=selected
+                is_selected=selected,
+                day_number=day_number # <--- ЗАПИСЫВАЕМ ДЕНЬ В БД
             )
             return 1
 
         for day in ai_result.get("days", []):
+            # Достаем номер дня из ответа ИИ
+            current_day_num = day.get("day", 1)
             
             # Защита от галлюцинаций (подстановка дефолтов для Pydantic)
             for poi_item in day.get("main_pois", []):
@@ -136,7 +143,8 @@ class TripAIService:
                 poi_item.setdefault("budget_estimate", "Не указано")
                 poi_item.setdefault("ai_tip", "")
                 
-                saved_count += await _save_poi_to_pool(poi_item, status="main", selected=True)
+                # Передаем current_day_num
+                saved_count += await _save_poi_to_pool(poi_item, status="main", selected=True, day_number=current_day_num)
             
             for poi_item in day.get("additional_pois", []):
                 poi_item.setdefault("name", "Неизвестное место")
@@ -145,7 +153,8 @@ class TripAIService:
                 poi_item.setdefault("budget_estimate", "Не указано")
                 poi_item.setdefault("ai_tip", "")
                 
-                saved_count += await _save_poi_to_pool(poi_item, status="additional", selected=False)
+                # Передаем current_day_num
+                saved_count += await _save_poi_to_pool(poi_item, status="additional", selected=False, day_number=current_day_num)
 
         await self.session.commit()
 

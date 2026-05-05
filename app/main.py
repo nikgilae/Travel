@@ -17,6 +17,7 @@ from app.core.exceptions import (
     UnauthorizedException,
     ForbiddenException,
 )
+from app.api import chat
 
 
 app = FastAPI(
@@ -236,6 +237,7 @@ app.include_router(geo_router)
 app.include_router(rule_router)
 app.include_router(poi_router)
 app.include_router(trip_router)
+app.include_router(chat.router)
 
 
 # ── HEALTHCHECK ───────────────────────────────────────────────────────────────

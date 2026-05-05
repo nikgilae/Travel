@@ -355,47 +355,50 @@ async def generate_trip(
 
 
 @router.post(
-    "/{trip_id}/finalize",
+    "/{trip_id}/days/{day_number}/finalize",
     response_model=TripWithPOIsResponse,
-    summary="Финализировать маршрут (Ручной выбор)",
+    summary="Финализировать маршрут на день (Ручной выбор)",
 )
-async def finalize_trip_route(
+async def finalize_trip_day_route(
     trip_id: uuid.UUID,
+    day_number: int,
     data: TripDayFinalizeRequest,
     service: TripService = Depends(get_trip_service),
     current_user: User = Depends(get_current_user),
 ) -> TripWithPOIsResponse:
     """
-    Принимает список UUID мест (poi_ids) в том порядке, в котором
-    пользователь хочет их посетить. 
-    Система автоматически пересортирует их для оптимальной логистики
-    и зафиксирует маршрут.
+    Принимает упорядоченный список UUID мест (poi_ids) для конкретного дня.
+    Система автоматически пересортирует их по принципу ближайшего соседа
+    и зафиксирует маршрут именно на этот день.
     """
     updated_trip = await service.finalize_route(
         trip_id=trip_id,
         user_id=current_user.id,
+        day_number=day_number,
         selected_poi_ids=data.poi_ids
     )
     return updated_trip
 
 
 @router.post(
-    "/{trip_id}/finalize/auto-main",
+    "/{trip_id}/days/{day_number}/finalize/auto-main",
     response_model=TripWithPOIsResponse,
-    summary="Авто-финализация (Только основные места)",
+    summary="Авто-финализация дня (Только основные места)",
 )
-async def auto_finalize_trip_main(
+async def auto_finalize_trip_day_main(
     trip_id: uuid.UUID,
+    day_number: int,
     service: TripService = Depends(get_trip_service),
     current_user: User = Depends(get_current_user),
 ) -> TripWithPOIsResponse:
     """
-    Кнопка 'Сделать как предложил ИИ'. 
-    Берет все места со статусом 'main' из сгенерированного пула,
-    выстраивает их в удобный маршрут и сохраняет выбор.
+    Кнопка 'Сделать как предложил ИИ' для конкретного дня. 
+    Берет все места со статусом 'main' из пула этого дня,
+    выстраивает их в оптимальный маршрут и сохраняет выбор.
     """
     updated_trip = await service.auto_finalize_main_pois(
         trip_id=trip_id, 
-        user_id=current_user.id
+        user_id=current_user.id,
+        day_number=day_number
     )
     return updated_trip
