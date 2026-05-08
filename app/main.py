@@ -28,16 +28,20 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+origins = [
+    "http://localhost:3000",    
+    "http://127.0.0.1:3000",
+    "https://your-production-app.com", 
+]
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=origins,      
+    allow_credentials=True,      
+    allow_methods=["*"],         
+    allow_headers=["*"],         
 )
-
 
 # ── ОБРАБОТЧИКИ ОШИБОК (RFC 7807) ─────────────────────────────────────────────
 @app.exception_handler(RequestValidationError)
