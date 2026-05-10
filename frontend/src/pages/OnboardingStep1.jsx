@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import './OnboardingStep1.css'
+import { useOnboarding } from '../store/onboardingStore.jsx'
 
 const API_BASE = 'http://localhost:8000'
 
@@ -41,7 +42,7 @@ function getVisual(name, index) {
 }
 
 function getToken() {
-  return localStorage.getItem('token') ?? ''
+  return localStorage.getItem('access_token') ?? ''
 }
 
 async function apiFetch(path) {
@@ -125,9 +126,11 @@ const CountryPhoto = ({ visual, name, height = 150 }) => {
 // ── Main component ─────────────────────────────────────────
 
 export default function OnboardingStep1({ onContinue }) {
+  const { update } = useOnboarding()
+
   const [search, setSearch] = useState('')
   const [countries, setCountries] = useState([])
-  const [citiesMap, setCitiesMap] = useState({})      // { countryId: city[] }
+  const [citiesMap, setCitiesMap] = useState({})         // { countryId: city[] }
   const [loadingCities, setLoadingCities] = useState({}) // { countryId: bool }
   const [selectedCountryId, setSelectedCountryId] = useState(null)
   const [selectedCityId, setSelectedCityId] = useState(null)
@@ -177,6 +180,7 @@ export default function OnboardingStep1({ onContinue }) {
 
   function handleContinue() {
     if (!canContinue) return
+    update({ city_id: selectedCity.id })
     onContinue?.({
       n: selectedCity.name,
       sub: selectedCountry.name,
@@ -423,7 +427,9 @@ export default function OnboardingStep1({ onContinue }) {
                               key={city.id}
                               onClick={e => {
                                 e.stopPropagation()
-                                setSelectedCityId(isCitySel ? null : city.id)
+                                const next = isCitySel ? null : city.id
+                                setSelectedCityId(next)
+                                update({ city_id: next })
                               }}
                               style={{
                                 padding: '7px 14px', borderRadius: 99,

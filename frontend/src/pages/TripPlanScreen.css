@@ -80,3 +80,15 @@
 .tr-action-btn--primary:active {
   background: #a8e832;
 }
+
+@keyframes tr-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.tr-shimmer {
+  background: linear-gradient(90deg, #e8e2cf 25%, #f1ede0 50%, #e8e2cf 75%);
+  background-size: 800px 100%;
+  animation: tr-shimmer 1.4s ease-in-out infinite;
+  display: block;
+}

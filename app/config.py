@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     AI_BASE_URL: str = ""
     AI_MODEL: str = ""
     GOOGLE_MAPS_API_KEY: str = ""
+    ENRICH_COOLDOWN_HOURS: int = 24
 
     model_config = SettingsConfigDict(
         # Файл .env не коммитится в git — используй .env.example как шаблон.

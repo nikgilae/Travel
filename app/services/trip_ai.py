@@ -1,8 +1,11 @@
 import uuid
-from datetime import datetime
+import logging
+import random
+from datetime import datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.core.exceptions import NotFoundException
 from app.models.trip import Trip, TripPOI
 from app.repositories.trip import TripRepository, TripPOIRepository
@@ -10,6 +13,9 @@ from app.repositories.poi import POIRepository
 from app.repositories.rule import CityRuleRepository, POIRuleRepository
 from app.repositories.geography import CityRepository, CountryRepository
 from app.services.ai import generate_trip
+from app.services.poi import POIService
+
+logger = logging.getLogger(__name__)
 
 
 class TripAIService:
@@ -22,6 +28,7 @@ class TripAIService:
         self.trip_repo = TripRepository(session)
         self.trip_poi_repo = TripPOIRepository(session)
         self.poi_repo = POIRepository(session)
+        self.poi_service = POIService(session)
         self.city_repo = CityRepository(session)
         self.country_repo = CountryRepository(session)
         self.city_rule_repo = CityRuleRepository(session)
@@ -52,11 +59,46 @@ class TripAIService:
         city = await self.city_repo.get_by_id(trip.city_id)
         country = await self.country_repo.get_by_id(trip.country_id)
 
-        # ── 3. Загружаем POI ТОЛЬКО для этого города ──────────────────────────
+        # ── 3. Обогащение через Google Maps (кулдаун-контроль) ────────────────────
         city_pois = await self.poi_repo.get_by_city(trip.city_id)
-        
+
+        # Перезагружаем city для актуального last_enriched_at
+        city = await self.city_repo.get_by_id(trip.city_id)
+
+        now = datetime.utcnow()
+        cooldown = timedelta(hours=settings.ENRICH_COOLDOWN_HOURS)
+        needs_enrichment = (
+            city.last_enriched_at is None
+            or (now - city.last_enriched_at) >= cooldown
+        )
+
+        if needs_enrichment:
+            logger.info(
+                "Город '%s': запускаем обогащение через Google Maps (last_enriched_at=%s)",
+                city.name, city.last_enriched_at,
+            )
+            try:
+                added = await self.poi_service.enrich_city_from_google(trip.city_id, city.name)
+                logger.info("Google Maps: добавлено %d новых POI для '%s'", added, city.name)
+                # Фиксируем время обогащения сразу — cooldown защитит от повторных вызовов
+                # даже если дальнейшая генерация упадёт.
+                await self.city_repo.update(city.id, last_enriched_at=datetime.utcnow())
+                await self.session.commit()
+                city_pois = await self.poi_repo.get_by_city(trip.city_id)
+            except Exception as e:
+                logger.warning("Обогащение через Google Maps не удалось: %s", e)
+
         if not city_pois:
-            raise NotFoundException(f"К сожалению, в нашей базе пока нет мест для города {city.name}")
+            raise NotFoundException(
+                f"В нашей базе нет мест для города {city.name}. "
+                "Попробуйте позже или выберите другой город."
+            )
+
+        # Ограничиваем пул POI для AI: слишком большой промпт → обрезанный JSON → пустой план
+        MAX_POIS_FOR_AI = 100
+        if len(city_pois) > MAX_POIS_FOR_AI:
+            city_pois = random.sample(city_pois, MAX_POIS_FOR_AI)
+        logger.info("Отправляем в AI %d POI для города '%s'", len(city_pois), city.name)
 
         pois_with_rules = []
         for poi in city_pois:

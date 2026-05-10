@@ -1,8 +1,11 @@
 import json
+import logging
 from openai import AsyncOpenAI
 import httpx
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 # Настраиваем кастомный таймаут: 15 секунд на коннект, 60 секунд на ожидание ответа
 custom_timeout = httpx.Timeout(60.0, connect=15.0)
@@ -133,4 +136,8 @@ async def generate_trip(
             raw = raw[4:]
     raw = raw.strip()
 
-    return json.loads(raw)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as e:
+        logger.error("AI вернул невалидный JSON. Ошибка: %s. Начало ответа: %.300s", e, raw)
+        raise ValueError(f"AI не смог сформировать корректный JSON маршрута: {e}") from e
