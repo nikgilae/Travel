@@ -60,8 +60,9 @@ class POIResponse(BaseModel):
     description: Optional[str]
     information: Optional[str]
     is_indoor: bool
-    lat: float 
+    lat: float
     lon: float
+    google_place_id: Optional[str] = None
 
 class POIWithRulesResponse(POIResponse):
     """

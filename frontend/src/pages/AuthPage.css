@@ -1,0 +1,140 @@
+.auth-app {
+  min-height: 100svh;
+  background: #1a1f1a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.auth-card {
+  background: #f5f0e8;
+  border-radius: 24px;
+  padding: 40px 32px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 6px 6px 0 0 #b8ff4f;
+}
+
+.auth-logo {
+  font-family: 'Archivo', sans-serif;
+  font-weight: 900;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: #1a1f1a;
+  margin-bottom: 32px;
+  opacity: 0.5;
+}
+
+.auth-title {
+  font-family: 'Archivo', sans-serif;
+  font-weight: 900;
+  font-size: 32px;
+  line-height: 1;
+  color: #1a1f1a;
+  margin: 0 0 32px;
+  text-transform: uppercase;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #1a1f1a;
+  opacity: 0.6;
+}
+
+.auth-input {
+  height: 48px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(26, 31, 26, 0.2);
+  background: #fff;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  color: #1a1f1a;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.auth-input:focus {
+  border-color: #1a1f1a;
+}
+
+.auth-input--error {
+  border-color: #e55;
+}
+
+.auth-field-error {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: #c33;
+  margin: 0;
+}
+
+.auth-error {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: #c33;
+  margin: 0;
+  padding: 10px 12px;
+  background: rgba(204, 51, 51, 0.08);
+  border-radius: 8px;
+}
+
+.auth-btn {
+  height: 52px;
+  border-radius: 12px;
+  background: #b8ff4f;
+  border: 2px solid #1a1f1a;
+  box-shadow: 4px 4px 0 0 #1a1f1a;
+  font-family: 'Archivo', sans-serif;
+  font-weight: 900;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: #1a1f1a;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  margin-top: 4px;
+}
+
+.auth-btn:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 0 #1a1f1a;
+}
+
+.auth-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.auth-switch {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: #1a1f1a;
+  text-align: center;
+  margin: 24px 0 0;
+  opacity: 0.7;
+}
+
+.auth-link {
+  color: #1a1f1a;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

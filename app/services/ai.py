@@ -1,8 +1,11 @@
 import json
+import logging
 from openai import AsyncOpenAI
 import httpx
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 # Настраиваем кастомный таймаут: 15 секунд на коннект, 60 секунд на ожидание ответа
 custom_timeout = httpx.Timeout(60.0, connect=15.0)

@@ -1,0 +1,32 @@
+.at-app {
+  min-height: 100svh;
+  background: #1a1f1a;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.at-phone {
+  width: 100%;
+  max-width: 430px;
+  min-height: 100svh;
+  background: #1a1f1a;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 500px) {
+  .at-app {
+    align-items: center;
+  }
+  .at-phone {
+    min-height: auto;
+    max-height: 900px;
+    overflow-y: auto;
+    border-radius: 40px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    margin: 32px 0;
+  }
+}
