@@ -4,7 +4,7 @@ from datetime import datetime, date
 from sqlalchemy import Float, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import ENUM
-from sqlalchemy import Integer, Date, DateTime, Float, ForeignKey, func, CheckConstraint, ARRAY, String
+from sqlalchemy import Integer, Date, DateTime, Float, ForeignKey, func, CheckConstraint, ARRAY, String, Text
 from sqlalchemy.dialects.postgresql import UUID, ENUM
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -115,6 +115,8 @@ class Trip(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now()
     )
+    ai_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    total_budget_estimate: Mapped[str | None] = mapped_column(String, nullable=True)
 
     user: Mapped["User"] = relationship(back_populates="trips")
     country: Mapped["Country"] = relationship(back_populates="trips")
@@ -178,10 +180,16 @@ class TripPOI(Base):
         default="main"
     )
     is_selected: Mapped[bool] = mapped_column(
-        Boolean, 
-        nullable=False, 
+        Boolean,
+        nullable=False,
         default=False
     )
+    start_time: Mapped[str | None] = mapped_column(String, nullable=True)
+    end_time: Mapped[str | None] = mapped_column(String, nullable=True)
+    duration_hours: Mapped[float | None] = mapped_column(Float, nullable=True)
+    budget_estimate: Mapped[str | None] = mapped_column(String, nullable=True)
+    ai_tip: Mapped[str | None] = mapped_column(String, nullable=True)
+    day_theme: Mapped[str | None] = mapped_column(String, nullable=True)
 
     trip: Mapped["Trip"] = relationship(back_populates="pois")
     poi: Mapped["POI"] = relationship(back_populates="trip_pois")

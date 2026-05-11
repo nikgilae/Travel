@@ -1,0 +1,52 @@
+.tr-app {
+  background: #f1ede0;
+  min-height: 100svh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.tr-phone {
+  width: 100%;
+  max-width: 430px;
+  min-height: 100svh;
+  background: #f1ede0;
+  position: relative;
+  overflow-x: hidden;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (min-width: 500px) {
+  .tr-app {
+    background: #e8e2cf;
+    align-items: center;
+    min-height: 100svh;
+  }
+  .tr-phone {
+    min-height: auto;
+    max-height: 900px;
+    overflow-y: auto;
+    border-radius: 40px;
+    box-shadow: 0 24px 64px rgba(13, 40, 24, 0.22);
+    margin: 32px 0;
+  }
+}
+
+@keyframes tr-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.tr-spin {
+  animation: tr-spin 8s linear infinite;
+}
+
+@keyframes tr-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+.tr-pulse {
+  animation: tr-pulse 1.4s ease-in-out infinite;
+}

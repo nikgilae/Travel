@@ -138,6 +138,11 @@ class City(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+    last_enriched_at: Mapped[datetime | None] = mapped_column(
+        DateTime,
+        nullable=True,
+        default=None,
+    )
 
     country: Mapped["Country"] = relationship(back_populates="cities")
     rules: Mapped[list["CityRule"]] = relationship(

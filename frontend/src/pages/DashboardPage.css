@@ -1,0 +1,44 @@
+.dash-app {
+  min-height: 100svh;
+  background: #1a1f1a;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.dash-phone {
+  width: 100%;
+  max-width: 430px;
+  min-height: 100svh;
+  background: #1a1f1a;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 500px) {
+  .dash-app {
+    align-items: center;
+  }
+  .dash-phone {
+    min-height: auto;
+    max-height: 900px;
+    overflow-y: auto;
+    border-radius: 40px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    margin: 32px 0;
+  }
+}
+
+@keyframes dash-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.dash-shimmer {
+  background: linear-gradient(90deg, #2a2f2a 25%, #333a33 50%, #2a2f2a 75%);
+  background-size: 800px 100%;
+  animation: dash-shimmer 1.4s ease-in-out infinite;
+  display: block;
+}

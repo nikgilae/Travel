@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from geoalchemy2.functions import ST_MakePoint, ST_SetSRID
@@ -40,7 +41,7 @@ class POIService:
         lon: float | None,
         is_indoor: bool,
         city_id: uuid.UUID,
-        
+        google_place_id: str | None = None,
     ) -> POI:
         """
         Создать новую точку интереса.
@@ -79,6 +80,7 @@ class POIService:
             geom=geom,
             is_indoor=is_indoor,
             city_id=city_id,
+            google_place_id=google_place_id,
         )
         await self.session.commit()
         return poi
@@ -169,111 +171,101 @@ class POIService:
     
     async def enrich_city_from_google(self, city_id: uuid.UUID, city_name: str) -> int:
         """
-        Автоматически наполняет базу местами для заданного города через Google Maps.
+        Наполняет базу местами для города через Google Maps.
+        Все запросы к API выполняются параллельно, один commit в конце.
         """
         client = GoogleMapsClient()
-        
-        # Разные типы запросов, чтобы собрать разнообразный пул мест
+
         search_queries = [
-            # Достопримечательности
             f"Главные достопримечательности {city_name}",
-            f"Интересные необычные места {city_name}",
             f"Исторические места и памятники {city_name}",
-            f"Архитектурные достопримечательности {city_name}",
             f"Смотровые площадки {city_name}",
-            f"Религиозные места храмы мечети церкви {city_name}",
-        
-            # Природа и активный отдых
+            f"Религиозные места храмы церкви {city_name}",
             f"Парки и скверы {city_name}",
             f"Природные достопримечательности {city_name}",
-            f"Пешие маршруты и тропы {city_name}",
-            f"Велосипедные маршруты {city_name}",
-            f"Экстремальные места и активный отдых {city_name}",
             f"Пляжи и набережные {city_name}",
-        
-            # Музеи и культура
+            f"Активный отдых экскурсии {city_name}",
             f"Музеи {city_name}",
             f"Художественные галереи {city_name}",
             f"Театры и концертные залы {city_name}",
-            f"Культурные центры {city_name}",
-            f"Стрит-арт и граффити {city_name}",
-        
-            # Рестораны и еда
             f"Лучшие рестораны {city_name}",
             f"Кафе и кофейни {city_name}",
-            f"Уличная еда и фудкорты {city_name}",
-            f"Традиционная национальная кухня ресторан {city_name}",
-            f"Завтраки и бранч {city_name}",
-            f"Вегетарианские и веганские рестораны {city_name}",
-            f"Рестораны с видом {city_name}",
-            f"Недорогие кафе студенческие {city_name}",
-            f"Десерты кондитерские пекарни {city_name}",
-            f"Рынки и гастрономические рынки {city_name}",
-        
-            # Бары и ночная жизнь
+            f"Уличная еда рынки {city_name}",
+            f"Традиционная кухня ресторан {city_name}",
             f"Бары и пабы {city_name}",
-            f"Крафтовое пиво пивоварни {city_name}",
-            f"Коктейльные бары {city_name}",
-            f"Ночные клубы {city_name}",
-            f"Джазовые клубы живая музыка {city_name}",
-        
-            # Шопинг
-            f"Торговые центры и моллы {city_name}",
-            f"Рынки и базары {city_name}",
-            f"Сувенирные магазины {city_name}",
-            f"Антикварные магазины блошиные рынки {city_name}",
-            f"Локальные бренды магазины {city_name}",
-        
-            # Практичное для туриста
-            f"Туристический информационный центр {city_name}",
-            f"Обменники валюты {city_name}",
-            f"Аптеки круглосуточные {city_name}",
-            f"Супермаркеты и продуктовые магазины {city_name}",
-            f"Коворкинги и кафе с wifi {city_name}",
-            f"Камера хранения багажа {city_name}",
-            f"Общественный транспорт остановки метро {city_name}",
-        
-            # Развлечения
-            f"Квесты и развлекательные центры {city_name}",
-            f"Кино IMAX {city_name}",
+            f"Ночные клубы живая музыка {city_name}",
+            f"Сувенирные магазины рынки {city_name}",
             f"Спа и массаж {city_name}",
-            f"Зоопарк аквариум {city_name}",
-            f"Детские места аттракционы {city_name}",
+            f"Зоопарк аквариум аттракционы {city_name}",
         ]
-        added_count = 0
 
-        for query in search_queries:
-            places = await client.search_places(query)
-            
-            for place in places:
+        # Все запросы к Google Maps параллельно
+        raw_results = await asyncio.gather(
+            *[client.search_places(q) for q in search_queries],
+            return_exceptions=True,
+        )
+
+        # Дедупликация в памяти по google_place_id до обращения к БД
+        seen_place_ids: set[str] = set()
+        candidates: list[dict] = []
+
+        for result in raw_results:
+            if isinstance(result, Exception):
+                logger.warning("Запрос к Google Maps не удался: %s", result)
+                continue
+            for place in result:
                 name = place.get("name")
                 lat = place.get("coordinates", {}).get("lat")
                 lon = place.get("coordinates", {}).get("lng")
-                
                 if not name or not lat or not lon:
                     continue
+                gid = place.get("google_place_id")
+                if gid:
+                    if gid in seen_place_ids:
+                        continue
+                    seen_place_ids.add(gid)
+                candidates.append(place)
 
-                # Проверяем, нет ли уже такого места в базе (простейшая защита от дублей)
-                # В идеале нужно искать через репозиторий, но для скорости напишем прямо тут
+        logger.info("Google Maps вернул %d уникальных кандидатов для '%s'", len(candidates), city_name)
+
+        # Проверяем каждый кандидат против БД и добавляем новые
+        # Используем poi_repo.create() напрямую — commit один в конце
+        added_count = 0
+        for place in candidates:
+            name = place.get("name")
+            lat = place.get("coordinates", {}).get("lat")
+            lon = place.get("coordinates", {}).get("lng")
+            gid = place.get("google_place_id")
+
+            if gid:
+                existing = await self.session.execute(
+                    select(self.poi_repo.model).where(
+                        self.poi_repo.model.google_place_id == gid
+                    )
+                )
+            else:
                 existing = await self.session.execute(
                     select(self.poi_repo.model).where(
                         self.poi_repo.model.name == name,
                         self.poi_repo.model.city_id == city_id
                     )
                 )
-                if existing.scalar_one_or_none():
-                    continue # Такое место уже есть, пропускаем
+            if existing.scalar_one_or_none():
+                continue
 
-                # Создаем новое место (используем твой метод create, который генерит PostGIS точку)
-                await self.create(
-                    name=name,
-                    description=place.get("description", "Интересное место"),
-                    information=place.get("information", ""),
-                    lat=lat,
-                    lon=lon,
-                    is_indoor=place.get("is_indoor", False),
-                    city_id=city_id
-                )
-                added_count += 1
+            geom = ST_SetSRID(ST_MakePoint(lon, lat), 4326)
+            await self.poi_repo.create(
+                name=name,
+                description=place.get("description", "Интересное место"),
+                information=place.get("information", ""),
+                geom=geom,
+                is_indoor=place.get("is_indoor", False),
+                city_id=city_id,
+                google_place_id=gid,
+            )
+            added_count += 1
+
+        if added_count > 0:
+            await self.session.commit()
 
         return added_count
