@@ -127,10 +127,21 @@ async def generate_trip(
 
     raw = response.choices[0].message.content.strip()
 
+    # Очистка от markdown блока если AI всё же обернул в ```json```
     if raw.startswith("```"):
         raw = raw.split("```")[1]
         if raw.startswith("json"):
             raw = raw[4:]
     raw = raw.strip()
 
-    return json.loads(raw)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as e:
+        # fallback: вернуть пустую структуру чтобы не упасть
+        import logging
+        logging.error(f"Failed to parse AI response as JSON: {e}. Raw: {raw[:200]}")
+        return {
+            "summary": "Не удалось сгенерировать маршрут — ошибка парсинга ответа AI",
+            "total_budget_estimate": "0",
+            "days": [],
+        }

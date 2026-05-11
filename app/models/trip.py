@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, date
 
-from sqlalchemy import Float, Boolean
+from sqlalchemy import Float, Boolean, Index
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy import Integer, Date, DateTime, Float, ForeignKey, func, CheckConstraint, ARRAY, String
@@ -155,6 +155,8 @@ class TripPOI(Base):
     __tablename__ = "trip_pois"
     __table_args__ = (
         CheckConstraint("sequence_order > 0", name="chk_trip_pois_order"),
+        # Индекс для фильтрации по дням в finalize_route
+        Index("idx_trip_pois_trip_day", "trip_id", "day_number"),
     )
 
     trip_id: Mapped[uuid.UUID] = mapped_column(

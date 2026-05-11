@@ -347,7 +347,6 @@ async def generate_trip(
     result = await service.generate(
         trip_id=trip_id,
         user_id=current_user.id,
-        # days=data.days,  <--- ЭТУ СТРОКУ НУЖНО УДАЛИТЬ
         interests=data.interests,
         notes=data.notes,
     )

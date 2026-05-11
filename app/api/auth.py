@@ -1,11 +1,10 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.config import settings
 from app.schemas.auth import RegisterRequest, LoginRequest, TokenResponse
 from app.services.auth import AuthService
-
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -33,7 +32,9 @@ def get_auth_service(session: AsyncSession = Depends(get_db)) -> AuthService:
     status_code=status.HTTP_201_CREATED,
     summary="Регистрация нового пользователя",
 )
+
 async def register(
+    request: Request,
     data: RegisterRequest,
     service: AuthService = Depends(get_auth_service),
 ) -> TokenResponse:
@@ -70,6 +71,7 @@ async def register(
     summary="Авторизация пользователя",
 )
 async def login(
+    request: Request,
     data: LoginRequest,
     service: AuthService = Depends(get_auth_service),
 ) -> TokenResponse:

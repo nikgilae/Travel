@@ -10,10 +10,10 @@ from app.config import settings
 
 # Асинхронный движок — пул соединений с PostgreSQL.
 # Создаётся один раз при старте приложения и переиспользуется всеми запросами.
-# echo=True выводит все SQL запросы в консоль — убрать в продакшне.
+# echo=True выводит все SQL запросы в консоль — включаем только в DEBUG.
 engine = create_async_engine(
     settings.DATABASE_URL,
-    echo=True,
+    echo=settings.DEBUG,
 )
 
 # Фабрика сессий — создаёт новую сессию для каждого HTTP запроса.

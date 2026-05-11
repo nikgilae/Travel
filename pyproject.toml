@@ -17,6 +17,7 @@ dependencies = [
     "pydantic[email]>=2.12.5",
     "pyjwt>=2.11.0",
     "shapely>=2.1.2",
+    "slowapi>=0.1.9",
     "sqlalchemy[asyncio]>=2.0.48",
     "uvicorn[standard]>=0.41.0",
 ]

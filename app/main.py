@@ -1,11 +1,15 @@
+import logging
+
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import text
-from app.core.database import AsyncSessionLocal
 
+from app.logging_config import setup_logging
+from app.core.database import AsyncSessionLocal
+from app.config import settings
 from app.api.auth import router as auth_router
 from app.api.geography import router as geo_router
 from app.api.rule import router as rule_router
@@ -19,6 +23,9 @@ from app.core.exceptions import (
 )
 from app.api import chat
 
+# Initialize logging first
+setup_logging()
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Smart Travel Companion API",
@@ -28,19 +35,34 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-origins = [
-    "http://localhost:3000",    
-    "http://127.0.0.1:3000",
-    "https://your-production-app.com", 
-]
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,      
-    allow_credentials=True,      
-    allow_methods=["*"],         
-    allow_headers=["*"],         
+    allow_origins=settings.cors_origins_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+from app.api import chat
+
+logger = logging.getLogger(__name__)
+
+app = FastAPI(
+    title="Smart Travel Companion API",
+    description="Backend API для планирования путешествий и контекстного ассистента",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+)
+
+# ── CORS ──────────────────────────────────────────────────────────────────────
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # ── ОБРАБОТЧИКИ ОШИБОК (RFC 7807) ─────────────────────────────────────────────
@@ -225,7 +247,7 @@ async def sqlalchemy_error_handler(
     JSONResponse
         HTTP 500 с полями error_code и message.
     """
-    print(f"РЕАЛЬНАЯ ОШИБКА БАЗЫ: {exc}")
+    logger.exception("Database error occurred")
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
@@ -245,8 +267,6 @@ app.include_router(chat.router)
 
 
 # ── HEALTHCHECK ───────────────────────────────────────────────────────────────
-
-
 @app.get("/health", tags=["System"])
 async def health_check() -> dict:
     """

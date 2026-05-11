@@ -18,13 +18,20 @@ class RegisterRequest(BaseModel):
     """
 
     email: EmailStr
-    password: str = Field(..., min_length=8, max_length=128)
+    password: str = Field(..., min_length=12, max_length=128)
 
     @field_validator("password")
     @classmethod
     def password_strength(cls, v: str) -> str:
         """
         Проверить сложность пароля.
+
+        Requirements:
+        - Минимум 12 символов
+        - Хотя бы одна заглавная буква
+        - Хотя бы одна строчная буква
+        - Хотя бы одна цифра
+        - Хотя бы один специальный символ (!@#$%^&* и т.д.)
 
         Parameters
         ----------
@@ -39,12 +46,21 @@ class RegisterRequest(BaseModel):
         Raises
         ------
         ValueError
-            Если пароль не содержит заглавную букву или цифру.
+            Если пароль не соответствует требованиям.
         """
+        if len(v) < 12:
+            raise ValueError("Пароль должен содержать минимум 12 символов")
         if not any(c.isupper() for c in v):
             raise ValueError("Пароль должен содержать хотя бы одну заглавную букву")
+        if not any(c.islower() for c in v):
+            raise ValueError("Пароль должен содержать хотя бы одну строчную букву")
         if not any(c.isdigit() for c in v):
             raise ValueError("Пароль должен содержать хотя бы одну цифру")
+        if not any(not c.isalnum() for c in v):
+            raise ValueError(
+                "Пароль должен содержать хотя бы один специальный символ "
+                "(!@#$%^&*_-+=[]{}|;:,.<>?)"
+            )
         return v
 
 
