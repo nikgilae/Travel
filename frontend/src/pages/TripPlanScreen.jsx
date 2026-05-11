@@ -1,7 +1,9 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import './TripPlanScreen.css'
+import TripMap from '../components/TripMap'
 
 const API_BASE = 'http://localhost:8000'
+const GMAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
 
 function getToken() { return localStorage.getItem('access_token') ?? '' }
 
@@ -100,6 +102,140 @@ function SkeletonDay() {
   )
 }
 
+// ── Place Details Modal ────────────────────────────────────
+
+function PlaceDetailsModal({ poi, cityName, onClose }) {
+  const [details, setDetails] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [err, setErr] = useState(null)
+
+  useEffect(() => {
+    if (!GMAPS_KEY) { setErr('Google Maps API key не настроен'); setLoading(false); return }
+
+    async function load() {
+      try {
+        let placeId = poi.google_place_id
+        if (!placeId) {
+          const query = encodeURIComponent(`${poi.name} ${cityName ?? ''}`)
+          const findUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${query}&inputtype=textquery&fields=place_id&key=${GMAPS_KEY}`
+          const findRes = await fetch(findUrl)
+          const findData = await findRes.json()
+          placeId = findData.candidates?.[0]?.place_id
+        }
+        if (!placeId) { setErr('Место не найдено в Google Maps'); setLoading(false); return }
+
+        const fields = 'name,rating,user_ratings_total,formatted_address,opening_hours,photos,editorial_summary,reviews'
+        const detailUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${GMAPS_KEY}`
+        const detailRes = await fetch(detailUrl)
+        const detailData = await detailRes.json()
+        setDetails(detailData.result ?? null)
+      } catch (e) {
+        setErr(e.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [poi, cityName])
+
+  const photoUrl = details?.photos?.[0]?.photo_reference
+    ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${details.photos[0].photo_reference}&key=${GMAPS_KEY}`
+    : null
+
+  const todayHours = (() => {
+    const periods = details?.opening_hours?.weekday_text
+    if (!periods) return null
+    const day = new Date().getDay()
+    const idx = day === 0 ? 6 : day - 1
+    return periods[idx] ?? null
+  })()
+
+  const mapsUrl = details?.formatted_address
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(details.formatted_address)}`
+    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(poi.name)}`
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+      background: 'rgba(13,40,24,0.5)',
+    }} onClick={onClose}>
+      <div style={{
+        background: TR.bg, borderRadius: '20px 20px 0 0',
+        maxHeight: '80vh', overflowY: 'auto',
+        border: '1.5px solid ' + TR.fg,
+        borderBottom: 'none',
+      }} onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div style={{ padding: '16px 22px 12px', borderBottom: '1px solid ' + TR.hairline, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontFamily: 'Archivo, sans-serif', fontWeight: 800, fontSize: 16, letterSpacing: '-0.02em', color: TR.fg, textTransform: 'uppercase' }}>
+            {poi.name}
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: TR.fgMute, lineHeight: 1 }}>×</button>
+        </div>
+
+        <div style={{ padding: '0 0 32px' }}>
+          {loading && (
+            <div style={{ padding: '32px 22px', textAlign: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: TR.fgMute, letterSpacing: 1 }}>
+              ЗАГРУЖАЕМ ДАННЫЕ…
+            </div>
+          )}
+          {err && (
+            <div style={{ padding: '20px 22px', fontSize: 13, color: TR.warn }}>
+              {err}
+            </div>
+          )}
+          {details && (
+            <>
+              {photoUrl && (
+                <img src={photoUrl} alt={poi.name} style={{ width: '100%', height: 180, objectFit: 'cover', display: 'block' }} />
+              )}
+              <div style={{ padding: '16px 22px 0' }}>
+                {details.rating && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <span style={{ background: TR.lime, color: TR.fg, fontFamily: 'JetBrains Mono, monospace', fontSize: 13, fontWeight: 700, padding: '3px 8px', borderRadius: 6 }}>
+                      ★ {details.rating}
+                    </span>
+                    {details.user_ratings_total && (
+                      <span style={{ fontSize: 12, color: TR.fgMute, fontFamily: 'JetBrains Mono, monospace' }}>
+                        {details.user_ratings_total.toLocaleString()} отзывов
+                      </span>
+                    )}
+                  </div>
+                )}
+                {details.formatted_address && (
+                  <div style={{ fontSize: 13, color: TR.fgMute, marginBottom: 10, lineHeight: 1.4 }}>
+                    📍 {details.formatted_address}
+                  </div>
+                )}
+                {todayHours && (
+                  <div style={{ fontSize: 12, color: TR.fg, fontFamily: 'JetBrains Mono, monospace', marginBottom: 12, padding: '6px 10px', background: TR.surface, borderRadius: 8 }}>
+                    🕐 {todayHours}
+                  </div>
+                )}
+                {details.editorial_summary?.overview && (
+                  <div style={{ fontSize: 13, color: TR.fg, lineHeight: 1.6, marginBottom: 14, fontStyle: 'italic' }}>
+                    {details.editorial_summary.overview}
+                  </div>
+                )}
+                <a href={mapsUrl} target="_blank" rel="noreferrer" style={{
+                  display: 'block', padding: '11px 0', textAlign: 'center',
+                  background: TR.fg, color: TR.lime,
+                  borderRadius: 10, fontFamily: 'Archivo, sans-serif',
+                  fontWeight: 800, fontSize: 13, letterSpacing: '0.05em',
+                  textDecoration: 'none',
+                }}>
+                  ОТКРЫТЬ В GOOGLE MAPS
+                </a>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Rhythm chart ───────────────────────────────────────────
 
 function RhythmChart({ day, color }) {
@@ -133,145 +269,6 @@ function RhythmChart({ day, color }) {
   )
 }
 
-// ── Map tab ────────────────────────────────────────────────
-
-function MapTab({ activeDay, setActiveDay, allPois, numDays }) {
-  const [activePin, setActivePin] = useState(null)
-
-  const bounds = useMemo(() => {
-    const valid = allPois.filter(p => p.poi.lat && p.poi.lon && p.day_number)
-    if (!valid.length) return null
-    const lats = valid.map(p => p.poi.lat)
-    const lons = valid.map(p => p.poi.lon)
-    return {
-      minLat: Math.min(...lats), maxLat: Math.max(...lats),
-      minLon: Math.min(...lons), maxLon: Math.max(...lons),
-    }
-  }, [allPois])
-
-  const pins = useMemo(() => {
-    if (!bounds) return []
-    const SVG_W = 252, SVG_H = 160, PAD = 20
-    const latR = bounds.maxLat - bounds.minLat || 0.01
-    const lonR = bounds.maxLon - bounds.minLon || 0.01
-    return allPois
-      .filter(p => p.poi.lat && p.poi.lon && p.day_number)
-      .sort((a, b) => (a.sequence_order ?? 999) - (b.sequence_order ?? 999))
-      .map(p => ({
-        id: p.poi.id,
-        day: p.day_number,
-        name: p.poi.name,
-        time: formatTime(p.planned_start_time),
-        x: PAD + ((p.poi.lon - bounds.minLon) / lonR) * (SVG_W - 2 * PAD),
-        y: PAD + ((bounds.maxLat - p.poi.lat) / latR) * (SVG_H - 2 * PAD),
-      }))
-  }, [allPois, bounds])
-
-  const routes = useMemo(() => pins.reduce((acc, p) => {
-    if (!acc[p.day]) acc[p.day] = []
-    acc[p.day].push(p)
-    return acc
-  }, {}), [pins])
-
-  const visiblePins = activeDay ? pins.filter(p => p.day === activeDay) : pins
-  const activePinData = activePin ? pins.find(p => p.id === activePin) : null
-
-  return (
-    <div style={{ padding: '14px 22px 32px' }}>
-      {/* Day filter */}
-      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 12, paddingBottom: 2 }}>
-        {[null, ...Array.from({ length: numDays }, (_, i) => i + 1)].map((d, i) => (
-          <button key={i} onClick={() => { setActiveDay(d ?? 1); setActivePin(null) }} style={{
-            flexShrink: 0, padding: '4px 12px',
-            border: '1.5px solid ' + (d == null ? (activeDay ? TR.hairlineSt : TR.fg) : DAY_COLORS[(d - 1) % DAY_COLORS.length]),
-            borderRadius: 99, fontSize: 11, fontFamily: 'JetBrains Mono, monospace',
-            background: (d == null ? !activeDay : activeDay === d) ? TR.fg : 'transparent',
-            color: (d == null ? !activeDay : activeDay === d) ? TR.lime : TR.fg,
-            cursor: 'pointer', letterSpacing: 0.4,
-          }}>
-            {d == null ? 'ВСЕ' : `Д${d}`}
-          </button>
-        ))}
-      </div>
-
-      {/* Map SVG */}
-      <div style={{
-        background: '#dde8e0', borderRadius: 14,
-        border: '1.5px solid ' + TR.hairlineSt, overflow: 'hidden', position: 'relative',
-      }}>
-        <svg viewBox="0 0 292 200" style={{ width: '100%', height: 200, display: 'block' }}>
-          <rect width="292" height="200" fill="#dde8e0"/>
-          {[20, 60, 100, 140, 180].map(y => (
-            <line key={y} x1="0" y1={y} x2="292" y2={y + 8} stroke="#cdddd5" strokeWidth="4"/>
-          ))}
-          {[30, 80, 130, 180, 240].map(x => (
-            <line key={x} x1={x} y1="0" x2={x + 4} y2="200" stroke="#cdddd5" strokeWidth="3"/>
-          ))}
-
-          {Object.entries(routes).map(([day, pts]) => {
-            const d = parseInt(day)
-            if (activeDay && activeDay !== d) return null
-            const pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
-            return <path key={day} d={pathD} fill="none"
-              stroke={DAY_COLORS[(d - 1) % DAY_COLORS.length]} strokeWidth="2"
-              strokeDasharray="5,3" opacity="0.7"/>
-          })}
-
-          {visiblePins.map(p => {
-            const col = DAY_COLORS[(p.day - 1) % DAY_COLORS.length]
-            const isActive = activePin === p.id
-            return (
-              <g key={p.id} onClick={() => setActivePin(isActive ? null : p.id)} style={{ cursor: 'pointer' }}>
-                <circle cx={p.x} cy={p.y} r={isActive ? 10 : 7} fill={col} stroke="#fff" strokeWidth="2"/>
-                <text x={p.x} y={p.y + 1} textAnchor="middle" dominantBaseline="middle"
-                  fontSize="8" fill="white" fontWeight="700" fontFamily="monospace">{p.day}</text>
-              </g>
-            )
-          })}
-
-          {pins.length === 0 && (
-            <text x="146" y="100" textAnchor="middle"
-              fontFamily="JetBrains Mono, monospace" fontSize="11" fill="#7a9a8a">
-              НЕТ ДАННЫХ КООРДИНАТ
-            </text>
-          )}
-        </svg>
-        <div style={{
-          position: 'absolute', bottom: 8, left: 10,
-          background: 'rgba(255,255,255,0.88)', borderRadius: 6, padding: '3px 8px',
-          fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: TR.fgMute,
-        }}>● Нажми на пин → детали</div>
-      </div>
-
-      {activePinData && (
-        <div style={{
-          marginTop: 12, padding: '14px 16px',
-          background: TR.surface, borderRadius: 14,
-          border: '1.5px solid ' + DAY_COLORS[(activePinData.day - 1) % DAY_COLORS.length],
-          boxShadow: '3px 3px 0 0 ' + DAY_COLORS[(activePinData.day - 1) % DAY_COLORS.length],
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <div style={{ fontFamily: 'Archivo, sans-serif', fontWeight: 800, fontSize: 16, textTransform: 'uppercase', color: TR.fg }}>
-                {activePinData.name}
-              </div>
-              <div style={{ fontSize: 12, color: TR.fgMute, fontFamily: 'JetBrains Mono, monospace', marginTop: 4 }}>
-                ДЕНЬ {activePinData.day}{activePinData.time ? ` · ${activePinData.time}` : ''}
-              </div>
-            </div>
-            <button onClick={() => setActivePin(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: TR.fgMute, fontSize: 16 }}>✕</button>
-          </div>
-        </div>
-      )}
-
-      <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-        <button className="tr-action-btn" style={{ flex: 1, height: 36 }}>PDF</button>
-        <button className="tr-action-btn" style={{ flex: 1, height: 36 }}>ССЫЛКА</button>
-        <button className="tr-action-btn tr-action-btn--primary" style={{ flex: 1, height: 36 }}>СОХРАНИТЬ</button>
-      </div>
-    </div>
-  )
-}
 
 // ── List tab ───────────────────────────────────────────────
 
@@ -540,6 +537,7 @@ export default function TripPlanScreen({ city, groupType, rhythm, onBack }) {
   const [trip, setTrip]             = useState(null)
   const [loading, setLoading]       = useState(() => !!localStorage.getItem('current_trip_id'))
   const [error, setError]           = useState(null)
+  const [detailsPoi, setDetailsPoi] = useState(null)
 
   useEffect(() => {
     const tripId = localStorage.getItem('current_trip_id')
@@ -697,7 +695,15 @@ export default function TripPlanScreen({ city, groupType, rhythm, onBack }) {
         {/* ── Tab content ── */}
         {activeTab === 2 && <ListTab allPois={allPois} />}
         {activeTab === 3 && <BudgetTab trip={trip} poisByDay={poisByDay} numDays={numDays} />}
-        {activeTab === 1 && <MapTab activeDay={activeDay} setActiveDay={setActiveDay} allPois={allPois} numDays={numDays} />}
+        {activeTab === 1 && (
+          <TripMap
+            allPois={allPois}
+            numDays={numDays}
+            activeDay={activeDay}
+            setActiveDay={setActiveDay}
+            cityName={city?.n ?? null}
+          />
+        )}
 
         {activeTab === 0 && (
           <>
@@ -734,6 +740,29 @@ export default function TripPlanScreen({ city, groupType, rhythm, onBack }) {
                 )
               })}
             </div>
+
+            {/* ── AI summary ── */}
+            {(trip?.ai_summary || trip?.total_budget_estimate) && (
+              <div style={{
+                margin: '10px 22px 0',
+                padding: '12px 14px',
+                background: '#f5f0e8',
+                border: '1.5px solid ' + TR.hairline,
+                borderLeft: '3px solid #b8ff4f',
+                borderRadius: 12,
+              }}>
+                {trip.ai_summary && (
+                  <div style={{ fontSize: 13, color: '#1a1f1a', lineHeight: 1.55, marginBottom: trip.total_budget_estimate ? 8 : 0 }}>
+                    {trip.ai_summary}
+                  </div>
+                )}
+                {trip.total_budget_estimate && (
+                  <div style={{ fontSize: 11, color: TR.fgMute, fontFamily: 'JetBrains Mono, monospace' }}>
+                    Общий бюджет: {trip.total_budget_estimate}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* ── Day rhythm chart ── */}
             <div style={{ padding: '4px 22px 0' }}>
@@ -796,12 +825,14 @@ export default function TripPlanScreen({ city, groupType, rhythm, onBack }) {
                   position: 'absolute',
                   left: 22 + 46 + 12 + 6,
                   top: 24, bottom: 24,
-                  width: 1, background: TR.hairlineSt,
+                  width: 1, background: '#b8ff4f',
+                  opacity: 0.6,
                 }} />
 
                 {dayPois.map((p, i) => {
                   const isMain = p.poi_status === 'main'
-                  const timeStr = formatTime(p.planned_start_time)
+                  const startT = p.start_time ?? formatTime(p.planned_start_time)
+                  const endT   = p.end_time ?? null
 
                   return (
                     <div key={p.poi.id} style={{
@@ -812,15 +843,22 @@ export default function TripPlanScreen({ city, groupType, rhythm, onBack }) {
                       <div style={{ width: 46, flexShrink: 0, textAlign: 'right', paddingTop: 4 }}>
                         <div style={{
                           fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
-                          color: TR.fg, fontWeight: 700, letterSpacing: 0.4,
-                        }}>{timeStr ?? '—:—'}</div>
+                          color: '#b8ff4f', fontWeight: 700, letterSpacing: 0.4,
+                          textShadow: '0 0 8px rgba(184,255,79,0.4)',
+                        }}>{startT ?? '—:—'}</div>
+                        {endT && (
+                          <div style={{
+                            fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
+                            color: TR.fgMute, letterSpacing: 0.4, marginTop: 2,
+                          }}>{endT}</div>
+                        )}
                         <div style={{
                           fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
                           color: TR.fgMute, letterSpacing: 0.6, marginTop: 2,
                         }}>{p.poi.is_indoor ? 'ЗАКРЫТОЕ' : 'НА УЛИЦЕ'}</div>
                       </div>
 
-                      {/* Timeline dot */}
+                      {/* Timeline dot + line */}
                       <div style={{
                         width: 14, flexShrink: 0, paddingTop: 8,
                         display: 'flex', justifyContent: 'center',
@@ -829,13 +867,13 @@ export default function TripPlanScreen({ city, groupType, rhythm, onBack }) {
                         {isMain ? (
                           <div style={{
                             width: 14, height: 14, borderRadius: '50%',
-                            background: color, border: '2px solid ' + TR.bg,
-                            boxShadow: '0 0 0 1.5px ' + color,
+                            background: '#b8ff4f', border: '2px solid ' + TR.bg,
+                            boxShadow: '0 0 0 1.5px #b8ff4f',
                           }} />
                         ) : (
                           <div style={{
                             width: 10, height: 10, borderRadius: '50%',
-                            background: TR.bg, border: '1.8px solid ' + color,
+                            background: TR.bg, border: '1.8px solid #b8ff4f',
                           }} />
                         )}
                       </div>
@@ -850,9 +888,10 @@ export default function TripPlanScreen({ city, groupType, rhythm, onBack }) {
                           boxShadow: isMain ? '3px 3px 0 0 ' + TR.fg : 'none',
                           transform: isMain ? 'translate(-1px,-1px)' : 'none',
                         }}>
+                          {/* Name + budget */}
                           <div style={{
                             display: 'flex', justifyContent: 'space-between',
-                            alignItems: 'baseline', gap: 8,
+                            alignItems: 'flex-start', gap: 8,
                           }}>
                             <div style={{
                               fontFamily: 'Archivo, sans-serif',
@@ -860,9 +899,25 @@ export default function TripPlanScreen({ city, groupType, rhythm, onBack }) {
                               lineHeight: 1.1, letterSpacing: '-0.02em',
                               textTransform: 'uppercase', flex: 1, color: TR.fg,
                             }}>{p.poi.name}</div>
+                            {p.budget_estimate && (
+                              <div style={{
+                                flexShrink: 0, fontFamily: 'JetBrains Mono, monospace',
+                                fontSize: 10, color: TR.fgMute,
+                                background: TR.surface2, padding: '2px 7px',
+                                borderRadius: 6, whiteSpace: 'nowrap',
+                              }}>💰 {p.budget_estimate}</div>
+                            )}
                           </div>
 
-                          {p.poi.description && (
+                          {/* ai_tip */}
+                          {p.ai_tip && (
+                            <div style={{
+                              marginTop: 6, fontSize: 12, color: TR.fgMute,
+                              lineHeight: 1.5, fontStyle: 'italic',
+                            }}>💡 {p.ai_tip}</div>
+                          )}
+
+                          {!p.ai_tip && p.poi.description && (
                             <div style={{
                               marginTop: 4, fontSize: 13, color: TR.fgMute, lineHeight: 1.4,
                               fontStyle: isMain ? 'normal' : 'italic',
@@ -881,7 +936,7 @@ export default function TripPlanScreen({ city, groupType, rhythm, onBack }) {
                               display: 'flex', gap: 8,
                             }}>
                               <button className="tr-action-btn tr-action-btn--primary">ЗАМЕНИТЬ</button>
-                              <button className="tr-action-btn">ДЕТАЛИ</button>
+                              <button className="tr-action-btn" onClick={() => setDetailsPoi(p.poi)}>ДЕТАЛИ</button>
                             </div>
                           )}
                         </div>
@@ -895,6 +950,14 @@ export default function TripPlanScreen({ city, groupType, rhythm, onBack }) {
         )}
 
       </div>
+
+      {detailsPoi && (
+        <PlaceDetailsModal
+          poi={detailsPoi}
+          cityName={cityName}
+          onClose={() => setDetailsPoi(null)}
+        />
+      )}
     </div>
   )
 }

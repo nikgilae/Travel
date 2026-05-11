@@ -98,6 +98,12 @@ class TripPOIResponse(BaseModel):
     poi_status: str
     is_selected: bool
     day_number: Optional[int] = None
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    duration_hours: Optional[float] = None
+    budget_estimate: Optional[str] = None
+    ai_tip: Optional[str] = None
+    day_theme: Optional[str] = None
 
 class TripPOIWithWarningsResponse(BaseModel):
     """
@@ -136,6 +142,8 @@ class TripResponse(BaseModel):
     start_date: Optional[date]
     end_date: Optional[date]
     created_at: datetime
+    ai_summary: Optional[str] = None
+    total_budget_estimate: Optional[str] = None
 
 
 class TripWithPOIsResponse(TripResponse):
