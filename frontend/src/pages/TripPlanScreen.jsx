@@ -110,25 +110,23 @@ function PlaceDetailsModal({ poi, cityName, onClose }) {
   const [err, setErr] = useState(null)
 
   useEffect(() => {
-    if (!GMAPS_KEY) { setErr('Google Maps API key не настроен'); setLoading(false); return }
+    const headers = { Authorization: `Bearer ${getToken()}` }
 
     async function load() {
       try {
         let placeId = poi.google_place_id
         if (!placeId) {
-          const query = encodeURIComponent(`${poi.name} ${cityName ?? ''}`)
-          const findUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${query}&inputtype=textquery&fields=place_id&key=${GMAPS_KEY}`
-          const findRes = await fetch(findUrl)
+          const query = `${poi.name} ${cityName ?? ''}`
+          const findRes = await fetch(`${API_BASE}/places/find?input=${encodeURIComponent(query)}`, { headers })
+          if (!findRes.ok) { setErr('Место не найдено в Google Maps'); setLoading(false); return }
           const findData = await findRes.json()
-          placeId = findData.candidates?.[0]?.place_id
+          placeId = findData.place_id
         }
         if (!placeId) { setErr('Место не найдено в Google Maps'); setLoading(false); return }
 
-        const fields = 'name,rating,user_ratings_total,formatted_address,opening_hours,photos,editorial_summary,reviews'
-        const detailUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${GMAPS_KEY}`
-        const detailRes = await fetch(detailUrl)
-        const detailData = await detailRes.json()
-        setDetails(detailData.result ?? null)
+        const detailRes = await fetch(`${API_BASE}/places/details?place_id=${placeId}`, { headers })
+        if (!detailRes.ok) { setErr('Не удалось загрузить детали'); setLoading(false); return }
+        setDetails(await detailRes.json())
       } catch (e) {
         setErr(e.message)
       } finally {
@@ -138,9 +136,16 @@ function PlaceDetailsModal({ poi, cityName, onClose }) {
     load()
   }, [poi, cityName])
 
-  const photoUrl = details?.photos?.[0]?.photo_reference
-    ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${details.photos[0].photo_reference}&key=${GMAPS_KEY}`
-    : null
+  const [photoBlob, setPhotoBlob] = useState(null)
+  useEffect(() => {
+    if (!details?.photos?.[0]?.photo_reference) return
+    const ref = details.photos[0].photo_reference
+    fetch(`${API_BASE}/places/photo?photo_reference=${encodeURIComponent(ref)}&maxwidth=400`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+      .then(r => r.ok ? r.blob() : null)
+      .then(blob => blob && setPhotoBlob(URL.createObjectURL(blob)))
+  }, [details])
 
   const todayHours = (() => {
     const periods = details?.opening_hours?.weekday_text
@@ -187,8 +192,8 @@ function PlaceDetailsModal({ poi, cityName, onClose }) {
           )}
           {details && (
             <>
-              {photoUrl && (
-                <img src={photoUrl} alt={poi.name} style={{ width: '100%', height: 180, objectFit: 'cover', display: 'block' }} />
+              {photoBlob && (
+                <img src={photoBlob} alt={poi.name} style={{ width: '100%', height: 180, objectFit: 'cover', display: 'block' }} />
               )}
               <div style={{ padding: '16px 22px 0' }}>
                 {details.rating && (
@@ -537,7 +542,8 @@ export default function TripPlanScreen({ city, groupType, rhythm, onBack }) {
   const [trip, setTrip]             = useState(null)
   const [loading, setLoading]       = useState(() => !!localStorage.getItem('current_trip_id'))
   const [error, setError]           = useState(null)
-  const [detailsPoi, setDetailsPoi] = useState(null)
+  const [detailsPoi, setDetailsPoi]       = useState(null)
+  const [replacingPoiId, setReplacingPoiId] = useState(null)
 
   useEffect(() => {
     const tripId = localStorage.getItem('current_trip_id')
@@ -829,22 +835,24 @@ export default function TripPlanScreen({ city, groupType, rhythm, onBack }) {
                   opacity: 0.6,
                 }} />
 
-                {dayPois.map((p, i) => {
-                  const isMain = p.poi_status === 'main'
+                {(() => {
+                  const altPois = dayPois.filter(p => p.poi_status === 'additional')
+                  const mainPois = dayPois.filter(p => p.poi_status === 'main')
+                  return mainPois.map((p, i) => {
+                  const isMain = true
                   const startT = p.start_time ?? formatTime(p.planned_start_time)
                   const endT   = p.end_time ?? null
+                  const isReplacing = replacingPoiId === p.poi.id
 
                   return (
                     <div key={p.poi.id} style={{
-                      display: 'flex', gap: 12, alignItems: 'flex-start',
-                      paddingBottom: i < dayPois.length - 1 ? 18 : 0,
-                    }}>
+                      paddingBottom: i < mainPois.length - 1 ? 18 : 0,
+                    }}><div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                       {/* Time column */}
                       <div style={{ width: 46, flexShrink: 0, textAlign: 'right', paddingTop: 4 }}>
                         <div style={{
                           fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
-                          color: '#b8ff4f', fontWeight: 700, letterSpacing: 0.4,
-                          textShadow: '0 0 8px rgba(184,255,79,0.4)',
+                          color: '#4d7a00', fontWeight: 700, letterSpacing: 0.4,
                         }}>{startT ?? '—:—'}</div>
                         {endT && (
                           <div style={{
@@ -852,10 +860,6 @@ export default function TripPlanScreen({ city, groupType, rhythm, onBack }) {
                             color: TR.fgMute, letterSpacing: 0.4, marginTop: 2,
                           }}>{endT}</div>
                         )}
-                        <div style={{
-                          fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
-                          color: TR.fgMute, letterSpacing: 0.6, marginTop: 2,
-                        }}>{p.poi.is_indoor ? 'ЗАКРЫТОЕ' : 'НА УЛИЦЕ'}</div>
                       </div>
 
                       {/* Timeline dot + line */}
@@ -924,26 +928,88 @@ export default function TripPlanScreen({ city, groupType, rhythm, onBack }) {
                             }}>{p.poi.description}</div>
                           )}
 
-                          <div style={{
-                            marginTop: 6, fontFamily: 'JetBrains Mono, monospace',
-                            fontSize: 9, color: TR.fgMute, letterSpacing: 1,
-                          }}>↳ {p.poi.is_indoor ? 'ЗАКРЫТОЕ МЕСТО' : 'НА ОТКРЫТОМ ВОЗДУХЕ'}</div>
 
-                          {isMain && (
-                            <div style={{
-                              marginTop: 10, paddingTop: 10,
-                              borderTop: '1px dashed ' + TR.hairlineSt,
-                              display: 'flex', gap: 8,
-                            }}>
-                              <button className="tr-action-btn tr-action-btn--primary">ЗАМЕНИТЬ</button>
-                              <button className="tr-action-btn" onClick={() => setDetailsPoi(p.poi)}>ДЕТАЛИ</button>
-                            </div>
-                          )}
+                          <div style={{
+                            marginTop: 10, paddingTop: 10,
+                            borderTop: '1px dashed ' + TR.hairlineSt,
+                            display: 'flex', gap: 8,
+                          }}>
+                            <button
+                              className={`tr-action-btn${isReplacing ? ' tr-action-btn--primary' : ''}`}
+                              onClick={() => setReplacingPoiId(isReplacing ? null : p.poi.id)}
+                            >
+                              {isReplacing ? 'ЗАКРЫТЬ ✕' : 'ЗАМЕНИТЬ'}
+                            </button>
+                            <button className="tr-action-btn" onClick={() => setDetailsPoi(p.poi)}>ДЕТАЛИ</button>
+                          </div>
                         </div>
                       </div>
                     </div>
+
+                    {/* Alternatives strip */}
+                    {isReplacing && (
+                      <div style={{ marginTop: 10, marginLeft: 46 + 12 + 14 + 12 }}>
+                        {altPois.length === 0 ? (
+                          <div style={{
+                            padding: '10px 14px', fontSize: 12, color: TR.fgMute,
+                            fontFamily: 'JetBrains Mono, monospace', letterSpacing: 0.6,
+                          }}>НЕТ АЛЬТЕРНАТИВ</div>
+                        ) : (
+                          <div style={{
+                            display: 'flex', gap: 10, overflowX: 'auto',
+                            paddingBottom: 6,
+                          }}>
+                            {altPois.map(alt => (
+                              <div key={alt.poi.id} style={{
+                                flexShrink: 0, width: 160,
+                                background: TR.surface,
+                                border: '1.5px solid ' + TR.hairlineSt,
+                                borderRadius: 12, padding: '10px 12px',
+                                cursor: 'pointer',
+                                transition: 'border-color 0.15s',
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.borderColor = TR.fg}
+                              onMouseLeave={e => e.currentTarget.style.borderColor = TR.hairlineSt}
+                              >
+                                <div style={{
+                                  fontFamily: 'Archivo, sans-serif', fontWeight: 800,
+                                  fontSize: 13, letterSpacing: '-0.01em',
+                                  textTransform: 'uppercase', color: TR.fg,
+                                  lineHeight: 1.2, marginBottom: 6,
+                                  overflow: 'hidden', display: '-webkit-box',
+                                  WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                                }}>{alt.poi.name}</div>
+                                {alt.start_time && (
+                                  <div style={{
+                                    fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+                                    color: '#4d7a00', fontWeight: 700, marginBottom: 4,
+                                  }}>{alt.start_time}{alt.end_time ? ` — ${alt.end_time}` : ''}</div>
+                                )}
+                                {alt.budget_estimate && (
+                                  <div style={{
+                                    fontSize: 10, color: TR.fgMute,
+                                    fontFamily: 'JetBrains Mono, monospace',
+                                    marginBottom: 4,
+                                  }}>💰 {alt.budget_estimate}</div>
+                                )}
+                                {alt.ai_tip && (
+                                  <div style={{
+                                    fontSize: 11, color: TR.fgMute,
+                                    lineHeight: 1.4, fontStyle: 'italic',
+                                    overflow: 'hidden', display: '-webkit-box',
+                                    WebkitLineClamp: 3, WebkitBoxOrient: 'vertical',
+                                  }}>💡 {alt.ai_tip}</div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   )
-                })}
+                  })
+                })()}
               </div>
             )}
           </>
