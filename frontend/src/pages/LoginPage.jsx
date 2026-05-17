@@ -18,6 +18,7 @@ export default function LoginPage() {
     try {
       const data = await login(email, password)
       setToken(data.access_token)
+      localStorage.setItem('user_email', email)
       navigate('/onboarding')
     } catch (err) {
       setError(err.message)

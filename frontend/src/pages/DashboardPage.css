@@ -15,6 +15,14 @@
   background: #1a1f1a;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+.dash-phone__scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
 }
 
 @media (min-width: 500px) {
@@ -23,8 +31,8 @@
   }
   .dash-phone {
     min-height: auto;
-    max-height: 900px;
-    overflow-y: auto;
+    height: min(calc(100svh - 64px), 900px);
+    overflow: hidden;
     border-radius: 40px;
     box-shadow: 0 24px 64px rgba(0,0,0,0.5);
     margin: 32px 0;

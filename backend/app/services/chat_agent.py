@@ -24,7 +24,7 @@ class TravelAgentService:
             timeout=custom_timeout,
         ) 
         
-        self.model_name = "gemini-2.5-flash" 
+        self.model_name = settings.AI_MODEL
         
         self.system_prompt = """
         Ты — элитный тревел-консьерж. Помогай пользователю планировать путешествие.

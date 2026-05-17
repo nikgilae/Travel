@@ -1,18 +1,22 @@
 import { useState } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useParams } from 'react-router-dom'
 import { useOnboarding } from './store/onboardingStore.jsx'
-import LoginPage from './pages/LoginPage'
-import RegisterPage from './pages/RegisterPage'
-import DashboardPage from './pages/DashboardPage'
-import ActiveTripPage from './pages/ActiveTripPage'
-import OnboardingStep1 from './pages/OnboardingStep1'
-import OnboardingStep2 from './pages/OnboardingStep2'
-import OnboardingDates from './pages/OnboardingDates'
-import OnboardingStyle from './pages/OnboardingStyle'
-import OnboardingStep3 from './pages/OnboardingStep3'
-import OnboardingBudget from './pages/OnboardingBudget'
+
+import LoginPage            from './pages/LoginPage'
+import RegisterPage         from './pages/RegisterPage'
+import DashboardPage        from './pages/DashboardPage'
+import GeneralChatPage      from './pages/GeneralChatPage'
+import TripChatPage         from './pages/TripChatPage'
+import NearbyPage           from './pages/NearbyPage'
+import TripPlanScreen       from './pages/TripPlanScreen'
+import OnboardingStep1      from './pages/OnboardingStep1'
+import OnboardingStep2      from './pages/OnboardingStep2'
+import OnboardingDates      from './pages/OnboardingDates'
+import OnboardingStyle      from './pages/OnboardingStyle'
+import OnboardingStep3      from './pages/OnboardingStep3'
+import OnboardingBudget     from './pages/OnboardingBudget'
 import OnboardingFinalQuestion from './pages/OnboardingFinalQuestion'
-import TripPlanScreen from './pages/TripPlanScreen'
+import BottomTabBar, { RouteIcon, ChatIcon, NearbyIcon } from './components/BottomTabBar'
 
 // ── Helpers ────────────────────────────────────────────────
 
@@ -30,22 +34,68 @@ function calcEndDate(startDay, duration) {
   return fmtDate({ year: d.getFullYear(), month: d.getMonth(), day: d.getDate() })
 }
 
-// ── Onboarding flow ────────────────────────────────────────
+// ── Layouts ────────────────────────────────────────────────
 
-// step map:
-// 1 → country/city
-// 2 → group type   (01/06)
-// 3 → dates        (02/06)
-// 4 → style        (03/06)
-// 5 → rhythm       (04/06)
-// 6 → budget       (05/06)
-// 7 → final q      (06/06) ← POST /trips happens here
+function DashboardLayout() {
+  const tabs = [
+    { route: '/dashboard/routes', label: 'Маршруты', icon: <RouteIcon /> },
+    { route: '/dashboard/chat',   label: 'Чат',      icon: <ChatIcon /> },
+  ]
+  return (
+    <div className="dash-app">
+      <div className="dash-phone">
+        <div className="dash-phone__scroll">
+          <Outlet />
+        </div>
+        <BottomTabBar tabs={tabs} theme="dark" />
+      </div>
+    </div>
+  )
+}
+
+function TripLayout() {
+  const { id } = useParams()
+  const tabs = [
+    { route: `/trip/${id}/plan`, label: 'Маршрут', icon: <RouteIcon /> },
+    { route: `/trip/${id}/chat`, label: 'Чат',     icon: <ChatIcon /> },
+  ]
+  return (
+    <div className="tr-app">
+      <div className="tr-phone">
+        <div className="tr-phone__scroll">
+          <Outlet />
+        </div>
+        <BottomTabBar tabs={tabs} theme="light" />
+      </div>
+    </div>
+  )
+}
+
+function TripLiveLayout() {
+  const { id } = useParams()
+  const tabs = [
+    { route: `/trip/${id}/live/plan`,   label: 'Маршрут', icon: <RouteIcon /> },
+    { route: `/trip/${id}/live/chat`,   label: 'Чат',     icon: <ChatIcon /> },
+    { route: `/trip/${id}/live/nearby`, label: 'Рядом',   icon: <NearbyIcon /> },
+  ]
+  return (
+    <div className="tr-app">
+      <div className="tr-phone">
+        <div className="tr-phone__scroll">
+          <Outlet />
+        </div>
+        <BottomTabBar tabs={tabs} theme="light" />
+      </div>
+    </div>
+  )
+}
+
+// ── Onboarding flow ────────────────────────────────────────
 
 function OnboardingFlow() {
   const { update } = useOnboarding()
   const [step, setStep] = useState(1)
 
-  // Local display-only state (not needed in the API body)
   const [city,      setCity]      = useState(null)
   const [groupType, setGroupType] = useState(null)
   const [rhythm,    setRhythm]    = useState(null)
@@ -61,7 +111,7 @@ function OnboardingFlow() {
     <OnboardingBudget
       city={city} groupType={groupType}
       onBack={() => setStep(5)}
-      onContinue={(level, priority) => {
+      onContinue={(level) => {
         update({ budget: BUDGET_MAP[level] ?? 'medium' })
         setStep(7)
       }}
@@ -133,41 +183,42 @@ function OnboardingFlow() {
   )
 }
 
-// ── /trip-plan route ───────────────────────────────────────
-
-function TripPlanRoute() {
-  const location = useLocation()
-  const navigate  = useNavigate()
-  const state     = location.state ?? {}
-
-  // Prefer state passed by navigate(); fall back to localStorage
-  const display = state.city
-    ? state
-    : JSON.parse(localStorage.getItem('trip_display_data') ?? '{}')
-
-  return (
-    <TripPlanScreen
-      city={display.city}
-      groupType={display.groupType}
-      rhythm={display.rhythm}
-      onBack={() => navigate('/dashboard')}
-    />
-  )
-}
-
-// ── App ───────────────────────────────────────────────��────
+// ── App ────────────────────────────────────────────────────
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/"          element={<LoginPage />} />
-        <Route path="/register"  element={<RegisterPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/trip"      element={<ActiveTripPage />} />
+        {/* Auth */}
+        <Route path="/"         element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+
+        {/* Onboarding (no nav bar) */}
         <Route path="/onboarding" element={<OnboardingFlow />} />
-        <Route path="/trip-plan" element={<TripPlanRoute />} />
-        <Route path="*"          element={<Navigate to="/" replace />} />
+
+        {/* Level 1 — Dashboard */}
+        <Route path="/dashboard" element={<Navigate to="/dashboard/routes" replace />} />
+        <Route element={<DashboardLayout />}>
+          <Route path="/dashboard/routes" element={<DashboardPage />} />
+          <Route path="/dashboard/chat"   element={<GeneralChatPage />} />
+        </Route>
+
+        {/* Level 2 — Trip (pre-trip) */}
+        <Route path="/trip/:id" element={<TripLayout />}>
+          <Route index                    element={<Navigate to="plan" replace />} />
+          <Route path="plan"              element={<TripPlanScreen />} />
+          <Route path="chat"              element={<TripChatPage />} />
+        </Route>
+
+        {/* Level 3 — Trip Live (in-trip) */}
+        <Route path="/trip/:id/live" element={<TripLiveLayout />}>
+          <Route index                    element={<Navigate to="plan" replace />} />
+          <Route path="plan"              element={<TripPlanScreen live />} />
+          <Route path="chat"              element={<TripChatPage />} />
+          <Route path="nearby"            element={<NearbyPage />} />
+        </Route>
+
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   )

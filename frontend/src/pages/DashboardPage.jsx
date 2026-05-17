@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import './DashboardPage.css'
 
@@ -120,6 +120,76 @@ function TripCard({ trip, meta, onClick }) {
   )
 }
 
+// ── Profile dropdown ───────────────────────────────────────
+
+function ProfileButton({ onLogout }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  const email = localStorage.getItem('user_email') ?? '—'
+
+  useEffect(() => {
+    if (!open) return
+    function handleClick(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [open])
+
+  return (
+    <div ref={ref} style={{ position: 'relative', flexShrink: 0 }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: 36, height: 36, borderRadius: '50%',
+          background: open ? '#b8ff4f' : 'rgba(255,255,255,0.1)',
+          border: '1.5px solid rgba(255,255,255,0.2)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', transition: 'background 0.15s',
+          color: open ? '#1a1f1a' : 'rgba(255,255,255,0.7)',
+          fontSize: 15,
+        }}
+      >
+        ☺
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: 44, right: 0,
+          background: '#1a1f1a', border: '1.5px solid rgba(255,255,255,0.12)',
+          borderRadius: 14, padding: '14px 16px',
+          minWidth: 200, zIndex: 100,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+        }}>
+          <div style={{
+            fontSize: 10, color: 'rgba(255,255,255,0.4)',
+            fontFamily: 'monospace', letterSpacing: '0.1em',
+            marginBottom: 6, textTransform: 'uppercase',
+          }}>Аккаунт</div>
+          <div style={{
+            fontSize: 13, color: '#fff', fontWeight: 600,
+            marginBottom: 14, wordBreak: 'break-all', lineHeight: 1.3,
+          }}>{email}</div>
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', marginBottom: 12 }} />
+          <button
+            onClick={() => { setOpen(false); onLogout() }}
+            style={{
+              width: '100%', height: 36,
+              background: 'rgba(200,85,61,0.15)',
+              border: '1px solid rgba(200,85,61,0.35)',
+              borderRadius: 8, cursor: 'pointer',
+              color: '#e87460', fontSize: 12, fontWeight: 700,
+              letterSpacing: '0.05em', fontFamily: 'inherit',
+            }}
+          >
+            ВЫЙТИ ИЗ АККАУНТА
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main ───────────────────────────────────────────────────
 
 export default function DashboardPage() {
@@ -143,26 +213,30 @@ export default function DashboardPage() {
   }, [])
 
   function openTrip(trip) {
-    localStorage.setItem('current_trip_id', trip.id)
     const meta = tripMeta[trip.id]
-    if (meta) {
-      localStorage.setItem('trip_display_data', JSON.stringify({
-        city:      meta.city,
-        groupType: meta.groupType,
-        rhythm:    meta.rhythm,
-      }))
-    }
-    navigate('/trip-plan')
+    navigate(`/trip/${trip.id}/plan`, {
+      state: {
+        city:      meta?.city      ?? null,
+        groupType: meta?.groupType ?? null,
+        rhythm:    meta?.rhythm    ?? null,
+      },
+    })
   }
 
   return (
-    <div className="dash-app">
-      <div className="dash-phone">
+    <>
 
         {/* Header */}
         <div style={{ padding: '28px 22px 20px' }}>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', fontFamily: 'monospace', letterSpacing: '0.12em', marginBottom: 8 }}>
-            ✦ TOURRHYTHM
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', fontFamily: 'monospace', letterSpacing: '0.12em' }}>
+              ✦ TOURRHYTHM
+            </div>
+            <ProfileButton onLogout={() => {
+              localStorage.removeItem('access_token')
+              localStorage.removeItem('user_email')
+              navigate('/')
+            }} />
           </div>
           <h1 style={{
             fontSize: 32, fontWeight: 900, textTransform: 'uppercase',
@@ -234,25 +308,8 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Logout */}
-        <div style={{ padding: '32px 22px 40px', textAlign: 'center' }}>
-          <button
-            onClick={() => {
-              localStorage.removeItem('access_token')
-              navigate('/')
-            }}
-            style={{
-              background: 'none', border: 'none',
-              color: 'rgba(255,255,255,0.35)', fontSize: 13,
-              cursor: 'pointer', textDecoration: 'underline',
-              fontFamily: 'inherit',
-            }}
-          >
-            Выйти из аккаунта
-          </button>
-        </div>
+        <div style={{ height: 24 }} />
 
-      </div>
-    </div>
+    </>
   )
 }

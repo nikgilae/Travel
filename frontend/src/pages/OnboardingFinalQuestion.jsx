@@ -110,7 +110,7 @@ export default function OnboardingFinalQuestion({ city, groupType, rhythm, onBac
         throw new Error(errBody.detail ?? `Не удалось сгенерировать маршрут (${genRes.status})`)
       }
 
-      navigate('/trip-plan', { state: { city, groupType, rhythm } })
+      navigate(`/trip/${trip.id}/plan`, { state: { city, groupType, rhythm } })
     } catch (err) {
       setApiError(err.message)
       setLoading(false)

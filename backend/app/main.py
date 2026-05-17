@@ -22,6 +22,8 @@ from app.core.exceptions import (
     ForbiddenException,
 )
 from app.api import chat
+from app.api.chat import general_router
+from app.api.places import router as places_router
 
 # Initialize logging first
 setup_logging()
@@ -264,6 +266,8 @@ app.include_router(rule_router)
 app.include_router(poi_router)
 app.include_router(trip_router)
 app.include_router(chat.router)
+app.include_router(general_router)
+app.include_router(places_router)
 
 
 # ── HEALTHCHECK ───────────────────────────────────────────────────────────────

@@ -1,0 +1,17 @@
+.chat-chips::-webkit-scrollbar { display: none; }
+.chat-chips { scrollbar-width: none; }
+
+.chat-messages::-webkit-scrollbar { display: none; }
+.chat-messages { scrollbar-width: none; }
+
+@keyframes chat-dot-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30%            { transform: translateY(-4px); opacity: 1; }
+}
+
+.chat-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  animation: chat-dot-bounce 1.2s ease-in-out infinite;
+}
