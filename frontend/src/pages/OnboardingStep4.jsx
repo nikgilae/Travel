@@ -240,13 +240,6 @@ export default function OnboardingStep4({ city, groupType, rhythm, onComplete })
 
         {/* ── Spacer + footer ── */}
         <div style={{ flex: 1 }} />
-        <div style={{
-          padding: '14px 22px 22px', textAlign: 'center',
-          fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
-          letterSpacing: '0.22em', color: TR.fgMute,
-        }}>
-          ✦ ЧЕРНОВИК СОХРАНЯЕТСЯ АВТОМАТИЧЕСКИ ✦
-        </div>
 
       </div>
     </div>

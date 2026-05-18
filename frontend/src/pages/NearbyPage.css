@@ -1,0 +1,15 @@
+.nearby-chips {
+  scrollbar-width: none;
+}
+.nearby-chips::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes nearby-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}
+
+.nearby-skeleton {
+  animation: nearby-pulse 1.4s ease-in-out infinite;
+}

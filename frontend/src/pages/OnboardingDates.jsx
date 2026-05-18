@@ -13,7 +13,7 @@ const TR = {
   warn:       '#c8553d',
 }
 
-const DURATION_OPTS = [3, 5, 7, 10, 14, 21]
+const MAX_DAYS = 21
 
 const MONTH_NAMES = [
   'Январь','Февраль','Март','Апрель','Май','Июнь',
@@ -23,7 +23,6 @@ const DAY_NAMES = ['ПН','ВТ','СР','ЧТ','ПТ','СБ','ВС']
 
 function buildCalendar(year, month) {
   const firstDay = new Date(year, month, 1)
-  // Monday-first: 0=Mon…6=Sun
   const startDow = (firstDay.getDay() + 6) % 7
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const cells = []
@@ -31,6 +30,18 @@ function buildCalendar(year, month) {
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
   while (cells.length % 7 !== 0) cells.push(null)
   return cells
+}
+
+function toDate({ year, month, day }) {
+  return new Date(year, month, day)
+}
+
+function daysBetween(a, b) {
+  return Math.round((toDate(b) - toDate(a)) / (1000 * 60 * 60 * 24)) + 1
+}
+
+function fmtDay(d) {
+  return `${d.day} ${MONTH_NAMES[d.month]}`
 }
 
 const ChevronLeft = () => (
@@ -50,14 +61,16 @@ const ArrowRight = () => (
 )
 
 const today = new Date()
+today.setHours(0, 0, 0, 0)
 
 export default function OnboardingDates({ city, groupType, onBack, onContinue }) {
   const [viewYear, setViewYear]   = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth())
   const [startDay, setStartDay]   = useState(null) // { year, month, day }
-  const [duration, setDuration]   = useState(7)
+  const [endDay, setEndDay]       = useState(null) // { year, month, day }
+  const [overLimit, setOverLimit] = useState(false)
 
-  const cityName  = city?.n  ?? 'Рим'
+  const cityName   = city?.n ?? 'Рим'
   const groupLabel = { solo:'СОЛО', duo:'ВДВОЁМ', family:'СЕМЬЯ', friends:'ДРУЗЬЯ', group:'ГРУППА' }[groupType] ?? 'ВДВОЁМ'
 
   const cells = buildCalendar(viewYear, viewMonth)
@@ -73,46 +86,70 @@ export default function OnboardingDates({ city, groupType, onBack, onContinue })
 
   const isPast = (day) => {
     if (!day) return false
-    const d = new Date(viewYear, viewMonth, day)
-    d.setHours(0,0,0,0)
-    const t = new Date(); t.setHours(0,0,0,0)
-    return d < t
+    return new Date(viewYear, viewMonth, day) < today
   }
 
-  const isSel = (day) =>
+  const cellDate = (day) => ({ year: viewYear, month: viewMonth, day })
+
+  const isStart = (day) =>
     day && startDay &&
-    startDay.year === viewYear &&
-    startDay.month === viewMonth &&
-    startDay.day === day
+    startDay.year === viewYear && startDay.month === viewMonth && startDay.day === day
+
+  const isEnd = (day) =>
+    day && endDay &&
+    endDay.year === viewYear && endDay.month === viewMonth && endDay.day === day
 
   const isInRange = (day) => {
-    if (!day || !startDay) return false
+    if (!day || !startDay || !endDay) return false
     const d = new Date(viewYear, viewMonth, day)
-    const s = new Date(startDay.year, startDay.month, startDay.day)
-    const e = new Date(s); e.setDate(e.getDate() + duration - 1)
-    return d > s && d <= e
+    return d > toDate(startDay) && d < toDate(endDay)
   }
 
-  const endDateLabel = () => {
-    if (!startDay) return null
-    const s = new Date(startDay.year, startDay.month, startDay.day)
-    s.setDate(s.getDate() + duration - 1)
-    return `${s.getDate()} ${MONTH_NAMES[s.getMonth()]}`
+  function handleDayClick(day) {
+    if (!day || isPast(day)) return
+    const clicked = cellDate(day)
+    setOverLimit(false)
+
+    if (!startDay || (startDay && endDay)) {
+      setStartDay(clicked)
+      setEndDay(null)
+      return
+    }
+
+    const clickedMs = toDate(clicked).getTime()
+    const startMs   = toDate(startDay).getTime()
+
+    if (clickedMs < startMs) {
+      setStartDay(clicked)
+      setEndDay(null)
+      return
+    }
+
+    const duration = daysBetween(startDay, clicked)
+    if (duration > MAX_DAYS) {
+      setOverLimit(true)
+      return
+    }
+
+    setEndDay(clicked)
   }
 
-  const startLabel = startDay
-    ? `${startDay.day} ${MONTH_NAMES[startDay.month]} ${startDay.year}`
-    : null
-
-  const canContinue = !!startDay
+  const duration = startDay && endDay ? daysBetween(startDay, endDay) : null
+  const canContinue = !!(startDay && endDay)
 
   const handleContinue = () => {
     onContinue?.({
       startDay,
       duration,
-      label: startLabel,
-      endLabel: endDateLabel(),
+      label:    `${fmtDay(startDay)} ${startDay.year}`,
+      endLabel: fmtDay(endDay),
     })
+  }
+
+  const footerLabel = () => {
+    if (!startDay)         return 'Выбери дату начала'
+    if (!endDay)           return 'Выбери дату окончания'
+    return null
   }
 
   return (
@@ -130,12 +167,12 @@ export default function OnboardingDates({ city, groupType, onBack, onContinue })
           </button>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ flex: 1, height: 4, background: TR.surface2, borderRadius: 2, overflow: 'hidden' }}>
-              <div style={{ width: '33%', height: '100%', background: TR.fg }} />
+              <div style={{ width: '40%', height: '100%', background: TR.fg }} />
             </div>
             <div style={{
               fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
               letterSpacing: '0.18em', color: TR.fg, fontWeight: 600,
-            }}>02 / 06</div>
+            }}>02 / 05</div>
           </div>
         </div>
 
@@ -148,7 +185,7 @@ export default function OnboardingDates({ city, groupType, onBack, onContinue })
           color: TR.fgMute, letterSpacing: 1, textTransform: 'uppercase',
         }}>
           <span>{cityName.toUpperCase()} · {groupLabel}</span>
-          <span>ЧЕРНОВИК 25%</span>
+          <span>25%</span>
         </div>
 
         {/* ── Hero ── */}
@@ -160,13 +197,6 @@ export default function OnboardingDates({ city, groupType, onBack, onContinue })
           }}>
             КОГДА<br/>ЕДЕМ?
           </h1>
-        </div>
-
-        <div style={{
-          padding: '0 22px 20px', fontSize: 14.5, lineHeight: 1.5,
-          color: TR.fgMute, maxWidth: 300,
-        }}>
-          Выберите дату вылета — подберём открытые музеи, рынки и фестивали.
         </div>
 
         {/* ── Calendar ── */}
@@ -184,7 +214,8 @@ export default function OnboardingDates({ city, groupType, onBack, onContinue })
               <button onClick={prevMonth} style={{
                 width: 32, height: 32, borderRadius: 8,
                 background: 'transparent', border: '1.5px solid ' + TR.hairlineSt,
-                color: TR.fg, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: TR.fg, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}><ChevronLeft /></button>
 
               <div style={{
@@ -197,7 +228,8 @@ export default function OnboardingDates({ city, groupType, onBack, onContinue })
               <button onClick={nextMonth} style={{
                 width: 32, height: 32, borderRadius: 8,
                 background: 'transparent', border: '1.5px solid ' + TR.hairlineSt,
-                color: TR.fg, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: TR.fg, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}><ChevronRight /></button>
             </div>
 
@@ -214,24 +246,35 @@ export default function OnboardingDates({ city, groupType, onBack, onContinue })
             {/* Day grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', padding: '0 10px 12px', gap: 2 }}>
               {cells.map((day, idx) => {
-                const past = isPast(day)
-                const sel  = isSel(day)
-                const inRange = isInRange(day)
+                const past    = isPast(day)
+                const selStart = isStart(day)
+                const selEnd   = isEnd(day)
+                const inRange  = isInRange(day)
+                const isEndpoint = selStart || selEnd
+
                 return (
-                  <div key={idx} onClick={() => {
-                    if (!day || past) return
-                    setStartDay({ year: viewYear, month: viewMonth, day })
-                  }} style={{
-                    height: 34, borderRadius: 8,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontFamily: 'Archivo, sans-serif', fontWeight: sel ? 900 : 600,
-                    fontSize: 13,
-                    background: sel ? TR.fg : inRange ? 'rgba(185,255,61,0.22)' : 'transparent',
-                    color: sel ? TR.lime : past ? TR.hairlineSt : TR.fg,
-                    border: sel ? '1.5px solid ' + TR.fg : 'none',
-                    cursor: !day || past ? 'default' : 'pointer',
-                    transition: 'background 0.1s',
-                  }}>
+                  <div
+                    key={idx}
+                    onClick={() => handleDayClick(day)}
+                    style={{
+                      height: 34,
+                      borderRadius: 6,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontFamily: 'Archivo, sans-serif',
+                      fontWeight: isEndpoint ? 900 : 600,
+                      fontSize: 13,
+                      background: isEndpoint
+                        ? TR.lime
+                        : inRange
+                          ? 'rgba(185,255,61,0.20)'
+                          : 'transparent',
+                      color: past ? TR.hairlineSt : TR.fg,
+                      border: 'none',
+                      cursor: !day || past ? 'default' : 'pointer',
+                      transition: 'background 0.1s',
+                      opacity: !day ? 0 : 1,
+                    }}
+                  >
                     {day ?? ''}
                   </div>
                 )
@@ -240,43 +283,38 @@ export default function OnboardingDates({ city, groupType, onBack, onContinue })
           </div>
         </div>
 
-        {/* ── Duration ── */}
-        <div style={{ padding: '20px 22px 0' }}>
-          <div style={{
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
-            letterSpacing: '0.22em', textTransform: 'uppercase',
-            color: TR.fg, fontWeight: 600, marginBottom: 10,
-          }}>КОЛИЧЕСТВО ДНЕЙ</div>
-
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {DURATION_OPTS.map(n => {
-              const sel = n === duration
-              return (
-                <button key={n} onClick={() => setDuration(n)} style={{
-                  height: 44, minWidth: 56, padding: '0 14px',
-                  borderRadius: 10, cursor: 'pointer',
-                  background: sel ? TR.fg : TR.surface,
-                  color: sel ? TR.lime : TR.fg,
-                  border: '1.5px solid ' + (sel ? TR.fg : TR.hairlineSt),
-                  boxShadow: sel ? '3px 3px 0 0 ' + TR.fg : 'none',
-                  transform: sel ? 'translate(-1px,-1px)' : 'none',
-                  fontFamily: 'Archivo, sans-serif', fontWeight: 900, fontSize: 15,
-                  transition: 'all 0.15s ease',
-                }}>
-                  {n}
-                </button>
-              )
-            })}
-          </div>
-
-          {startDay && (
+        {/* ── Hint / summary ── */}
+        <div style={{ padding: '14px 22px 0' }}>
+          {overLimit && (
             <div style={{
-              marginTop: 14, padding: '12px 14px', borderRadius: 12,
+              padding: '11px 14px', borderRadius: 10,
+              background: 'rgba(200,85,61,0.10)', border: '1.5px solid ' + TR.warn,
+              fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
+              color: TR.warn, letterSpacing: 0.4,
+            }}>
+              Максимальная длина маршрута — 21 день
+            </div>
+          )}
+
+          {!overLimit && startDay && !endDay && (
+            <div style={{
+              padding: '11px 14px', borderRadius: 10,
+              background: TR.surface2, border: '1px solid ' + TR.hairline,
+              fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
+              color: TR.fgMute, letterSpacing: 0.4,
+            }}>
+              ↦ {fmtDay(startDay)} — выбери дату окончания
+            </div>
+          )}
+
+          {canContinue && (
+            <div style={{
+              padding: '12px 14px', borderRadius: 12,
               background: TR.lime, border: '1.5px solid ' + TR.fg,
               fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
               color: TR.fg, letterSpacing: 0.5,
             }}>
-              ↦ {startLabel} — {endDateLabel()} · {duration} {duration === 1 ? 'день' : duration < 5 ? 'дня' : 'дней'}
+              ↦ {fmtDay(startDay)} — {fmtDay(endDay)} · {duration} {duration === 1 ? 'день' : duration < 5 ? 'дня' : 'дней'}
             </div>
           )}
         </div>
@@ -298,7 +336,9 @@ export default function OnboardingDates({ city, groupType, onBack, onContinue })
           }}>Назад</button>
           <button
             className="tr-cta-btn"
-            onClick={canContinue ? handleContinue : () => onContinue?.({ startDay: null, duration, label: null, endLabel: null })}
+            onClick={canContinue
+              ? handleContinue
+              : () => onContinue?.({ startDay: null, duration: null, label: null, endLabel: null })}
             style={{
               flex: 1, height: 60, borderRadius: 14,
               background: TR.lime, color: TR.fg, border: '2px solid ' + TR.fg,
@@ -309,7 +349,7 @@ export default function OnboardingDates({ city, groupType, onBack, onContinue })
               opacity: canContinue ? 1 : 0.6,
             }}
           >
-            {canContinue ? <>Дальше <ArrowRight /></> : 'Выбери дату'}
+            {canContinue ? <>Дальше <ArrowRight /></> : footerLabel()}
           </button>
         </div>
 

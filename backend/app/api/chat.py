@@ -1,19 +1,59 @@
 import logging
 import uuid
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.services.trip import TripService
 from app.services.chat_agent import TravelAgentService
+from app.services.ai import client as ai_client
+from app.config import settings
 from app.core.security import decode_access_token
+from app.dependencies import get_current_user
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(
-    prefix="/trips",
-    tags=["Chat"]
+router = APIRouter(prefix="/trips", tags=["Chat"])
+general_router = APIRouter(prefix="/chat", tags=["Chat"])
+
+GENERAL_SYSTEM_PROMPT = (
+    "Ты — помощник по путешествиям TourRhythm. "
+    "Отвечай коротко и конкретно, на русском языке. "
+    "Пользователь ещё не создал маршрут — можешь помочь с выбором направления, "
+    "ответить на вопросы о странах, визах, бюджете. "
+    "Если пользователь хочет спланировать поездку, предложи создать маршрут."
 )
+
+
+class ChatHistoryItem(BaseModel):
+    role: str   # "user" | "assistant"
+    content: str
+
+
+class GeneralChatRequest(BaseModel):
+    message: str
+    history: list[ChatHistoryItem] = []
+
+
+@general_router.post("/general")
+async def general_chat(
+    data: GeneralChatRequest,
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    messages = [{"role": "system", "content": GENERAL_SYSTEM_PROMPT}]
+    for item in data.history[-20:]:  # keep last 20 turns max
+        messages.append({"role": item.role, "content": item.content})
+    messages.append({"role": "user", "content": data.message})
+
+    response = await ai_client.chat.completions.create(
+        model=settings.AI_MODEL,
+        messages=messages,
+        max_tokens=600,
+    )
+    reply = response.choices[0].message.content
+    return {"reply": reply}
 
 @router.websocket("/{trip_id}/chat")
 async def websocket_chat_endpoint(

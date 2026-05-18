@@ -110,7 +110,7 @@ export default function OnboardingFinalQuestion({ city, groupType, rhythm, onBac
         throw new Error(errBody.detail ?? `Не удалось сгенерировать маршрут (${genRes.status})`)
       }
 
-      navigate('/trip-plan', { state: { city, groupType, rhythm } })
+      navigate(`/trip/${trip.id}/plan`, { state: { city, groupType, rhythm } })
     } catch (err) {
       setApiError(err.message)
       setLoading(false)
@@ -133,7 +133,7 @@ export default function OnboardingFinalQuestion({ city, groupType, rhythm, onBac
             <span style={{
               fontFamily: 'monospace', fontSize: 11, color: 'rgba(255,255,255,0.5)',
               letterSpacing: '0.1em',
-            }}>ШАГ 6 / 6</span>
+            }}>ШАГ 5 / 5</span>
           </div>
           <div style={{ height: 4, background: 'rgba(255,255,255,0.15)', borderRadius: 2, overflow: 'hidden' }}>
             <div style={{ height: '100%', width: '100%', background: '#b8ff4f', borderRadius: 2 }} />
@@ -155,7 +155,7 @@ export default function OnboardingFinalQuestion({ city, groupType, rhythm, onBac
             fontSize: 13, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5, margin: '0 0 20px',
             fontStyle: 'italic',
           }}>
-            Чем честнее ответ — тем точнее маршрут. Можно пропустить.
+            Чем честнее ответ — тем точнее маршрут.
           </p>
 
           <textarea
@@ -221,19 +221,6 @@ export default function OnboardingFinalQuestion({ city, groupType, rhythm, onBac
           >
             ✦ Создать мой маршрут
           </button>
-          <div style={{ textAlign: 'center', marginTop: 10 }}>
-            <button
-              onClick={() => handleSubmit('')}
-              style={{
-                background: 'none', border: 'none',
-                color: 'rgba(255,255,255,0.45)', fontSize: 13,
-                cursor: 'pointer', textDecoration: 'underline',
-                fontFamily: 'inherit',
-              }}
-            >
-              пропустить, создать сейчас
-            </button>
-          </div>
         </div>
 
       </div>

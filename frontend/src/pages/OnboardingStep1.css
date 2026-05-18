@@ -55,3 +55,53 @@
   transform: translate(2px, 2px) !important;
   box-shadow: 2px 2px 0 0 #0d2818 !important;
 }
+
+/* ── Expand animation (CSS grid trick) ── */
+.tr-expand {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s ease;
+}
+
+.tr-expand--open {
+  grid-template-rows: 1fr;
+}
+
+.tr-expand-inner {
+  overflow: hidden;
+}
+
+/* ── Horizontal city scroll ── */
+.tr-city-scroll {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 16px 4px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  flex-wrap: nowrap;
+}
+
+.tr-city-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── City pill button ── */
+.tr-city-pill {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  border-radius: 99px;
+  font-family: 'Archivo', sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.tr-city-pill:active {
+  transform: translate(1px, 1px) !important;
+}

@@ -11,10 +11,18 @@
   max-width: 430px;
   min-height: 100svh;
   background: #f1ede0;
-  position: relative;
-  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   font-family: 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+.tr-phone__scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
 }
 
 @media (min-width: 500px) {
@@ -25,8 +33,8 @@
   }
   .tr-phone {
     min-height: auto;
-    max-height: 900px;
-    overflow-y: auto;
+    height: min(calc(100svh - 64px), 900px);
+    overflow: hidden;
     border-radius: 40px;
     box-shadow: 0 24px 64px rgba(13, 40, 24, 0.22);
     margin: 32px 0;
@@ -91,4 +99,9 @@
   background-size: 800px 100%;
   animation: tr-shimmer 1.4s ease-in-out infinite;
   display: block;
+}
+
+@keyframes tr-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }

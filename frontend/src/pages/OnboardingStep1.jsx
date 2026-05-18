@@ -12,9 +12,14 @@ const TR = {
   fgMute:     '#5e6e58',
   hairline:   'rgba(13,40,24,0.12)',
   hairlineSt: 'rgba(13,40,24,0.22)',
-  lime:       '#b9ff3d',
+  lime:       '#C8FF00',
   warn:       '#c8553d',
 }
+
+const TOP9 = [
+  'Турция', 'Китай', 'ОАЭ', 'Абхазия',
+  'Таиланд', 'Египет', 'Беларусь', 'Казахстан', 'Армения',
+]
 
 const PALETTES = [
   { hueA: '#e8a370', hueB: '#8b3f2a', hueDeep: '#3a1d14' },
@@ -23,6 +28,9 @@ const PALETTES = [
   { hueA: '#f0c878', hueB: '#c87a4a', hueDeep: '#4a2818' },
   { hueA: '#a8c4d8', hueB: '#3a5a6a', hueDeep: '#1a2a34' },
   { hueA: '#c8d8a0', hueB: '#4a6a2a', hueDeep: '#1a2a0a' },
+  { hueA: '#d4b8e8', hueB: '#6a3a8a', hueDeep: '#2a1a3a' },
+  { hueA: '#f0d898', hueB: '#b89040', hueDeep: '#4a3810' },
+  { hueA: '#b8d4c8', hueB: '#3a6a5a', hueDeep: '#1a2a24' },
 ]
 
 const SILHOUETTES = [
@@ -32,12 +40,13 @@ const SILHOUETTES = [
   'M0,200 L0,170 L30,170 L40,150 L70,148 L100,140 L130,135 L160,130 L190,120 L220,125 L250,130 L280,135 L310,140 L340,145 L380,150 L380,200 Z',
 ]
 
-function getVisual(name, index) {
+function getVisual(name) {
   let hash = 0
   for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) & 0xffff
+  const idx = hash % PALETTES.length
   return {
-    ...PALETTES[hash % PALETTES.length],
-    silhouette: SILHOUETTES[index % SILHOUETTES.length],
+    ...PALETTES[idx],
+    silhouette: SILHOUETTES[idx % SILHOUETTES.length],
   }
 }
 
@@ -53,7 +62,7 @@ async function apiFetch(path) {
   return res.json()
 }
 
-// ── Icons ──────────────────────────────────────────────��───
+// ── Icons ──────────────────────────────────────────────────────
 
 const IconSearch = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -82,9 +91,9 @@ const IconDots = () => (
   </svg>
 )
 
-// ── Country photo placeholder ──────────────────────────────
+// ── Country photo ──────────────────────────────────────────────
 
-const CountryPhoto = ({ visual, name, height = 150 }) => {
+const CountryPhoto = ({ visual, name, height = 140 }) => {
   const id = name.replace(/\s/g, '-')
   return (
     <svg
@@ -112,36 +121,42 @@ const CountryPhoto = ({ visual, name, height = 150 }) => {
         <path d={visual.silhouette} fill={visual.hueDeep} opacity="0.95"/>
       </g>
       <rect width="380" height={height} fill="#000" opacity="0.04"/>
-      <text
-        x="14" y={height - 12}
-        fontFamily="JetBrains Mono, monospace"
-        fontSize="9" fill="#fff7e0" opacity="0.9" letterSpacing="1.5"
-      >
-        {name.toUpperCase()}
-      </text>
     </svg>
   )
 }
 
-// ── Main component ─────────────────────────────────────────
+// ── Main component ─────────────────────────────────────────────
 
 export default function OnboardingStep1({ onContinue }) {
   const { update } = useOnboarding()
 
   const [search, setSearch] = useState('')
-  const [countries, setCountries] = useState([])
-  const [citiesMap, setCitiesMap] = useState({})         // { countryId: city[] }
-  const [loadingCities, setLoadingCities] = useState({}) // { countryId: bool }
+  const [allCountries, setAllCountries] = useState([])
+  const [citiesMap, setCitiesMap] = useState({})
   const [selectedCountryId, setSelectedCountryId] = useState(null)
   const [selectedCityId, setSelectedCityId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  // Load all countries on mount, then pre-fetch top-9 cities
   useEffect(() => {
     apiFetch('/countries')
-      .then(data => {
-        setCountries(data)
+      .then(async data => {
+        setAllCountries(data)
         setLoading(false)
+
+        // Pre-fetch cities for top-9 countries in parallel
+        const top9 = TOP9.map(name => data.find(c => c.name === name)).filter(Boolean)
+        const results = await Promise.allSettled(
+          top9.map(c => apiFetch(`/countries/${c.id}/cities`).then(cities => ({ id: c.id, cities })))
+        )
+        const newMap = {}
+        for (const r of results) {
+          if (r.status === 'fulfilled') {
+            newMap[r.value.id] = r.value.cities
+          }
+        }
+        setCitiesMap(newMap)
       })
       .catch(() => {
         setError('Не удалось загрузить страны. Проверьте подключение.')
@@ -149,34 +164,75 @@ export default function OnboardingStep1({ onContinue }) {
       })
   }, [])
 
-  async function handleSelectCountry(country) {
-    if (selectedCountryId === country.id) return
-    setSelectedCountryId(country.id)
-    setSelectedCityId(null)
-
-    if (citiesMap[country.id]) return
-
-    setLoadingCities(prev => ({ ...prev, [country.id]: true }))
+  // Load cities for a country if not yet loaded
+  async function ensureCities(country) {
+    if (citiesMap[country.id] !== undefined) return
     try {
       const cities = await apiFetch(`/countries/${country.id}/cities`)
       setCitiesMap(prev => ({ ...prev, [country.id]: cities }))
     } catch {
       setCitiesMap(prev => ({ ...prev, [country.id]: [] }))
-    } finally {
-      setLoadingCities(prev => ({ ...prev, [country.id]: false }))
     }
   }
 
-  const filtered = search.trim()
-    ? countries.filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
-    : countries
+  function handleSelectCountry(country) {
+    if (selectedCountryId === country.id) {
+      setSelectedCountryId(null)
+      setSelectedCityId(null)
+      update({ city_id: null })
+      return
+    }
+    setSelectedCountryId(country.id)
+    setSelectedCityId(null)
+    update({ city_id: null })
+    ensureCities(country)
+  }
 
-  const selectedCountry = countries.find(c => c.id === selectedCountryId)
+  // Compute displayed countries + highlighted city per country
+  const q = search.trim().toLowerCase()
+
+  let displayed = []
+  let highlightedCityByCountry = {} // { countryId: cityId }
+
+  if (!q) {
+    // Top-9 in fixed order
+    displayed = TOP9
+      .map(name => allCountries.find(c => c.name === name))
+      .filter(Boolean)
+  } else {
+    const seen = new Set()
+    const result = []
+
+    for (const c of allCountries) {
+      if (c.name.toLowerCase().includes(q)) {
+        if (!seen.has(c.id)) { seen.add(c.id); result.push(c) }
+      }
+    }
+
+    // Also search pre-loaded cities
+    for (const [countryId, cities] of Object.entries(citiesMap)) {
+      const matchCity = cities.find(city => city.name.toLowerCase().includes(q))
+      if (matchCity) {
+        const country = allCountries.find(c => c.id === countryId)
+        if (country && !seen.has(country.id)) {
+          seen.add(country.id)
+          result.push(country)
+        }
+        if (matchCity) {
+          highlightedCityByCountry[countryId] = matchCity.id
+        }
+      }
+    }
+
+    displayed = result
+  }
+
+  const selectedCountry = allCountries.find(c => c.id === selectedCountryId)
   const selectedCity = selectedCountryId
     ? (citiesMap[selectedCountryId] ?? []).find(c => c.id === selectedCityId)
     : null
 
-  const canContinue = selectedCountry && selectedCity
+  const canContinue = !!(selectedCountry && selectedCity)
 
   function handleContinue() {
     if (!canContinue) return
@@ -201,15 +257,7 @@ export default function OnboardingStep1({ onContinue }) {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           flexShrink: 0,
         }}>
-          <button style={{
-            width: 38, height: 38, borderRadius: '50%',
-            background: 'transparent', color: TR.fg,
-            border: '1.5px solid ' + TR.fg,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer',
-          }}>
-            <IconChevronLeft />
-          </button>
+          <div style={{ width: 38, height: 38 }} />
           <div style={{
             fontFamily: 'Archivo, sans-serif',
             fontSize: 13, fontWeight: 800, letterSpacing: '0.04em', color: TR.fg,
@@ -237,8 +285,7 @@ export default function OnboardingStep1({ onContinue }) {
           fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
           color: TR.fgMute, letterSpacing: 1, textTransform: 'uppercase',
         }}>
-          <span>STEP 01 / 06</span>
-          <span>DRAFT · MAY 2026</span>
+          <span>STEP 01 / 05</span>
         </div>
 
         {/* ── Hero ── */}
@@ -251,14 +298,6 @@ export default function OnboardingStep1({ onContinue }) {
           }}>
             КУДА<br/>ЕДЕМ?
           </h1>
-        </div>
-
-        {/* ── Sub ── */}
-        <div style={{
-          padding: '0 22px 18px',
-          fontSize: 14.5, lineHeight: 1.5, color: TR.fgMute, maxWidth: 300,
-        }}>
-          Назовите страну — или выберите из списка и уточните город.
         </div>
 
         {/* ── Search ── */}
@@ -283,13 +322,26 @@ export default function OnboardingStep1({ onContinue }) {
             }}>
               <IconSearch />
             </span>
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                style={{
+                  position: 'absolute', right: 14, top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: TR.fgMute, fontSize: 18, lineHeight: 1, padding: 0,
+                }}
+              >
+                ×
+              </button>
+            )}
           </div>
         </div>
 
         {/* ── Section label ── */}
-        {!search.trim() && !loading && !error && (
+        {!q && !loading && !error && (
           <div style={{
-            padding: '4px 22px 10px',
+            padding: '0 22px 10px',
             display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
           }}>
             <div style={{
@@ -297,7 +349,7 @@ export default function OnboardingStep1({ onContinue }) {
               letterSpacing: '0.22em', textTransform: 'uppercase',
               color: TR.fg, fontWeight: 600,
             }}>
-              ДОСТУПНО / {countries.length}
+              ТОП / {displayed.length}
             </div>
             <div style={{
               fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
@@ -305,9 +357,19 @@ export default function OnboardingStep1({ onContinue }) {
             }}>↓</div>
           </div>
         )}
+        {q && !loading && !error && (
+          <div style={{
+            padding: '0 22px 10px',
+            fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+            letterSpacing: '0.22em', textTransform: 'uppercase',
+            color: TR.fg, fontWeight: 600,
+          }}>
+            РЕЗУЛЬТАТЫ / {displayed.length}
+          </div>
+        )}
 
         {/* ── Body ── */}
-        <div style={{ padding: '0 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ padding: '0 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
           {loading && (
             <div style={{
@@ -331,149 +393,137 @@ export default function OnboardingStep1({ onContinue }) {
             </div>
           )}
 
-          {!loading && !error && filtered.length === 0 && (
+          {!loading && !error && displayed.length === 0 && (
             <div style={{
               padding: '24px 0', textAlign: 'center',
               fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
               color: TR.fgMute, letterSpacing: 1,
             }}>
-              СТРАНА НЕ НАЙДЕНА — ПОПРОБУЙТЕ ЕЩЁ
+              НИЧЕГО НЕ НАЙДЕНО — ПОПРОБУЙТЕ ЕЩЁ
             </div>
           )}
 
-          {!loading && !error && filtered.map((country, index) => {
+          {!loading && !error && displayed.map(country => {
             const isSel = country.id === selectedCountryId
-            const visual = getVisual(country.name, index)
+            const visual = getVisual(country.name)
             const cities = citiesMap[country.id] ?? []
-            const isCitiesLoading = loadingCities[country.id]
-            const moodText = country.content.split('.')[0]
+            const highlightedCity = highlightedCityByCountry[country.id] ?? null
 
             return (
               <div
                 key={country.id}
                 className="tr-city-card"
-                onClick={() => handleSelectCountry(country)}
                 style={{
                   background: TR.surface,
-                  borderRadius: 14,
+                  borderRadius: 16,
                   border: '1.5px solid ' + (isSel ? TR.fg : TR.hairline),
                   overflow: 'hidden',
                   boxShadow: isSel ? '4px 4px 0 0 ' + TR.fg : 'none',
                   transform: isSel ? 'translate(-2px,-2px)' : 'none',
-                  transition: 'all 0.2s ease',
+                  transition: 'box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease',
                   cursor: 'pointer',
                 }}
+                onClick={() => handleSelectCountry(country)}
               >
-                <CountryPhoto visual={visual} name={country.name} height={150} />
-                <div style={{ padding: '14px 16px' }}>
+                {/* Photo */}
+                <CountryPhoto visual={visual} name={country.name} height={130} />
+
+                {/* Name bar */}
+                <div style={{
+                  padding: '12px 16px 0',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                }}>
                   <div style={{
-                    display: 'flex', justifyContent: 'space-between',
-                    alignItems: 'baseline', marginBottom: 8,
+                    fontFamily: 'Archivo, sans-serif',
+                    fontSize: 22, fontWeight: 900, lineHeight: 1,
+                    letterSpacing: '-0.02em', textTransform: 'uppercase',
+                    color: TR.fg,
                   }}>
-                    <div>
-                      <div style={{
-                        fontFamily: 'Archivo, sans-serif',
-                        fontSize: 24, fontWeight: 800, lineHeight: 1,
-                        letterSpacing: '-0.02em', textTransform: 'uppercase',
-                        color: TR.fg,
-                      }}>
-                        {country.name.toUpperCase()}
-                      </div>
-                      <div style={{
-                        fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
-                        letterSpacing: 1, color: TR.fgMute, marginTop: 5,
-                      }}>
-                        {isCitiesLoading
-                          ? 'ЗАГРУЗКА ГОРОДОВ···'
-                          : cities.length > 0
-                            ? cities.map(c => c.name.toUpperCase()).join(' · ')
-                            : isSel ? 'НУЖНО ДОБАВИТЬ ГОРОДА' : ''}
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: 0 }}>
-                      {[visual.hueA, visual.hueB, visual.hueDeep].map((hue, j) => (
-                        <div key={j} style={{
-                          width: 14, height: 14, background: hue,
-                          border: '1px solid ' + TR.hairline,
-                        }} />
-                      ))}
-                    </div>
+                    {country.name}
                   </div>
-
                   <div style={{
-                    fontSize: 12, color: TR.fgMute, lineHeight: 1.4, fontStyle: 'italic',
+                    fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+                    color: TR.fgMute, letterSpacing: 1,
+                    transition: 'transform 0.25s ease',
+                    transform: isSel ? 'rotate(180deg)' : 'none',
                   }}>
-                    {moodText}
+                    ↓
                   </div>
-
-                  {/* City picker — shows when country is selected */}
-                  {isSel && !isCitiesLoading && cities.length > 0 && (
-                    <div style={{
-                      marginTop: 12, paddingTop: 12,
-                      borderTop: '1px dashed ' + TR.hairline,
-                    }}>
-                      <div style={{
-                        fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
-                        letterSpacing: '0.2em', textTransform: 'uppercase',
-                        color: TR.fgMute, marginBottom: 8,
-                      }}>
-                        ВЫБЕРИТЕ ГОРОД
-                      </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                        {cities.map(city => {
-                          const isCitySel = city.id === selectedCityId
-                          return (
-                            <button
-                              key={city.id}
-                              onClick={e => {
-                                e.stopPropagation()
-                                const next = isCitySel ? null : city.id
-                                setSelectedCityId(next)
-                                update({ city_id: next })
-                              }}
-                              style={{
-                                padding: '7px 14px', borderRadius: 99,
-                                background: isCitySel ? TR.fg : 'transparent',
-                                color: isCitySel ? TR.lime : TR.fg,
-                                border: '1.5px solid ' + (isCitySel ? TR.fg : TR.hairlineSt),
-                                fontFamily: 'Archivo, sans-serif',
-                                fontSize: 12, fontWeight: 800,
-                                letterSpacing: '0.04em', textTransform: 'uppercase',
-                                cursor: 'pointer',
-                                boxShadow: isCitySel ? '2px 2px 0 0 ' + TR.fg : 'none',
-                                transform: isCitySel ? 'translate(-1px,-1px)' : 'none',
-                                transition: 'all 0.15s ease',
-                              }}
-                            >
-                              {city.name}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {isSel && selectedCity && (
-                    <div style={{
-                      marginTop: 10, paddingTop: 10,
-                      borderTop: '1px dashed ' + TR.hairline,
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    }}>
-                      <div style={{
-                        fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
-                        color: TR.fg, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 600,
-                      }}>
-                        ★ {selectedCity.name.toUpperCase()}
-                      </div>
-                      <div style={{
-                        fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
-                        color: TR.fgMute, letterSpacing: 0.5,
-                      }}>
-                        {country.name}
-                      </div>
-                    </div>
-                  )}
                 </div>
+
+                {/* Expandable section */}
+                <div className={`tr-expand${isSel ? ' tr-expand--open' : ''}`}>
+                  <div className="tr-expand-inner">
+
+                    {/* Description */}
+                    {country.description && (
+                      <div style={{
+                        padding: '10px 16px 0',
+                        fontSize: 13, lineHeight: 1.5, color: TR.fgMute,
+                      }}>
+                        {country.description}
+                      </div>
+                    )}
+
+                    {/* City pills */}
+                    {cities.length > 0 && (
+                      <div style={{ padding: '10px 0 14px' }}>
+                        <div style={{
+                          fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
+                          letterSpacing: '0.2em', textTransform: 'uppercase',
+                          color: TR.fgMute, padding: '0 16px', marginBottom: 8,
+                        }}>
+                          ВЫБЕРИТЕ ГОРОД
+                        </div>
+                        <div className="tr-city-scroll">
+                          {cities.map(city => {
+                            const isCitySel = city.id === selectedCityId
+                            const isHighlighted = city.id === highlightedCity && !isCitySel
+                            return (
+                              <button
+                                key={city.id}
+                                onClick={e => {
+                                  e.stopPropagation()
+                                  const next = isCitySel ? null : city.id
+                                  setSelectedCityId(next)
+                                  update({ city_id: next })
+                                }}
+                                className="tr-city-pill"
+                                style={{
+                                  background: isCitySel
+                                    ? TR.lime
+                                    : isHighlighted
+                                      ? 'rgba(200,255,0,0.18)'
+                                      : 'transparent',
+                                  color: TR.fg,
+                                  border: '1.5px solid ' + (isCitySel ? TR.fg : TR.hairlineSt),
+                                  boxShadow: isCitySel ? '2px 2px 0 0 ' + TR.fg : 'none',
+                                  transform: isCitySel ? 'translate(-1px,-1px)' : 'none',
+                                }}
+                              >
+                                {city.name}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {isSel && cities.length === 0 && (
+                      <div style={{
+                        padding: '10px 16px 14px',
+                        fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+                        color: TR.fgMute, letterSpacing: 0.8,
+                      }}>
+                        ЗАГРУЗКА ГОРОДОВ···
+                      </div>
+                    )}
+
+                  </div>
+                </div>
+
+                {/* Bottom padding for closed card */}
+                {!isSel && <div style={{ height: 14 }} />}
               </div>
             )
           })}
