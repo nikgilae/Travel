@@ -14,7 +14,7 @@ const TR = {
 }
 
 const OPTIONS = [
-  { id: 'solo',   label: 'СОЛО',    sub: 'один на один с городом' },
+  { id: 'solo',   label: 'ОДИН',    sub: 'один на один с городом' },
   { id: 'duo',    label: 'ВДВОЁМ',  sub: 'пара или близкий друг' },
   { id: 'family', label: 'СЕМЬЯ',   sub: 'с детьми или родителями' },
   { id: 'friends',label: 'ДРУЗЬЯ',  sub: 'небольшая компания' },
@@ -68,12 +68,12 @@ export default function OnboardingStep2({ city, onContinue, onBack }) {
               flex: 1, height: 4,
               background: TR.surface2, borderRadius: 2, overflow: 'hidden',
             }}>
-              <div style={{ width: '16.6%', height: '100%', background: TR.fg }} />
+              <div style={{ width: '20%', height: '100%', background: TR.fg }} />
             </div>
             <div style={{
               fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
               letterSpacing: '0.18em', color: TR.fg, fontWeight: 600,
-            }}>01 / 06</div>
+            }}>01 / 05</div>
           </div>
         </div>
 
@@ -88,7 +88,7 @@ export default function OnboardingStep2({ city, onContinue, onBack }) {
           color: TR.fgMute, letterSpacing: 1, textTransform: 'uppercase',
         }}>
           <span>{cityName.toUpperCase()} · {cityDays.toUpperCase()}</span>
-          <span>ЧЕРНОВИК 16%</span>
+          <span>16%</span>
         </div>
 
         {/* ── Hero ── */}
@@ -101,14 +101,6 @@ export default function OnboardingStep2({ city, onContinue, onBack }) {
           }}>
             С КЕМ<br/>ВЫ?
           </h1>
-        </div>
-
-        {/* ── Sub ── */}
-        <div style={{
-          padding: '0 22px 18px',
-          fontSize: 14.5, lineHeight: 1.5, color: TR.fgMute, maxWidth: 300,
-        }}>
-          От этого зависит ритм дня и места — пара ходит иначе, чем компания.
         </div>
 
         {/* ── Options ── */}

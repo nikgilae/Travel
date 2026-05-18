@@ -25,6 +25,7 @@ export default function TripMap({ allPois, numDays, activeDay, setActiveDay, cit
 
   const [selectedId, setSelectedId] = useState(null)
   const [geocached, setGeocached] = useState({})
+  const [userPos, setUserPos] = useState(null)
 
   const mapRef = useRef(null)
   const geocoderRef = useRef(null)
@@ -69,6 +70,16 @@ export default function TripMap({ allPois, numDays, activeDay, setActiveDay, cit
     pts.forEach(p => bounds.extend(getCoords(p)))
     mapRef.current.fitBounds(bounds, 60)
   }, [isLoaded, dayPois, geocached]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Request user geolocation once — silently ignored if denied
+  useEffect(() => {
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      pos => setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => { /* denied — no error shown */ },
+      { timeout: 8000, maximumAge: 60000 },
+    )
+  }, [])
 
   const onMapLoad = useCallback(map => { mapRef.current = map }, [])
 
@@ -165,6 +176,23 @@ export default function TripMap({ allPois, numDays, activeDay, setActiveDay, cit
                 </div>
               </OverlayView>
             ))}
+
+            {/* User location — blue dot */}
+            {userPos && (
+              <OverlayView
+                position={userPos}
+                mapPaneName="overlayLayer"
+              >
+                <div style={{
+                  width: 16, height: 16,
+                  borderRadius: '50%',
+                  background: '#2979ff',
+                  border: '2.5px solid #fff',
+                  boxShadow: '0 0 0 3px rgba(41,121,255,0.25)',
+                  transform: 'translate(-50%, -50%)',
+                }} />
+              </OverlayView>
+            )}
 
             {/* InfoWindow on selected marker */}
             {selectedPoi && getCoords(selectedPoi) && (

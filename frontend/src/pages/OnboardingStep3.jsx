@@ -120,7 +120,7 @@ export default function OnboardingStep3({ city, groupType, onBack, onContinue })
           color: TR.fgMute, letterSpacing: 1, textTransform: 'uppercase',
         }}>
           <span>{cityName.toUpperCase()} · {groupLabel}</span>
-          <span>ЧЕРНОВИК 40%</span>
+          <span>40%</span>
         </div>
 
         {/* ── Hero ── */}
@@ -252,25 +252,6 @@ export default function OnboardingStep3({ city, groupType, onBack, onContinue })
           })}
         </div>
 
-        {/* ── Draft preview hint ── */}
-        <div style={{ padding: '18px 22px 0' }}>
-          <div style={{
-            padding: '12px 14px', borderRadius: 12,
-            background: TR.lime, border: '1.5px solid ' + TR.fg,
-            display: 'flex', gap: 10, alignItems: 'center',
-          }}>
-            <StarIcon />
-            <div style={{ fontSize: 13, lineHeight: 1.4, flex: 1, color: TR.fg }}>
-              <b style={{ fontFamily: 'Archivo, sans-serif', fontWeight: 800, letterSpacing: 0.3 }}>
-                ЧЕРНОВИК НА 40%.
-              </b>{' '}
-              <span style={{ opacity: 0.75 }}>
-                {cityName} · {cityDays} · {groupLabel.toLowerCase()} →{' '}
-              </span>
-              <span style={{ textDecoration: 'underline', fontWeight: 600 }}>посмотреть</span>
-            </div>
-          </div>
-        </div>
 
         <div style={{ height: 24 }} />
 

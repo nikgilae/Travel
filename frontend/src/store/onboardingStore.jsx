@@ -6,7 +6,7 @@ const INITIAL = {
   purpose:           'leisure', // "leisure" | "business" | "education" | "other"
   budget:            'medium',  // "low" | "medium" | "high"
   group_size:        1,
-  other_information: [],        // includes trip rhythm: "balanced" | "active" | "relaxed"
+  other_information: ['balanced'], // default rhythm
   start_date:        null,      // "2026-06-01"
   end_date:          null,
   interests:         [],        // for /generate

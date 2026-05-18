@@ -57,6 +57,35 @@ async def place_details(
     return data.get("result", {})
 
 
+@router.get("/nearby")
+async def nearby_places(
+    lat: float = Query(..., ge=-90,  le=90),
+    lon: float = Query(..., ge=-180, le=180),
+    radius: int = Query(1000, ge=100, le=10000),
+    type: str | None = Query(None, description="Google Places type filter"),
+    _user: User = Depends(get_current_user),
+):
+    """Поиск реальных мест рядом через Google Places Nearby Search."""
+    params: dict = {
+        "location": f"{lat},{lon}",
+        "radius": radius,
+        "language": "ru",
+        "key": settings.GOOGLE_MAPS_API_KEY,
+    }
+    if type:
+        params["type"] = type
+
+    resp = await _http.get(f"{GMAPS_BASE}/nearbysearch/json", params=params)
+    resp.raise_for_status()
+    data = resp.json()
+
+    status = data.get("status")
+    if status not in ("OK", "ZERO_RESULTS"):
+        raise HTTPException(status_code=502, detail=f"Google Places: {status}")
+
+    return data.get("results", [])
+
+
 @router.get("/photo")
 async def place_photo(
     photo_reference: str = Query(...),

@@ -43,6 +43,7 @@ class CountryResponse(BaseModel):
     id: uuid.UUID
     name: str
     content: str
+    description: str | None = None
     created_at: datetime
     updated_at: datetime
 

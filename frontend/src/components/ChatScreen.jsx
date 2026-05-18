@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
 import './ChatScreen.css'
 
 const API_BASE = 'http://localhost:8000'
@@ -162,8 +163,9 @@ function TypingIndicator({ T }) {
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function ChatScreen({ mode, tripId, cityName, live = false }) {
-  const T     = mode === 'general' ? DARK : LIGHT
-  const chips = CHIPS[mode === 'general' ? 'general' : live ? 'live' : 'trip']
+  const T        = mode === 'general' ? DARK : LIGHT
+  const chips    = CHIPS[mode === 'general' ? 'general' : live ? 'live' : 'trip']
+  const location = useLocation()
 
   // ── History (trip mode persisted in module cache) ──
   const getInitialMessages = () => {
@@ -175,7 +177,8 @@ export default function ChatScreen({ mode, tripId, cityName, live = false }) {
   }
 
   const [messages,    setMessages]    = useState(getInitialMessages)
-  const [input,       setInput]       = useState('')
+  // Pre-fill input from location.state.prefill (e.g. navigated from NearbyPage)
+  const [input,       setInput]       = useState(location.state?.prefill ?? '')
   const [typing,      setTyping]      = useState(false)
   const [connected,   setConnected]   = useState(mode === 'general')
   const [reconnectIn, setReconnectIn] = useState(null)

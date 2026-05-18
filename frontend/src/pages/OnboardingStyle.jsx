@@ -39,7 +39,7 @@ const StarIcon = () => (
 )
 
 export default function OnboardingStyle({ city, groupType, trip, onBack, onContinue }) {
-  const [selected, setSelected] = useState(new Set(['cultural']))
+  const [selected, setSelected] = useState(new Set())
   const [dayNote, setDayNote]   = useState('')
 
   const cityName   = city?.n   ?? 'Рим'
@@ -69,12 +69,12 @@ export default function OnboardingStyle({ city, groupType, trip, onBack, onConti
           </button>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ flex: 1, height: 4, background: TR.surface2, borderRadius: 2, overflow: 'hidden' }}>
-              <div style={{ width: '50%', height: '100%', background: TR.fg }} />
+              <div style={{ width: '60%', height: '100%', background: TR.fg }} />
             </div>
             <div style={{
               fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
               letterSpacing: '0.18em', color: TR.fg, fontWeight: 600,
-            }}>03 / 06</div>
+            }}>03 / 05</div>
           </div>
         </div>
 
@@ -87,7 +87,7 @@ export default function OnboardingStyle({ city, groupType, trip, onBack, onConti
           color: TR.fgMute, letterSpacing: 1, textTransform: 'uppercase',
         }}>
           <span>{cityName.toUpperCase()} · {cityDays.toUpperCase()}</span>
-          <span>ЧЕРНОВИК 40%</span>
+          <span>40%</span>
         </div>
 
         {/* ── Hero ── */}
@@ -99,13 +99,6 @@ export default function OnboardingStyle({ city, groupType, trip, onBack, onConti
           }}>
             В КАКОМ<br/>СТИЛЕ?
           </h1>
-        </div>
-
-        <div style={{
-          padding: '0 22px 20px', fontSize: 14.5, lineHeight: 1.5,
-          color: TR.fgMute, maxWidth: 310,
-        }}>
-          Выберите один или несколько стилей — маршрут подстроится под приоритеты.
         </div>
 
         {/* ── Style grid 2×3 ── */}
@@ -169,7 +162,7 @@ export default function OnboardingStyle({ city, groupType, trip, onBack, onConti
           })}
         </div>
 
-        {/* ── Draft preview ── */}
+        {/* ── Style preview ── */}
         {selected.size > 0 && (
           <div style={{ padding: '18px 22px 0' }}>
             <div style={{

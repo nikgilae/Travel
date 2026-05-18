@@ -39,14 +39,16 @@ const DAY_COLORS = [
 ]
 
 const WEEKDAYS = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС']
+const WEEKDAYS_FULL = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье']
+const MONTHS_FULL = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
 const TABS = ['ДНИ', 'КАРТА', 'БЮДЖЕТ']
 
-const BUDGET_PER_DAY = { low: 50, medium: 120, high: 250 }
+const BUDGET_PER_DAY = { low: 4000, medium: 10000, high: 22000 }
 const BUDGET_CATS = [
-  { label: 'Жильё',      pct: 40, color: '#4a7c59' },
-  { label: 'Еда',        pct: 30, color: '#8a5a2a' },
-  { label: 'Активности', pct: 20, color: '#5a6e9a' },
-  { label: 'Транспорт',  pct: 10, color: '#6a4a8a' },
+  { icon: '🏨', label: 'Жильё',          pct: 40 },
+  { icon: '🍽', label: 'Еда',             pct: 30 },
+  { icon: '🎫', label: 'Входные билеты',  pct: 20 },
+  { icon: '🚇', label: 'Транспорт',       pct: 10 },
 ]
 
 const CURVE_PATH = 'M0,45 C20,42 30,42 40,38 C50,30 60,15 80,12 C100,9 120,18 140,28 C160,38 175,40 195,30 C215,20 230,18 250,22 C265,25 275,30 280,35'
@@ -84,6 +86,14 @@ const TrashIcon = () => (
 const CheckIcon = () => (
   <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
     <path d="M2 7 L5.5 10.5 L11 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+)
+
+const InfoIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.4"/>
+    <line x1="8" y1="7.5" x2="8" y2="11.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+    <circle cx="8" cy="4.8" r="0.75" fill="currentColor"/>
   </svg>
 )
 
@@ -494,124 +504,195 @@ function ListTab({ allPois }) {
 // ── Budget tab ─────────────────────────────────────────────
 
 function BudgetTab({ trip, poisByDay, numDays }) {
-  const [open, setOpen] = useState(false)
+  const [openDay, setOpenDay] = useState(null)
 
-  const dailyRate = BUDGET_PER_DAY[trip?.budget ?? 'medium']
+  const dailyRate   = BUDGET_PER_DAY[trip?.budget ?? 'medium']
   const totalBudget = dailyRate * numDays
+  const budgetLabel = { low: 'ECONOMY', medium: 'COMFORT', high: 'LUX' }[trip?.budget ?? 'medium']
+  const totalPois   = Object.values(poisByDay).reduce((sum, d) => sum + d.length, 0)
 
-  const sparkVals = Array.from({ length: numDays }, (_, i) => {
-    const dayPois = (poisByDay[i + 1] ?? []).length
-    return Math.max(0.3, dayPois / Math.max(...Object.values(poisByDay).map(d => d.length), 1))
-  })
+  const getDayDate = (d) => {
+    if (!trip?.start_date) return null
+    const date = new Date(trip.start_date)
+    date.setDate(date.getDate() + d - 1)
+    return date
+  }
+
+  const formatDayLabel = (d) => {
+    const date = getDayDate(d)
+    if (!date) return null
+    const wd = WEEKDAYS[(date.getDay() + 6) % 7]
+    return `${wd}, ${date.getDate()} ${MONTHS_FULL[date.getMonth()]}`
+  }
+
+  if (totalPois === 0) {
+    return (
+      <div style={{ padding: '52px 22px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+        <div style={{ fontSize: 36 }}>💸</div>
+        <div style={{
+          fontFamily: 'Archivo, sans-serif', fontWeight: 800, fontSize: 14,
+          textTransform: 'uppercase', letterSpacing: '0.02em', color: TR.fg, textAlign: 'center',
+        }}>Нет данных по бюджету</div>
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: TR.fgMute,
+          textAlign: 'center', lineHeight: 1.65, letterSpacing: 0.2, maxWidth: 270,
+        }}>
+          Бюджет рассчитывается на основе выбранных мест. Добавь места в маршрут чтобы увидеть примерную стоимость.
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div>
-      <div onClick={() => setOpen(!open)} style={{
-        background: TR.fg, color: TR.bg,
-        padding: '12px 22px', cursor: 'pointer',
-        borderBottom: '1.5px solid ' + TR.fg,
-        position: 'sticky', top: 0, zIndex: 10,
+    <div style={{ padding: '16px 22px 48px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+      {/* ── Block 1: Total ── */}
+      <div style={{
+        background: TR.surface, borderRadius: 16,
+        border: '1.5px solid ' + TR.hairline,
+        padding: '20px 20px 18px',
+        boxShadow: '0 1px 4px rgba(13,40,24,0.06)',
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-          <span style={{ fontFamily: 'Archivo, sans-serif', fontWeight: 900, fontSize: 15, letterSpacing: '-0.01em' }}>
-            ИТОГО: ~{totalBudget.toLocaleString()} €
-          </span>
-          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, opacity: 0.6 }}>
-            {open ? '▲ СВЕРНУТЬ' : '▼ ДЕТАЛИ'}
-          </span>
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
+          letterSpacing: '0.22em', color: TR.fgMute,
+          textTransform: 'uppercase', marginBottom: 10,
+        }}>ИТОГО НА ПОЕЗДКУ</div>
+
+        <div style={{
+          fontFamily: 'Archivo, sans-serif', fontWeight: 900, fontSize: 38,
+          lineHeight: 1, letterSpacing: '-0.03em', color: TR.fg, marginBottom: 12,
+        }}>
+          ₽{totalBudget.toLocaleString('ru-RU')}
         </div>
 
-        <svg viewBox={`0 0 ${Math.max(280, numDays * 38 + 4)} 24`} style={{ width: '100%', height: 24, display: 'block', marginBottom: 6 }}>
-          {sparkVals.map((v, i) => {
-            const barH = Math.round(v * 18)
-            return (
-              <rect key={i} x={i * 38 + 4} y={24 - barH} width={30} height={barH}
-                fill={TR.lime} opacity="0.7" rx="2"/>
-            )
-          })}
-          {sparkVals.map((_, i) => (
-            <text key={i} x={i * 38 + 19} y={23} textAnchor="middle" fontSize="7"
-              fontFamily="monospace" fill={TR.bg} opacity="0.5">Д{i + 1}</text>
-          ))}
-        </svg>
-
-        <div style={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', marginBottom: 4 }}>
-          {BUDGET_CATS.map(c => (
-            <div key={c.label} style={{ width: `${c.pct}%`, background: c.color }}/>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {BUDGET_CATS.map(c => (
-            <span key={c.label} style={{
-              fontFamily: 'JetBrains Mono, monospace', fontSize: 9, opacity: 0.7, color: TR.bg,
-            }}>■ {c.label} {c.pct}%</span>
-          ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span style={{
+            background: TR.fg, color: TR.lime,
+            fontFamily: 'Archivo, sans-serif', fontWeight: 800,
+            fontSize: 10, letterSpacing: '0.08em',
+            padding: '3px 9px', borderRadius: 6,
+          }}>{budgetLabel}</span>
+          <span style={{
+            fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+            color: TR.fgMute, letterSpacing: 0.4,
+          }}>{numDays} дней · {totalPois} мест</span>
         </div>
       </div>
 
-      {open && (
-        <div style={{ background: TR.surface, padding: '16px 22px', borderBottom: '1.5px solid ' + TR.hairlineSt }}>
+      {/* ── Block 2: Categories ── */}
+      <div style={{
+        background: TR.surface, borderRadius: 16,
+        border: '1.5px solid ' + TR.hairline,
+        overflow: 'hidden',
+        boxShadow: '0 1px 4px rgba(13,40,24,0.06)',
+      }}>
+        <div style={{ padding: '14px 20px 10px', borderBottom: '1px solid rgba(13,40,24,0.08)' }}>
           <div style={{
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em',
-            color: TR.fgMute, textTransform: 'uppercase', marginBottom: 14,
-          }}>УРОВЕНЬ БЮДЖЕТА · {(trip?.budget ?? 'medium').toUpperCase()}</div>
-
-          <div style={{
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em',
-            color: TR.fgMute, textTransform: 'uppercase', marginBottom: 10,
-          }}>РАСПРЕДЕЛЕНИЕ</div>
-          {BUDGET_CATS.map(c => (
-            <div key={c.label} style={{ marginBottom: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ fontSize: 12, color: TR.fg, fontWeight: 600 }}>{c.label}</span>
-                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: TR.fg }}>
-                  ~{Math.round(totalBudget * c.pct / 100)} € · {c.pct}%
-                </span>
-              </div>
-              <div style={{ height: 6, background: TR.surface2, borderRadius: 3, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${c.pct}%`, background: c.color, borderRadius: 3 }}/>
-              </div>
-            </div>
-          ))}
+            fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
+            letterSpacing: '0.22em', color: TR.fgMute, textTransform: 'uppercase',
+          }}>ПО КАТЕГОРИЯМ</div>
         </div>
-      )}
+        {BUDGET_CATS.map((cat, i) => (
+          <div key={cat.label} style={{
+            padding: '12px 20px',
+            display: 'flex', alignItems: 'center', gap: 12,
+            borderBottom: i < BUDGET_CATS.length - 1 ? '1px solid rgba(13,40,24,0.06)' : 'none',
+          }}>
+            <span style={{ fontSize: 17, lineHeight: 1, flexShrink: 0 }}>{cat.icon}</span>
+            <span style={{
+              flex: 1,
+              fontFamily: 'Archivo, sans-serif', fontWeight: 600, fontSize: 13, color: TR.fg,
+            }}>{cat.label}</span>
+            <span style={{
+              fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: TR.fg, fontWeight: 600,
+            }}>~₽{Math.round(totalBudget * cat.pct / 100).toLocaleString('ru-RU')}</span>
+          </div>
+        ))}
+      </div>
 
-      <div style={{ padding: '16px 22px 32px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div style={{
-          fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em',
-          color: TR.fgMute, textTransform: 'uppercase', marginBottom: 4,
-        }}>ПО ДНЯМ</div>
-        {Array.from({ length: numDays }, (_, i) => i + 1).map(d => {
+      {/* ── Block 3: Per day ── */}
+      <div style={{
+        background: TR.surface, borderRadius: 16,
+        border: '1.5px solid ' + TR.hairline,
+        overflow: 'hidden',
+        boxShadow: '0 1px 4px rgba(13,40,24,0.06)',
+      }}>
+        <div style={{ padding: '14px 20px 10px', borderBottom: '1px solid rgba(13,40,24,0.08)' }}>
+          <div style={{
+            fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
+            letterSpacing: '0.22em', color: TR.fgMute, textTransform: 'uppercase',
+          }}>ПО ДНЯМ</div>
+        </div>
+
+        {Array.from({ length: numDays }, (_, i) => i + 1).map((d, idx) => {
           const dayPois = poisByDay[d] ?? []
-          if (dayPois.length === 0) return null
+          const isOpen  = openDay === d
+          const label   = formatDayLabel(d)
+          const isLast  = idx === numDays - 1
+
           return (
-            <div key={d} style={{
-              background: TR.surface, borderRadius: 12,
-              border: '1.5px solid ' + TR.hairline, overflow: 'hidden',
-            }}>
-              <div style={{
-                background: TR.fg, color: TR.lime,
-                padding: '8px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              }}>
-                <span style={{ fontFamily: 'Archivo, sans-serif', fontWeight: 800, fontSize: 12, letterSpacing: '0.03em' }}>
-                  ДЕНЬ {String(d).padStart(2, '0')}
-                </span>
-                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 700 }}>
-                  ~{dailyRate} €
-                </span>
+            <div key={d}>
+              <div
+                onClick={() => setOpenDay(isOpen ? null : d)}
+                style={{
+                  padding: '13px 20px',
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  cursor: dayPois.length > 0 ? 'pointer' : 'default',
+                  borderBottom: !isLast || isOpen ? '1px solid rgba(13,40,24,0.06)' : 'none',
+                  transition: 'background 0.12s',
+                }}
+                onMouseEnter={e => { if (dayPois.length > 0) e.currentTarget.style.background = 'rgba(13,40,24,0.03)' }}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <div style={{ flex: 1, display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{
+                    fontFamily: 'Archivo, sans-serif', fontWeight: 700,
+                    fontSize: 13, color: TR.fg,
+                  }}>День {d}</span>
+                  {label && (
+                    <span style={{
+                      fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+                      color: TR.fgMute, letterSpacing: 0.2,
+                    }}>{label}</span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                  <span style={{
+                    fontFamily: 'JetBrains Mono, monospace', fontSize: 12,
+                    color: TR.fg, fontWeight: 600,
+                  }}>~₽{dailyRate.toLocaleString('ru-RU')}</span>
+                  {dayPois.length > 0 && (
+                    <span style={{ fontSize: 8, color: TR.fgMute, lineHeight: 1 }}>
+                      {isOpen ? '▲' : '▼'}
+                    </span>
+                  )}
+                </div>
               </div>
-              {dayPois.map((p, j) => {
-                const t = formatTime(p.planned_start_time)
-                return (
-                  <div key={p.poi.id} style={{
-                    padding: '8px 14px', display: 'flex', justifyContent: 'space-between',
-                    borderBottom: j < dayPois.length - 1 ? '1px solid ' + TR.hairline : 'none',
-                    fontSize: 12, color: TR.fg,
-                  }}>
-                    <span>{t ? `${t} — ` : ''}{p.poi.name}</span>
-                  </div>
-                )
-              })}
+
+              {isOpen && dayPois.length > 0 && (
+                <div style={{ borderBottom: !isLast ? '1px solid rgba(13,40,24,0.06)' : 'none' }}>
+                  {dayPois.map((p) => (
+                    <div key={p.poi.id} style={{
+                      padding: '9px 20px 9px 38px',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      borderTop: '1px solid rgba(13,40,24,0.05)',
+                      background: 'rgba(13,40,24,0.02)',
+                      gap: 10,
+                    }}>
+                      <span style={{ fontSize: 12, color: TR.fg, lineHeight: 1.3, flex: 1 }}>
+                        {p.poi.name}
+                      </span>
+                      {p.budget_estimate && (
+                        <span style={{
+                          fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+                          color: TR.fgMute, flexShrink: 0,
+                        }}>{p.budget_estimate}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )
         })}
@@ -620,9 +701,89 @@ function BudgetTab({ trip, poisByDay, numDays }) {
   )
 }
 
+// ── Summary bottom sheet ───────────────────────────────────
+
+function SummarySheet({ trip, onClose }) {
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setVisible(true))
+    return () => cancelAnimationFrame(raf)
+  }, [])
+
+  function close() {
+    setVisible(false)
+    setTimeout(onClose, 290)
+  }
+
+  return (
+    <div
+      onClick={close}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 1100,
+        display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+        background: visible ? 'rgba(13,40,24,0.4)' : 'rgba(13,40,24,0)',
+        transition: 'background 0.25s ease',
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: TR.bg,
+          borderRadius: '16px 16px 0 0',
+          maxHeight: '70vh', overflowY: 'auto',
+          transform: visible ? 'translateY(0)' : 'translateY(100%)',
+          transition: 'transform 0.28s cubic-bezier(0.32,0.72,0,1)',
+          paddingBottom: 40,
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 6 }}>
+          <div style={{ width: 32, height: 4, borderRadius: 2, background: 'rgba(13,40,24,0.18)' }} />
+        </div>
+
+        <div style={{
+          padding: '8px 22px 14px',
+          borderBottom: '1px solid ' + TR.hairline,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          <div style={{
+            fontFamily: 'Archivo, sans-serif', fontWeight: 900, fontSize: 16,
+            letterSpacing: '-0.02em', color: TR.fg, textTransform: 'uppercase',
+          }}>О маршруте</div>
+          <button onClick={close} style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 20, color: TR.fgMute, lineHeight: 1, padding: 0,
+          }}>×</button>
+        </div>
+
+        <div style={{ padding: '18px 22px' }}>
+          {trip?.ai_summary ? (
+            <div style={{ fontSize: 14, color: TR.fg, lineHeight: 1.65 }}>
+              {trip.ai_summary}
+            </div>
+          ) : (
+            <div style={{ fontSize: 13, color: TR.fgMute, fontFamily: 'JetBrains Mono, monospace' }}>
+              Саммари недоступно
+            </div>
+          )}
+          {trip?.total_budget_estimate && (
+            <div style={{
+              marginTop: 14, fontSize: 12, color: TR.fgMute,
+              fontFamily: 'JetBrains Mono, monospace',
+              padding: '8px 12px', background: TR.surface, borderRadius: 8,
+            }}>
+              Общий бюджет: {trip.total_budget_estimate}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Main component ─────────────────────────────────────────
 
-export default function TripPlanScreen({ live = false }) {
+export default function TripPlanScreen() {
   const { id: tripId } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
@@ -649,6 +810,9 @@ export default function TripPlanScreen({ live = false }) {
   // finalize day
   const [finalizedDays, setFinalizedDays] = useState(new Set())
   const [finalizingDay, setFinalizingDay] = useState(null)
+
+  // summary sheet
+  const [showSummary, setShowSummary] = useState(false)
 
   // share toast
   const [toast, setToast] = useState(null)
@@ -748,13 +912,32 @@ export default function TripPlanScreen({ live = false }) {
   const groupLabel  = { solo: 'СОЛО', duo: 'ВДВОЁМ', family: 'СЕМЬЯ', friends: 'ДРУЗЬЯ', group: 'ГРУППА' }[groupType] ?? ''
   const budgetLabel = { low: 'ЭКОНОМНО', medium: 'КОМФОРТНО', high: 'ЛЮКС' }[trip?.budget ?? 'medium']
 
+  const getDayDate = (d) => {
+    if (!trip?.start_date) return null
+    const date = new Date(trip.start_date)
+    date.setDate(date.getDate() + d - 1)
+    return date
+  }
+
+  const isDayToday = (d) => {
+    const date = getDayDate(d)
+    if (!date) return false
+    const now = new Date()
+    return date.getDate() === now.getDate() &&
+      date.getMonth() === now.getMonth() &&
+      date.getFullYear() === now.getFullYear()
+  }
+
   const dayWeekday = (d) => {
-    if (trip?.start_date) {
-      const date = new Date(trip.start_date)
-      date.setDate(date.getDate() + d - 1)
-      return WEEKDAYS[(date.getDay() + 6) % 7]
-    }
+    const date = getDayDate(d)
+    if (date) return WEEKDAYS[(date.getDay() + 6) % 7]
     return WEEKDAYS[(d - 1) % 7]
+  }
+
+  const dayTooltip = (d) => {
+    const date = getDayDate(d)
+    if (!date) return undefined
+    return `${WEEKDAYS_FULL[(date.getDay() + 6) % 7]}, ${date.getDate()} ${MONTHS_FULL[date.getMonth()]}`
   }
 
   return (
@@ -777,38 +960,12 @@ export default function TripPlanScreen({ live = false }) {
           }}>
             ВАШ<span style={{ color: TR.fgMute }}>·</span>МАРШРУТ
           </div>
-          {live ? (
-            <button
-              onClick={() => navigate(`/trip/${tripId}/plan`)}
-              style={{
-                height: 32, padding: '0 12px',
-                background: 'rgba(200,85,61,0.12)',
-                border: '1.5px solid rgba(200,85,61,0.4)',
-                borderRadius: 99, cursor: 'pointer',
-                fontFamily: 'Archivo, sans-serif',
-                fontSize: 10, fontWeight: 800,
-                letterSpacing: '0.06em', color: '#c8553d',
-              }}
-            >
-              ВЫЙТИ ←
-            </button>
-          ) : (
-            <button
-              onClick={() => navigate(`/trip/${tripId}/live/plan`)}
-              style={{
-                height: 32, padding: '0 12px',
-                background: TR.lime,
-                border: '1.5px solid ' + TR.fg,
-                borderRadius: 99, cursor: 'pointer',
-                fontFamily: 'Archivo, sans-serif',
-                fontSize: 10, fontWeight: 800,
-                letterSpacing: '0.06em', color: TR.fg,
-                boxShadow: '1px 1px 0 0 ' + TR.fg,
-              }}
-            >
-              В ПОЕЗДКЕ →
-            </button>
-          )}
+          <button className="tr-icon-btn"
+            onClick={handleShare}
+            title="Поделиться маршрутом"
+            style={{ color: TR.fg, border: '1.5px solid ' + TR.hairlineSt }}>
+            <ShareIcon />
+          </button>
         </div>
 
         {/* ── Trip header ── */}
@@ -820,27 +977,32 @@ export default function TripPlanScreen({ live = false }) {
           }}>
             {cityCode !== '—' ? `${cityCode} · ` : ''}{numDays} ДНЕЙ
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
             <h1 style={{
               fontFamily: 'Archivo, sans-serif',
               fontWeight: 900, fontSize: 42, lineHeight: 0.86,
               letterSpacing: '-0.04em', textTransform: 'uppercase',
-              color: TR.fg, margin: 0,
+              color: TR.fg, margin: 0, flex: 1,
             }}>
               {typeof cityName === 'string' ? cityName.toUpperCase() : 'МАРШРУТ'},<br/>
               {rhythmLabel === 'СПОКОЙНО' ? 'НЕ СПЕША' : rhythmLabel === 'НАСЫЩЕННО' ? 'АКТИВНО' : 'В РИТМЕ'}
             </h1>
             <button
-              onClick={handleShare}
-              title="Поделиться маршрутом"
+              onClick={() => setShowSummary(true)}
+              title="О маршруте"
               style={{
-                width: 38, height: 38, borderRadius: '50%',
-                background: 'transparent', color: TR.fg,
-                border: '1.5px solid ' + TR.hairlineSt,
+                flexShrink: 0, marginTop: 4,
+                width: 22, height: 22, borderRadius: '50%',
+                background: 'transparent',
+                border: '1px solid ' + TR.fgMute,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', flexShrink: 0,
-              }}>
-              <ShareIcon />
+                cursor: 'pointer', color: TR.fgMute,
+                transition: 'border-color 0.15s, color 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = TR.fg; e.currentTarget.style.color = TR.fg }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = TR.fgMute; e.currentTarget.style.color = TR.fgMute }}
+            >
+              <InfoIcon />
             </button>
           </div>
           <div style={{
@@ -910,56 +1072,45 @@ export default function TripPlanScreen({ live = false }) {
             }}>
               {Array.from({ length: numDays }, (_, i) => i + 1).map(d => {
                 const isSel = d === activeDay
+                const dayDate = getDayDate(d)
+                const isToday = isDayToday(d)
+                const dateNum = dayDate ? dayDate.getDate() : d
                 return (
-                  <div key={d} onClick={() => setActiveDay(d)} style={{
+                  <div key={d} onClick={() => setActiveDay(d)} title={dayTooltip(d)} style={{
                     flexShrink: 0, display: 'flex', flexDirection: 'column',
-                    alignItems: 'center', gap: 5, padding: '8px 4px',
-                    minWidth: 38, cursor: 'pointer',
+                    alignItems: 'center', gap: 4, padding: '8px 4px 6px',
+                    minWidth: 44, cursor: 'pointer',
                   }}>
                     <div style={{
                       fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
-                      color: TR.fgMute, letterSpacing: 0.6,
+                      color: isSel ? TR.fg : TR.fgMute,
+                      letterSpacing: 0.8, textTransform: 'uppercase',
+                      fontWeight: isToday ? 700 : 400,
                     }}>{dayWeekday(d)}</div>
                     <div style={{
-                      width: 32, height: 32, borderRadius: 8,
+                      width: 34, height: 34, borderRadius: 9,
                       background: isSel ? TR.fg : 'transparent',
                       color: isSel ? TR.lime : TR.fg,
                       border: '1.5px solid ' + (isSel ? TR.fg : TR.hairline),
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontFamily: 'Archivo, sans-serif', fontSize: 14, fontWeight: 800,
+                      fontFamily: 'Archivo, sans-serif', fontSize: 15, fontWeight: 800,
                       boxShadow: isSel ? '2px 2px 0 0 ' + TR.fg : 'none',
                       transform: isSel ? 'translate(-1px,-1px)' : 'none',
                       transition: 'all 0.15s ease',
                     }}>
-                      {String(d).padStart(2, '0')}
+                      {dateNum}
                     </div>
+                    <div style={{
+                      width: 5, height: 5, borderRadius: '50%',
+                      background: isToday ? TR.lime : 'transparent',
+                      border: isToday ? '1.5px solid ' + TR.fg : 'none',
+                      flexShrink: 0,
+                      transition: 'background 0.15s',
+                    }} />
                   </div>
                 )
               })}
             </div>
-
-            {/* ── AI summary ── */}
-            {(trip?.ai_summary || trip?.total_budget_estimate) && (
-              <div style={{
-                margin: '10px 22px 0',
-                padding: '12px 14px',
-                background: '#f5f0e8',
-                border: '1.5px solid ' + TR.hairline,
-                borderLeft: '3px solid #b8ff4f',
-                borderRadius: 12,
-              }}>
-                {trip.ai_summary && (
-                  <div style={{ fontSize: 13, color: '#1a1f1a', lineHeight: 1.55, marginBottom: trip.total_budget_estimate ? 8 : 0 }}>
-                    {trip.ai_summary}
-                  </div>
-                )}
-                {trip.total_budget_estimate && (
-                  <div style={{ fontSize: 11, color: TR.fgMute, fontFamily: 'JetBrains Mono, monospace' }}>
-                    Общий бюджет: {trip.total_budget_estimate}
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* ── Day rhythm chart ── */}
             <div style={{ padding: '4px 22px 0' }}>
@@ -1244,6 +1395,10 @@ export default function TripPlanScreen({ live = false }) {
             )}
           </>
         )}
+
+      {showSummary && (
+        <SummarySheet trip={trip} onClose={() => setShowSummary(false)} />
+      )}
 
       {detailsPoi && (
         <PlaceDetailsModal

@@ -13,7 +13,6 @@ import OnboardingStep1      from './pages/OnboardingStep1'
 import OnboardingStep2      from './pages/OnboardingStep2'
 import OnboardingDates      from './pages/OnboardingDates'
 import OnboardingStyle      from './pages/OnboardingStyle'
-import OnboardingStep3      from './pages/OnboardingStep3'
 import OnboardingBudget     from './pages/OnboardingBudget'
 import OnboardingFinalQuestion from './pages/OnboardingFinalQuestion'
 import BottomTabBar, { RouteIcon, ChatIcon, NearbyIcon } from './components/BottomTabBar'
@@ -22,7 +21,6 @@ import BottomTabBar, { RouteIcon, ChatIcon, NearbyIcon } from './components/Bott
 
 const GROUP_SIZE_MAP = { solo: 1, duo: 2, family: 4, friends: 3, group: 6 }
 const BUDGET_MAP     = { economy: 'low', comfort: 'medium', lux: 'high' }
-const RHYTHM_MAP     = { slow: 'relaxed', balanced: 'balanced', intense: 'active' }
 
 function fmtDate({ year, month, day }) {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
@@ -40,6 +38,7 @@ function DashboardLayout() {
   const tabs = [
     { route: '/dashboard/routes', label: 'Маршруты', icon: <RouteIcon /> },
     { route: '/dashboard/chat',   label: 'Чат',      icon: <ChatIcon /> },
+    { route: '/dashboard/nearby', label: 'Рядом',    icon: <NearbyIcon /> },
   ]
   return (
     <div className="dash-app">
@@ -56,27 +55,9 @@ function DashboardLayout() {
 function TripLayout() {
   const { id } = useParams()
   const tabs = [
-    { route: `/trip/${id}/plan`, label: 'Маршрут', icon: <RouteIcon /> },
-    { route: `/trip/${id}/chat`, label: 'Чат',     icon: <ChatIcon /> },
-  ]
-  return (
-    <div className="tr-app">
-      <div className="tr-phone">
-        <div className="tr-phone__scroll">
-          <Outlet />
-        </div>
-        <BottomTabBar tabs={tabs} theme="light" />
-      </div>
-    </div>
-  )
-}
-
-function TripLiveLayout() {
-  const { id } = useParams()
-  const tabs = [
-    { route: `/trip/${id}/live/plan`,   label: 'Маршрут', icon: <RouteIcon /> },
-    { route: `/trip/${id}/live/chat`,   label: 'Чат',     icon: <ChatIcon /> },
-    { route: `/trip/${id}/live/nearby`, label: 'Рядом',   icon: <NearbyIcon /> },
+    { route: `/trip/${id}/plan`,   label: 'Маршрут', icon: <RouteIcon /> },
+    { route: `/trip/${id}/chat`,   label: 'Чат',     icon: <ChatIcon /> },
+    { route: `/trip/${id}/nearby`, label: 'Рядом',   icon: <NearbyIcon /> },
   ]
   return (
     <div className="tr-app">
@@ -98,33 +79,20 @@ function OnboardingFlow() {
 
   const [city,      setCity]      = useState(null)
   const [groupType, setGroupType] = useState(null)
-  const [rhythm,    setRhythm]    = useState(null)
-
-  if (step === 7) return (
-    <OnboardingFinalQuestion
-      city={city} groupType={groupType} rhythm={rhythm}
-      onBack={() => setStep(6)}
-    />
-  )
 
   if (step === 6) return (
-    <OnboardingBudget
-      city={city} groupType={groupType}
+    <OnboardingFinalQuestion
+      city={city} groupType={groupType} rhythm="balanced"
       onBack={() => setStep(5)}
-      onContinue={(level) => {
-        update({ budget: BUDGET_MAP[level] ?? 'medium' })
-        setStep(7)
-      }}
     />
   )
 
   if (step === 5) return (
-    <OnboardingStep3
+    <OnboardingBudget
       city={city} groupType={groupType}
       onBack={() => setStep(4)}
-      onContinue={(r) => {
-        setRhythm(r)
-        update({ other_information: [RHYTHM_MAP[r] ?? r] })
+      onContinue={(level) => {
+        update({ budget: BUDGET_MAP[level] ?? 'medium' })
         setStep(6)
       }}
     />
@@ -201,21 +169,15 @@ export default function App() {
         <Route element={<DashboardLayout />}>
           <Route path="/dashboard/routes" element={<DashboardPage />} />
           <Route path="/dashboard/chat"   element={<GeneralChatPage />} />
+          <Route path="/dashboard/nearby" element={<NearbyPage />} />
         </Route>
 
-        {/* Level 2 — Trip (pre-trip) */}
+        {/* Level 2 — Trip */}
         <Route path="/trip/:id" element={<TripLayout />}>
-          <Route index                    element={<Navigate to="plan" replace />} />
-          <Route path="plan"              element={<TripPlanScreen />} />
-          <Route path="chat"              element={<TripChatPage />} />
-        </Route>
-
-        {/* Level 3 — Trip Live (in-trip) */}
-        <Route path="/trip/:id/live" element={<TripLiveLayout />}>
-          <Route index                    element={<Navigate to="plan" replace />} />
-          <Route path="plan"              element={<TripPlanScreen live />} />
-          <Route path="chat"              element={<TripChatPage />} />
-          <Route path="nearby"            element={<NearbyPage />} />
+          <Route index         element={<Navigate to="plan" replace />} />
+          <Route path="plan"   element={<TripPlanScreen />} />
+          <Route path="chat"   element={<TripChatPage />} />
+          <Route path="nearby" element={<NearbyPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
