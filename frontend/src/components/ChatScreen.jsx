@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import './ChatScreen.css'
 
-const API_BASE = import.meta.env.VITE_API_URL
-const WS_BASE = API_BASE.replace('http', 'ws');
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const WS_BASE  = API_BASE.replace('http', 'ws')
 
 function getToken() { return localStorage.getItem('access_token') ?? '' }
 
