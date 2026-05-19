@@ -307,6 +307,41 @@ class TripService:
         await self.session.commit()
         
         
+    async def swap_poi_status(
+        self,
+        trip_id: uuid.UUID,
+        user_id: uuid.UUID,
+        promote_poi_id: uuid.UUID,
+        demote_poi_id: uuid.UUID | None,
+    ) -> Trip:
+        trip = await self.trip_repo.get_by_user_and_id(trip_id, user_id)
+        if not trip:
+            raise NotFoundException("Trip not found")
+
+        promote = await self.trip_poi_repo.get_by_trip_and_poi(trip_id, promote_poi_id)
+        if not promote:
+            raise NotFoundException("POI not found in this trip")
+
+        if demote_poi_id:
+            demote = await self.trip_poi_repo.get_by_trip_and_poi(trip_id, demote_poi_id)
+            if demote:
+                old_order = demote.sequence_order
+                demote.poi_status = "additional"
+                promote.poi_status = "main"
+                promote.sequence_order = old_order
+                await self.session.flush()
+            else:
+                promote.poi_status = "main"
+                await self.session.flush()
+        else:
+            promote.poi_status = "main"
+            await self.session.flush()
+
+        await self.session.commit()
+
+        updated = await self.trip_repo.get_with_details(trip_id)
+        return updated
+
     async def finalize_route(
         self,
         trip_id: uuid.UUID,

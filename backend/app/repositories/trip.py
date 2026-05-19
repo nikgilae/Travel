@@ -185,6 +185,23 @@ class TripPOIRepository(BaseRepository[TripPOI]):
         )
         return result.scalar_one_or_none()
 
+    async def update_poi_status(
+        self,
+        trip_id: UUID,
+        poi_id: UUID,
+        poi_status: str,
+        sequence_order: float | None = None,
+    ) -> TripPOI | None:
+        instance = await self.get_by_trip_and_poi(trip_id, poi_id)
+        if not instance:
+            return None
+        instance.poi_status = poi_status
+        if sequence_order is not None:
+            instance.sequence_order = sequence_order
+        await self.session.flush()
+        await self.session.refresh(instance)
+        return instance
+
     async def delete_by_trip_and_poi(
         self,
         trip_id: UUID,

@@ -11,7 +11,8 @@ from app.schemas.trip import (
     TripResponse, TripWithPOIsResponse,
     TripPOIWithWarningsResponse,
     TripGenerateRequest, TripGenerateResponse,
-    TripDayFinalizeRequest # <--- Эта схема нужна для ручного выбора
+    TripDayFinalizeRequest,
+    TripPOISwapRequest,
 )
 from app.schemas.rule import RuleWithStrictResponse
 from app.services.trip import TripService
@@ -291,6 +292,30 @@ async def remove_poi_from_trip(
         Текущий авторизованный пользователь.
     """
     await service.remove_poi(trip_id, current_user.id, poi_id)
+
+
+@router.post(
+    "/{trip_id}/pois/swap",
+    response_model=TripWithPOIsResponse,
+    summary="Заменить/продвинуть альтернативный POI",
+)
+async def swap_poi_status(
+    trip_id: uuid.UUID,
+    data: TripPOISwapRequest,
+    service: TripService = Depends(get_trip_service),
+    current_user: User = Depends(get_current_user),
+) -> TripWithPOIsResponse:
+    """
+    Продвинуть alternative POI в main (и опционально понизить main → additional).
+    """
+    updated_trip = await service.swap_poi_status(
+        trip_id=trip_id,
+        user_id=current_user.id,
+        promote_poi_id=data.promote_poi_id,
+        demote_poi_id=data.demote_poi_id,
+    )
+    return updated_trip
+
 
 def get_trip_ai_service(session: AsyncSession = Depends(get_db)) -> TripAIService:
     """

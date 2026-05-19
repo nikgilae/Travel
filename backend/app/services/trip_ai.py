@@ -154,17 +154,21 @@ class TripAIService:
             selected: bool,
             day_number: int,
             day_theme: str | None,
+            sequence_order: float,
         ):
             poi_id_str = poi_item.get("poi_id")
             if not poi_id_str:
+                logger.warning("[day %d] poi_id отсутствует, пропускаем", day_number)
                 return 0
             try:
                 poi_uuid = uuid.UUID(poi_id_str)
             except ValueError:
+                logger.warning("[day %d] Невалидный poi_id '%s', пропускаем", day_number, poi_id_str)
                 return 0
 
             poi = await self.poi_repo.get_by_id(poi_uuid)
             if not poi:
+                logger.warning("[day %d] POI %s не найден в БД, пропускаем", day_number, poi_id_str)
                 return 0
 
             existing = await self.trip_poi_repo.get_by_trip_and_poi(trip_id, poi_uuid)
@@ -173,26 +177,37 @@ class TripAIService:
 
             st = poi_item.get("start_time")
             dh = poi_item.get("duration_hours")
-            await self.trip_poi_repo.create(
-                trip_id=trip_id,
-                poi_id=poi_uuid,
-                sequence_order=None,
-                planned_start_time=None,
-                poi_status=status,
-                is_selected=selected,
-                day_number=day_number,
-                start_time=st,
-                end_time=_calc_end_time(st, dh),
-                duration_hours=dh,
-                budget_estimate=poi_item.get("budget_estimate"),
-                ai_tip=poi_item.get("ai_tip"),
-                day_theme=day_theme,
-            )
+            raw_level = poi_item.get("activity_level")
+            activity_level = int(raw_level) if raw_level is not None else None
+            if activity_level is not None:
+                activity_level = max(1, min(5, activity_level))
+            try:
+                async with self.session.begin_nested():
+                    await self.trip_poi_repo.create(
+                        trip_id=trip_id,
+                        poi_id=poi_uuid,
+                        sequence_order=sequence_order,
+                        planned_start_time=None,
+                        poi_status=status,
+                        is_selected=selected,
+                        day_number=day_number,
+                        start_time=st,
+                        end_time=_calc_end_time(st, dh),
+                        duration_hours=dh,
+                        budget_estimate=poi_item.get("budget_estimate"),
+                        ai_tip=poi_item.get("ai_tip"),
+                        day_theme=day_theme,
+                        activity_level=activity_level,
+                    )
+            except Exception as e:
+                logger.error("[day %d] Ошибка сохранения POI %s: %s", day_number, poi_id_str, e)
+                return 0
             return 1
 
         for day in ai_result.get("days", []):
             current_day_num = day.get("day", 1)
             current_day_theme = day.get("theme")
+            main_order = 1
 
             for poi_item in day.get("main_pois", []):
                 poi_item.setdefault("name", "Неизвестное место")
@@ -200,10 +215,16 @@ class TripAIService:
                 poi_item.setdefault("duration_hours", 2.0)
                 poi_item.setdefault("budget_estimate", "Не указано")
                 poi_item.setdefault("ai_tip", "")
-                saved_count += await _save_poi_to_pool(
+                n = await _save_poi_to_pool(
                     poi_item, status="main", selected=True,
                     day_number=current_day_num, day_theme=current_day_theme,
+                    sequence_order=float(main_order),
                 )
+                saved_count += n
+                if n:
+                    main_order += 1
+
+            alt_order = main_order + 100  # запасные идут после основных
 
             for poi_item in day.get("additional_pois", []):
                 poi_item.setdefault("name", "Неизвестное место")
@@ -211,10 +232,16 @@ class TripAIService:
                 poi_item.setdefault("duration_hours", 1.5)
                 poi_item.setdefault("budget_estimate", "Не указано")
                 poi_item.setdefault("ai_tip", "")
-                saved_count += await _save_poi_to_pool(
+                n = await _save_poi_to_pool(
                     poi_item, status="additional", selected=False,
                     day_number=current_day_num, day_theme=current_day_theme,
+                    sequence_order=float(alt_order),
                 )
+                saved_count += n
+                if n:
+                    alt_order += 1
+
+            logger.info("[day %d] сохранено %d основных + запасных мест", current_day_num, main_order - 1)
 
         trip.ai_summary = ai_result.get("summary")
         trip.total_budget_estimate = ai_result.get("total_budget_estimate")

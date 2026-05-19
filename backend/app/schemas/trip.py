@@ -104,6 +104,7 @@ class TripPOIResponse(BaseModel):
     budget_estimate: Optional[str] = None
     ai_tip: Optional[str] = None
     day_theme: Optional[str] = None
+    activity_level: Optional[int] = None
 
 class TripPOIWithWarningsResponse(BaseModel):
     """
@@ -194,6 +195,12 @@ class TripGenerateResponse(BaseModel):
     total_budget_estimate: str
     days: list[GeneratedDayResponse]
     saved_pois_count: int
+
+
+class TripPOISwapRequest(BaseModel):
+    """Запрос на замену или продвижение альтернативного POI."""
+    promote_poi_id: uuid.UUID
+    demote_poi_id: Optional[uuid.UUID] = None
 
 
 class TripDayFinalizeRequest(BaseModel):

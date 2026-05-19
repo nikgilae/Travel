@@ -122,7 +122,7 @@ function Toast({ message, onDone }) {
 
 // ── Confirm modal ──────────────────────────────────────────
 
-function ConfirmModal({ title, body, onConfirm, onCancel, loading }) {
+function ConfirmModal({ title, body, onConfirm, onCancel, loading, confirmLabel = 'УДАЛИТЬ', loadingLabel, confirmColor = TR.warn, confirmTextColor = '#fff' }) {
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 1100,
@@ -154,13 +154,13 @@ function ConfirmModal({ title, body, onConfirm, onCancel, loading }) {
           }}>ОТМЕНА</button>
           <button onClick={onConfirm} disabled={loading} style={{
             flex: 1, height: 46,
-            background: TR.warn, border: '1.5px solid ' + TR.fg,
+            background: confirmColor, border: '1.5px solid ' + TR.fg,
             borderRadius: 12, cursor: loading ? 'wait' : 'pointer',
             fontFamily: 'Archivo, sans-serif', fontWeight: 800, fontSize: 13,
-            letterSpacing: '0.04em', color: '#fff',
+            letterSpacing: '0.04em', color: confirmTextColor,
             boxShadow: '2px 2px 0 0 ' + TR.fg,
             opacity: loading ? 0.6 : 1,
-          }}>{loading ? 'УДАЛЯЕМ…' : 'УДАЛИТЬ'}</button>
+          }}>{loading ? (loadingLabel ?? confirmLabel + '…') : confirmLabel}</button>
         </div>
       </div>
     </div>
@@ -339,8 +339,56 @@ function PlaceDetailsModal({ poi, cityName, onClose }) {
 
 // ── Rhythm chart ───────────────────────────────────────────
 
-function RhythmChart({ day, color }) {
+const T_START = 8, T_END = 21
+const Y_TOP = 8, Y_BOT = 50
+
+function txTime(hours) {
+  return 5 + (hours - T_START) / (T_END - T_START) * 270
+}
+function tyLevel(level) {
+  return Y_TOP + (5 - level) / 4 * (Y_BOT - Y_TOP)
+}
+
+function parseHHMM(t) {
+  if (!t) return null
+  const parts = t.split(':')
+  const h = parseInt(parts[0], 10)
+  const m = parseInt(parts[1] ?? '0', 10)
+  return isNaN(h) || isNaN(m) ? null : h + m / 60
+}
+
+function catmullRomSVGPath(pts) {
+  if (pts.length < 2) return ''
+  const p = [pts[0], ...pts, pts[pts.length - 1]]
+  const f = n => n.toFixed(2)
+  let d = `M${f(pts[0].x)},${f(pts[0].y)}`
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [p0, p1, p2, p3] = [p[i], p[i + 1], p[i + 2], p[i + 3]]
+    d += ` C${f(p1.x + (p2.x - p0.x) / 6)},${f(p1.y + (p2.y - p0.y) / 6)} ${f(p2.x - (p3.x - p1.x) / 6)},${f(p2.y - (p3.y - p1.y) / 6)} ${f(p2.x)},${f(p2.y)}`
+  }
+  return d
+}
+
+function RhythmChart({ day, color, pois }) {
   const gradId = `grad-${day}`
+
+  const pts = (pois ?? [])
+    .filter(p => p.poi_status === 'main' && p.start_time && p.activity_level != null)
+    .map(p => {
+      const t = parseHHMM(p.start_time)
+      return t !== null ? { x: txTime(t), y: tyLevel(p.activity_level), level: p.activity_level } : null
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.x - b.x)
+
+  const hasReal = pts.length >= 2
+  const linePath = hasReal ? catmullRomSVGPath(pts) : CURVE_PATH
+  const fillPath = hasReal
+    ? `${linePath} L${pts[pts.length - 1].x.toFixed(2)},${Y_BOT} L${pts[0].x.toFixed(2)},${Y_BOT} Z`
+    : CURVE_FILL
+
+  const gridHours = [8, 12, 16, 20]
+
   return (
     <svg viewBox="0 0 280 62" style={{ width: '100%', height: 62, display: 'block' }}>
       <defs>
@@ -349,21 +397,27 @@ function RhythmChart({ day, color }) {
           <stop offset="100%" stopColor={color} stopOpacity="0"/>
         </linearGradient>
       </defs>
-      {[0, 1, 2, 3].map(i => (
-        <line key={i}
-          x1={i * 70 + 20} y1="0" x2={i * 70 + 20} y2="50"
-          stroke={TR.hairlineSt} strokeWidth="1" strokeDasharray="2,3"
-        />
+      {gridHours.map(h => (
+        <line key={h} x1={txTime(h)} y1="0" x2={txTime(h)} y2="50"
+          stroke={TR.hairlineSt} strokeWidth="1" strokeDasharray="2,3"/>
       ))}
-      <path d={CURVE_FILL} fill={`url(#${gradId})`}/>
-      <path d={CURVE_PATH} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round"/>
-      {CURVE_DOTS.map((dot, i) => (
-        <circle key={i} cx={dot.x} cy={dot.y} r={dot.peak ? 5 : 3.5}
-          fill={color} stroke={TR.surface} strokeWidth="2"/>
-      ))}
-      {['08', '12', '16', '20'].map((h, i) => (
-        <text key={h} x={i * 70 + 20} y="61" textAnchor="middle"
-          fontFamily="JetBrains Mono, monospace" fontSize="8" fill={TR.fgMute}>{h}
+      <path d={fillPath} fill={`url(#${gradId})`}/>
+      <path d={linePath} fill="none" stroke={color} strokeWidth="2"
+        strokeLinecap="round" strokeLinejoin="round"/>
+      {hasReal
+        ? pts.map((pt, i) => (
+            <circle key={i} cx={pt.x} cy={pt.y} r={pt.level >= 4 ? 5 : 3.5}
+              fill={color} stroke={TR.surface} strokeWidth="2"/>
+          ))
+        : CURVE_DOTS.map((dot, i) => (
+            <circle key={i} cx={dot.x} cy={dot.y} r={dot.peak ? 5 : 3.5}
+              fill={color} stroke={TR.surface} strokeWidth="2"/>
+          ))
+      }
+      {gridHours.map(h => (
+        <text key={h} x={txTime(h)} y="61" textAnchor="middle"
+          fontFamily="JetBrains Mono, monospace" fontSize="8" fill={TR.fgMute}>
+          {String(h).padStart(2, '0')}
         </text>
       ))}
     </svg>
@@ -797,6 +851,10 @@ export default function TripPlanScreen() {
 
   const [activeTab, setActiveTab]   = useState(0)
   const [activeDay, setActiveDay]   = useState(1)
+
+  useEffect(() => {
+    if (activeTab === 1) setActiveDay(1)
+  }, [activeTab])
   const [trip, setTrip]             = useState(null)
   const [loading, setLoading]       = useState(!!tripId)
   const [error, setError]           = useState(null)
@@ -810,9 +868,14 @@ export default function TripPlanScreen() {
   // finalize day
   const [finalizedDays, setFinalizedDays] = useState(new Set())
   const [finalizingDay, setFinalizingDay] = useState(null)
+  const [preFinalizePois, setPreFinalizePois] = useState({}) // { dayNum: pois[] }
+  const [confirmUnfinalize, setConfirmUnfinalize] = useState(null) // dayNum
 
   // summary sheet
   const [showSummary, setShowSummary] = useState(false)
+
+  // promoting alternative to main
+  const [promotingPoiId, setPromotingPoiId] = useState(null)
 
   // share toast
   const [toast, setToast] = useState(null)
@@ -843,20 +906,70 @@ export default function TripPlanScreen() {
   }
 
   async function handleFinalizeDay(dayNum) {
+    const snapshotPois = trip?.pois ? [...trip.pois] : []
     setFinalizingDay(dayNum)
     try {
+      console.log(`[finalize] POST /trips/${tripId}/days/${dayNum}/finalize/auto-main`)
       const res = await fetch(`${API_BASE}/trips/${tripId}/days/${dayNum}/finalize/auto-main`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${getToken()}` },
       })
-      if (!res.ok) throw new Error(`Ошибка финализации (${res.status})`)
-      const updated = await res.json()
-      setTrip(updated)
+      const body = await res.json()
+      console.log('[finalize] response:', res.status, body)
+      if (!res.ok) {
+        showToast(`ОШИБКА: ${body?.detail ?? res.status}`)
+        return
+      }
+      setPreFinalizePois(prev => ({ ...prev, [dayNum]: snapshotPois }))
+      setTrip(body)
       setFinalizedDays(prev => new Set([...prev, dayNum]))
+      showToast(`МАРШРУТ ДНЯ ${dayNum} УТВЕРЖДЁН ✓`)
     } catch (e) {
-      setError(e.message)
+      console.error('[finalize] error:', e)
+      showToast(`ОШИБКА: ${e.message}`)
     } finally {
       setFinalizingDay(null)
+    }
+  }
+
+  function handleUnfinalizeDay(dayNum) {
+    const original = preFinalizePois[dayNum]
+    if (original) {
+      setTrip(prev => ({ ...prev, pois: original }))
+    }
+    setFinalizedDays(prev => { const s = new Set(prev); s.delete(dayNum); return s })
+    setPreFinalizePois(prev => { const n = { ...prev }; delete n[dayNum]; return n })
+    setConfirmUnfinalize(null)
+    showToast(`ДЕНЬ ${dayNum} ОТКРЫТ ДЛЯ РЕДАКТИРОВАНИЯ`)
+  }
+
+  async function handleSwapPoi(promotePoiId, demotePoiId = null) {
+    setPromotingPoiId(promotePoiId)
+    try {
+      const res = await fetch(`${API_BASE}/trips/${tripId}/pois/swap`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          promote_poi_id: promotePoiId,
+          demote_poi_id: demotePoiId ?? null,
+        }),
+      })
+      if (!res.ok) {
+        const body = await res.json()
+        showToast(`ОШИБКА: ${body?.detail ?? res.status}`)
+        return
+      }
+      const updatedTrip = await res.json()
+      setTrip(updatedTrip)
+      setReplacingPoiId(null)
+      showToast(demotePoiId ? 'МЕСТО ЗАМЕНЕНО ✓' : 'МЕСТО ДОБАВЛЕНО ✓')
+    } catch (e) {
+      showToast(`ОШИБКА: ${e.message}`)
+    } finally {
+      setPromotingPoiId(null)
     }
   }
 
@@ -905,6 +1018,14 @@ export default function TripPlanScreen() {
   const allPois   = trip?.pois ?? []
   const dayPois   = poisByDay[activeDay] ?? []
   const color     = DAY_COLORS[(activeDay - 1) % DAY_COLORS.length]
+
+  // Map gets all pois but additional ones are filtered out for finalized days
+  const mapPois = useMemo(() => {
+    return allPois.filter(p => {
+      if (p.poi_status === 'additional' && finalizedDays.has(p.day_number)) return false
+      return true
+    })
+  }, [allPois, finalizedDays])
 
   const cityName    = city?.n    ?? trip?.city_id ?? 'Маршрут'
   const cityCode    = city?.code ?? '—'
@@ -1056,11 +1177,12 @@ export default function TripPlanScreen() {
         {activeTab === 2 && <BudgetTab trip={trip} poisByDay={poisByDay} numDays={numDays} />}
         {activeTab === 1 && (
           <TripMap
-            allPois={allPois}
+            allPois={mapPois}
             numDays={numDays}
             activeDay={activeDay}
             setActiveDay={setActiveDay}
             cityName={city?.n ?? null}
+            finalizedDays={finalizedDays}
           />
         )}
 
@@ -1132,17 +1254,20 @@ export default function TripPlanScreen() {
                       fontSize: 18, fontWeight: 800, lineHeight: 1.05,
                       letterSpacing: '-0.02em', color: TR.fg, marginTop: 4,
                     }}>
-                      {dayPois.length > 0 ? `${dayPois.length} МЕСТ` : 'МАРШРУТ ФОРМИРУЕТСЯ'}
+                      {(() => {
+                        const mainCount = dayPois.filter(p => p.poi_status === 'main').length
+                        return mainCount > 0 ? `${mainCount} МЕСТ` : 'МАРШРУТ ФОРМИРУЕТСЯ'
+                      })()}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: 11, color: TR.fgMute, marginTop: 2 }}>
-                      {dayPois.length} событий
+                      {dayPois.filter(p => p.poi_status === 'main').length} событий
                     </div>
                   </div>
                 </div>
 
-                <RhythmChart day={activeDay} color={color} />
+                <RhythmChart day={activeDay} color={color} pois={dayPois} />
 
                 <div style={{
                   display: 'flex', justifyContent: 'space-between',
@@ -1156,15 +1281,23 @@ export default function TripPlanScreen() {
 
                 <div style={{ marginTop: 12 }}>
                   {finalizedDays.has(activeDay) ? (
-                    <div style={{
-                      display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center',
-                      padding: '8px 14px', borderRadius: 10,
-                      background: 'rgba(185,255,61,0.18)', border: '1px solid rgba(185,255,61,0.4)',
-                      fontFamily: 'Archivo, sans-serif', fontWeight: 800, fontSize: 11,
-                      letterSpacing: '0.05em', color: '#4d7a00',
-                    }}>
-                      <CheckIcon /> ПЛАН УТВЕРЖДЁН
-                    </div>
+                    <button
+                      onClick={() => setConfirmUnfinalize(activeDay)}
+                      style={{
+                        width: '100%', height: 36,
+                        background: TR.fg, border: '1.5px solid ' + TR.fg,
+                        borderRadius: 10, cursor: 'pointer',
+                        fontFamily: 'Archivo, sans-serif', fontWeight: 800, fontSize: 11,
+                        letterSpacing: '0.05em', color: TR.lime,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        boxShadow: '2px 2px 0 0 rgba(13,40,24,0.3)',
+                        transition: 'opacity 0.15s',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.opacity = '0.8'}
+                      onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                    >
+                      <CheckIcon /> МАРШРУТ ФИНАЛИЗИРОВАН
+                    </button>
                   ) : (
                     <button
                       onClick={() => handleFinalizeDay(activeDay)}
@@ -1179,7 +1312,7 @@ export default function TripPlanScreen() {
                         opacity: finalizingDay === activeDay ? 0.5 : 1,
                         transition: 'border-color 0.15s',
                       }}
-                      onMouseEnter={e => e.currentTarget.style.borderColor = TR.fg}
+                      onMouseEnter={e => { if (finalizingDay !== activeDay) e.currentTarget.style.borderColor = TR.fg }}
                       onMouseLeave={e => e.currentTarget.style.borderColor = TR.hairlineSt}
                     >
                       {finalizingDay === activeDay ? 'ФИНАЛИЗИРУЕМ…' : 'ФИНАЛИЗИРОВАТЬ ПЛАН ДНЯ'}
@@ -1201,195 +1334,342 @@ export default function TripPlanScreen() {
                 ДЕНЬ {String(activeDay).padStart(2, '0')} — НЕТ МЕСТ
               </div>
             ) : (
-              <div style={{ padding: '18px 22px 32px', position: 'relative' }}>
-                <div style={{
-                  position: 'absolute',
-                  left: 22 + 46 + 12 + 6,
-                  top: 24, bottom: 24,
-                  width: 1, background: '#b8ff4f',
-                  opacity: 0.6,
-                }} />
-
+              <div style={{ padding: '18px 22px 32px' }}>
                 {(() => {
-                  const altPois  = dayPois.filter(p => p.poi_status === 'additional')
+                  const isFinalized = finalizedDays.has(activeDay)
+                  const altPois  = isFinalized ? [] : dayPois.filter(p => p.poi_status === 'additional')
                   const mainPois = dayPois.filter(p => p.poi_status === 'main')
-                  return mainPois.map((p, i) => {
-                  const startT = p.start_time ?? formatTime(p.planned_start_time)
-                  const endT   = p.end_time ?? null
-                  const isReplacing = replacingPoiId === p.poi.id
-
+                  // Dot column center X, relative to each zone's wrapper (no outer padding here)
+                  const DOT_X = 46 + 12 + 6  // 64px
                   return (
-                    <div key={p.poi.id} style={{
-                      paddingBottom: i < mainPois.length - 1 ? 18 : 0,
-                    }}><div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                      {/* Time column */}
-                      <div style={{ width: 46, flexShrink: 0, textAlign: 'right', paddingTop: 4 }}>
-                        <div style={{
-                          fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
-                          color: '#4d7a00', fontWeight: 700, letterSpacing: 0.4,
-                        }}>{startT ?? '—:—'}</div>
-                        {endT && (
+                    <>
+                      {/* ── ZONE 1: Main POIs — lime vertical line ── */}
+                      <div style={{ position: 'relative' }}>
+                        {mainPois.length > 1 && (
                           <div style={{
-                            fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
-                            color: TR.fgMute, letterSpacing: 0.4, marginTop: 2,
-                          }}>{endT}</div>
+                            position: 'absolute', left: DOT_X, top: 20, bottom: 8,
+                            width: 1, background: '#b8ff4f', opacity: 0.6,
+                            pointerEvents: 'none',
+                          }} />
                         )}
-                      </div>
 
-                      {/* Timeline dot + line */}
-                      <div style={{
-                        width: 14, flexShrink: 0, paddingTop: 8,
-                        display: 'flex', justifyContent: 'center',
-                        position: 'relative', zIndex: 1,
-                      }}>
-                        <div style={{
-                          width: 14, height: 14, borderRadius: '50%',
-                          background: '#b8ff4f', border: '2px solid ' + TR.bg,
-                          boxShadow: '0 0 0 1.5px #b8ff4f',
-                        }} />
-                      </div>
+                        {mainPois.map((p, i) => {
+                          const startT = p.start_time ?? formatTime(p.planned_start_time)
+                          const endT   = p.end_time ?? null
+                          const isReplacing = !isFinalized && replacingPoiId === p.poi.id
 
-                      {/* POI card */}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{
-                          padding: '12px 14px',
-                          background: TR.surface,
-                          border: '1.5px solid ' + TR.fg,
-                          borderRadius: 12,
-                          boxShadow: '3px 3px 0 0 ' + TR.fg,
-                          transform: 'translate(-1px,-1px)',
-                        }}>
-                          {/* Name + budget */}
-                          <div style={{
-                            display: 'flex', justifyContent: 'space-between',
-                            alignItems: 'flex-start', gap: 8,
-                          }}>
-                            <div style={{
-                              fontFamily: 'Archivo, sans-serif',
-                              fontSize: 18, fontWeight: 800,
-                              lineHeight: 1.1, letterSpacing: '-0.02em',
-                              textTransform: 'uppercase', flex: 1, color: TR.fg,
-                            }}>{p.poi.name}</div>
-                            {p.budget_estimate && (
-                              <div style={{
-                                flexShrink: 0, fontFamily: 'JetBrains Mono, monospace',
-                                fontSize: 10, color: TR.fgMute,
-                                background: TR.surface2, padding: '2px 7px',
-                                borderRadius: 6, whiteSpace: 'nowrap',
-                              }}>💰 {p.budget_estimate}</div>
-                            )}
-                          </div>
+                          return (
+                            <div key={p.poi.id} style={{
+                              paddingBottom: i < mainPois.length - 1 ? 18 : 0,
+                            }}>
+                              <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                                {/* Time column */}
+                                <div style={{ width: 46, flexShrink: 0, textAlign: 'right', paddingTop: 4 }}>
+                                  <div style={{
+                                    fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
+                                    color: '#4d7a00', fontWeight: 700, letterSpacing: 0.4,
+                                  }}>{startT ?? '—:—'}</div>
+                                  {endT && (
+                                    <div style={{
+                                      fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
+                                      color: TR.fgMute, letterSpacing: 0.4, marginTop: 2,
+                                    }}>{endT}</div>
+                                  )}
+                                </div>
 
-                          {/* ai_tip */}
-                          {p.ai_tip && (
-                            <div style={{
-                              marginTop: 6, fontSize: 12, color: TR.fgMute,
-                              lineHeight: 1.5, fontStyle: 'italic',
-                            }}>💡 {p.ai_tip}</div>
-                          )}
-
-                          {!p.ai_tip && p.poi.description && (
-                            <div style={{
-                              marginTop: 4, fontSize: 13, color: TR.fgMute, lineHeight: 1.4,
-                            }}>{p.poi.description}</div>
-                          )}
-
-                          <div style={{
-                            marginTop: 10, paddingTop: 10,
-                            borderTop: '1px dashed ' + TR.hairlineSt,
-                            display: 'flex', gap: 8, alignItems: 'center',
-                          }}>
-                            <button
-                              className={`tr-action-btn${isReplacing ? ' tr-action-btn--primary' : ''}`}
-                              onClick={() => setReplacingPoiId(isReplacing ? null : p.poi.id)}
-                            >
-                              {isReplacing ? 'ЗАКРЫТЬ ✕' : 'ЗАМЕНИТЬ'}
-                            </button>
-                            <button className="tr-action-btn" onClick={() => setDetailsPoi(p.poi)}>ДЕТАЛИ</button>
-                            <button
-                              onClick={() => setConfirmDelete({ poiId: p.poi.id, poiName: p.poi.name })}
-                              title="Удалить место"
-                              style={{
-                                marginLeft: 'auto',
-                                width: 28, height: 28, borderRadius: '50%',
-                                background: 'transparent', border: '1px solid ' + TR.hairline,
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                cursor: 'pointer', color: TR.fgMute,
-                                transition: 'border-color 0.15s, color 0.15s',
-                              }}
-                              onMouseEnter={e => { e.currentTarget.style.borderColor = TR.warn; e.currentTarget.style.color = TR.warn }}
-                              onMouseLeave={e => { e.currentTarget.style.borderColor = TR.hairline; e.currentTarget.style.color = TR.fgMute }}
-                            >
-                              <TrashIcon />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Alternatives strip */}
-                    {isReplacing && (
-                      <div style={{ marginTop: 10, marginLeft: 46 + 12 + 14 + 12 }}>
-                        {altPois.length === 0 ? (
-                          <div style={{
-                            padding: '10px 14px', fontSize: 12, color: TR.fgMute,
-                            fontFamily: 'JetBrains Mono, monospace', letterSpacing: 0.6,
-                          }}>НЕТ АЛЬТЕРНАТИВ</div>
-                        ) : (
-                          <div style={{
-                            display: 'flex', gap: 10, overflowX: 'auto',
-                            paddingBottom: 6,
-                          }}>
-                            {altPois.map(alt => (
-                              <div key={alt.poi.id} style={{
-                                flexShrink: 0, width: 160,
-                                background: TR.surface,
-                                border: '1.5px solid ' + TR.hairlineSt,
-                                borderRadius: 12, padding: '10px 12px',
-                                cursor: 'pointer',
-                                transition: 'border-color 0.15s',
-                              }}
-                              onMouseEnter={e => e.currentTarget.style.borderColor = TR.fg}
-                              onMouseLeave={e => e.currentTarget.style.borderColor = TR.hairlineSt}
-                              >
+                                {/* Lime dot */}
                                 <div style={{
-                                  fontFamily: 'Archivo, sans-serif', fontWeight: 800,
-                                  fontSize: 13, letterSpacing: '-0.01em',
-                                  textTransform: 'uppercase', color: TR.fg,
-                                  lineHeight: 1.2, marginBottom: 6,
-                                  overflow: 'hidden', display: '-webkit-box',
-                                  WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-                                }}>{alt.poi.name}</div>
-                                {alt.start_time && (
+                                  width: 14, flexShrink: 0, paddingTop: 8,
+                                  display: 'flex', justifyContent: 'center',
+                                  position: 'relative', zIndex: 1,
+                                }}>
                                   <div style={{
-                                    fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
-                                    color: '#4d7a00', fontWeight: 700, marginBottom: 4,
-                                  }}>{alt.start_time}{alt.end_time ? ` — ${alt.end_time}` : ''}</div>
-                                )}
-                                {alt.budget_estimate && (
+                                    width: 14, height: 14, borderRadius: '50%',
+                                    background: '#b8ff4f', border: '2px solid ' + TR.bg,
+                                    boxShadow: '0 0 0 1.5px #b8ff4f',
+                                  }} />
+                                </div>
+
+                                {/* POI card */}
+                                <div style={{ flex: 1, minWidth: 0 }}>
                                   <div style={{
-                                    fontSize: 10, color: TR.fgMute,
-                                    fontFamily: 'JetBrains Mono, monospace',
-                                    marginBottom: 4,
-                                  }}>💰 {alt.budget_estimate}</div>
-                                )}
-                                {alt.ai_tip && (
-                                  <div style={{
-                                    fontSize: 11, color: TR.fgMute,
-                                    lineHeight: 1.4, fontStyle: 'italic',
-                                    overflow: 'hidden', display: '-webkit-box',
-                                    WebkitLineClamp: 3, WebkitBoxOrient: 'vertical',
-                                  }}>💡 {alt.ai_tip}</div>
-                                )}
+                                    padding: '12px 14px',
+                                    background: TR.surface,
+                                    border: '1.5px solid ' + TR.fg,
+                                    borderRadius: 12,
+                                    boxShadow: '3px 3px 0 0 ' + TR.fg,
+                                    transform: 'translate(-1px,-1px)',
+                                  }}>
+                                    <div style={{
+                                      display: 'flex', justifyContent: 'space-between',
+                                      alignItems: 'flex-start', gap: 8,
+                                    }}>
+                                      <div style={{
+                                        fontFamily: 'Archivo, sans-serif',
+                                        fontSize: 18, fontWeight: 800,
+                                        lineHeight: 1.1, letterSpacing: '-0.02em',
+                                        textTransform: 'uppercase', flex: 1, color: TR.fg,
+                                      }}>{p.poi.name}</div>
+                                      {p.budget_estimate && (
+                                        <div style={{
+                                          flexShrink: 0, fontFamily: 'JetBrains Mono, monospace',
+                                          fontSize: 10, color: TR.fgMute,
+                                          background: TR.surface2, padding: '2px 7px',
+                                          borderRadius: 6, whiteSpace: 'nowrap',
+                                        }}>💰 {p.budget_estimate}</div>
+                                      )}
+                                    </div>
+
+                                    {p.ai_tip && (
+                                      <div style={{
+                                        marginTop: 6, fontSize: 12, color: TR.fgMute,
+                                        lineHeight: 1.5, fontStyle: 'italic',
+                                      }}>💡 {p.ai_tip}</div>
+                                    )}
+
+                                    {!p.ai_tip && p.poi.description && (
+                                      <div style={{
+                                        marginTop: 4, fontSize: 13, color: TR.fgMute, lineHeight: 1.4,
+                                      }}>{p.poi.description}</div>
+                                    )}
+
+                                    <div style={{
+                                      marginTop: 10, paddingTop: 10,
+                                      borderTop: '1px dashed ' + TR.hairlineSt,
+                                      display: 'flex', gap: 8, alignItems: 'center',
+                                    }}>
+                                      {!isFinalized && (
+                                        <button
+                                          className={`tr-action-btn${isReplacing ? ' tr-action-btn--primary' : ''}`}
+                                          style={{ color: TR.fg }}
+                                          onClick={() => setReplacingPoiId(isReplacing ? null : p.poi.id)}
+                                        >
+                                          {isReplacing ? 'ЗАКРЫТЬ ✕' : 'ЗАМЕНИТЬ'}
+                                        </button>
+                                      )}
+                                      <button className="tr-action-btn" onClick={() => setDetailsPoi(p.poi)}>ДЕТАЛИ</button>
+                                      <button
+                                        onClick={() => setConfirmDelete({ poiId: p.poi.id, poiName: p.poi.name })}
+                                        title="Удалить место"
+                                        style={{
+                                          marginLeft: 'auto',
+                                          width: 28, height: 28, borderRadius: '50%',
+                                          background: 'transparent', border: '1px solid ' + TR.hairline,
+                                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                          cursor: 'pointer', color: TR.fgMute,
+                                          transition: 'border-color 0.15s, color 0.15s',
+                                        }}
+                                        onMouseEnter={e => { e.currentTarget.style.borderColor = TR.warn; e.currentTarget.style.color = TR.warn }}
+                                        onMouseLeave={e => { e.currentTarget.style.borderColor = TR.hairline; e.currentTarget.style.color = TR.fgMute }}
+                                      >
+                                        <TrashIcon />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
-                            ))}
-                          </div>
-                        )}
+
+                              {/* Replace strip — horizontal scroll of alt cards */}
+                              {isReplacing && (
+                                <div style={{ marginTop: 10, marginLeft: 46 + 12 + 14 + 12 }}>
+                                  {altPois.length === 0 ? (
+                                    <div style={{
+                                      padding: '10px 14px', fontSize: 12, color: TR.fgMute,
+                                      fontFamily: 'JetBrains Mono, monospace', letterSpacing: 0.6,
+                                    }}>НЕТ АЛЬТЕРНАТИВ</div>
+                                  ) : (
+                                    <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 6 }}>
+                                      {altPois.map(alt => {
+                                        const isPromoting = promotingPoiId === alt.poi.id
+                                        return (
+                                          <div
+                                            key={alt.poi.id}
+                                            onClick={() => !isPromoting && handleSwapPoi(alt.poi.id, p.poi.id)}
+                                            style={{
+                                              flexShrink: 0, width: 160,
+                                              background: TR.surface,
+                                              border: '1.5px solid ' + TR.hairlineSt,
+                                              borderRadius: 12, padding: '10px 12px',
+                                              cursor: isPromoting ? 'wait' : 'pointer',
+                                              opacity: isPromoting ? 0.5 : 1,
+                                              transition: 'border-color 0.15s, opacity 0.15s',
+                                            }}
+                                            onMouseEnter={e => { if (!isPromoting) e.currentTarget.style.borderColor = TR.lime }}
+                                            onMouseLeave={e => e.currentTarget.style.borderColor = TR.hairlineSt}
+                                          >
+                                            <div style={{
+                                              fontFamily: 'Archivo, sans-serif', fontWeight: 800,
+                                              fontSize: 13, letterSpacing: '-0.01em',
+                                              textTransform: 'uppercase', color: TR.fg,
+                                              lineHeight: 1.2, marginBottom: 6,
+                                              overflow: 'hidden', display: '-webkit-box',
+                                              WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                                            }}>{alt.poi.name}</div>
+                                            {alt.start_time && (
+                                              <div style={{
+                                                fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+                                                color: '#4d7a00', fontWeight: 700, marginBottom: 4,
+                                              }}>{alt.start_time}{alt.end_time ? ` — ${alt.end_time}` : ''}</div>
+                                            )}
+                                            {alt.budget_estimate && (
+                                              <div style={{
+                                                fontSize: 10, color: TR.fgMute,
+                                                fontFamily: 'JetBrains Mono, monospace',
+                                                marginBottom: 4,
+                                              }}>💰 {alt.budget_estimate}</div>
+                                            )}
+                                            {alt.ai_tip && (
+                                              <div style={{
+                                                fontSize: 11, color: TR.fgMute,
+                                                lineHeight: 1.4, fontStyle: 'italic',
+                                                overflow: 'hidden', display: '-webkit-box',
+                                                WebkitLineClamp: 3, WebkitBoxOrient: 'vertical',
+                                              }}>💡 {alt.ai_tip}</div>
+                                            )}
+                                            <div style={{
+                                              marginTop: 8, fontSize: 10,
+                                              fontFamily: 'JetBrains Mono, monospace',
+                                              color: TR.fg, fontWeight: 700, letterSpacing: 0.5,
+                                            }}>
+                                              {isPromoting ? 'ЗАМЕНЯЕМ…' : '↩ ЗАМЕНИТЬ'}
+                                            </div>
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
                       </div>
-                    )}
-                  </div>
+
+                      {/* ── ZONE 2: Alternative POIs (hidden when finalized) ── */}
+                      {!isFinalized && altPois.length > 0 && (
+                        <>
+                          {/* Divider separating main from alternatives */}
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: 10,
+                            margin: mainPois.length > 0 ? '20px 0 16px' : '0 0 16px',
+                          }}>
+                            <div style={{ flex: 1, height: 1, background: TR.hairlineSt }} />
+                            <span style={{
+                              fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
+                              letterSpacing: '0.18em', color: TR.fgMute, textTransform: 'uppercase',
+                            }}>ЗАПАСНЫЕ ВАРИАНТЫ</span>
+                            <div style={{ flex: 1, height: 1, background: TR.hairlineSt }} />
+                          </div>
+
+                          {/* Alt POIs as timeline rows with hollow grey pins */}
+                          <div style={{ position: 'relative' }}>
+                            {/* Grey dashed vertical line for Zone 2 */}
+                            {altPois.length > 1 && (
+                              <div style={{
+                                position: 'absolute', left: DOT_X, top: 20, bottom: 8,
+                                width: 0, borderLeft: '1.5px dashed rgba(13,40,24,0.18)',
+                                pointerEvents: 'none',
+                              }} />
+                            )}
+
+                            {altPois.map((alt, i) => {
+                              const isPromoting = promotingPoiId === alt.poi.id
+                              return (
+                                <div key={alt.poi.id} style={{
+                                  paddingBottom: i < altPois.length - 1 ? 14 : 0,
+                                  opacity: isPromoting ? 0.5 : 1,
+                                  transition: 'opacity 0.15s',
+                                }}>
+                                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                                    {/* Empty time column */}
+                                    <div style={{ width: 46, flexShrink: 0, textAlign: 'right', paddingTop: 6 }}>
+                                      <div style={{
+                                        fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+                                        color: 'rgba(13,40,24,0.25)', letterSpacing: 0.4,
+                                      }}>—</div>
+                                    </div>
+
+                                    {/* Hollow grey pin */}
+                                    <div style={{
+                                      width: 14, flexShrink: 0, paddingTop: 8,
+                                      display: 'flex', justifyContent: 'center',
+                                      position: 'relative', zIndex: 1,
+                                    }}>
+                                      <div style={{
+                                        width: 12, height: 12, borderRadius: '50%',
+                                        background: TR.bg,
+                                        border: '1.5px solid rgba(13,40,24,0.28)',
+                                      }} />
+                                    </div>
+
+                                    {/* Alt POI card — muted, dashed border, no shadow */}
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                      <div style={{
+                                        padding: '10px 14px',
+                                        background: 'rgba(13,40,24,0.03)',
+                                        border: '1.5px dashed rgba(13,40,24,0.22)',
+                                        borderRadius: 12,
+                                      }}>
+                                        <div style={{
+                                          display: 'flex', justifyContent: 'space-between',
+                                          alignItems: 'flex-start', gap: 8,
+                                        }}>
+                                          <div style={{
+                                            fontFamily: 'Archivo, sans-serif',
+                                            fontSize: 15, fontWeight: 700,
+                                            lineHeight: 1.15, letterSpacing: '-0.015em',
+                                            textTransform: 'uppercase', flex: 1,
+                                            color: 'rgba(13,40,24,0.55)',
+                                          }}>{alt.poi.name}</div>
+                                          {alt.budget_estimate && (
+                                            <div style={{
+                                              flexShrink: 0, fontFamily: 'JetBrains Mono, monospace',
+                                              fontSize: 10, color: 'rgba(13,40,24,0.4)',
+                                              whiteSpace: 'nowrap',
+                                            }}>{alt.budget_estimate}</div>
+                                          )}
+                                        </div>
+
+                                        {alt.ai_tip && (
+                                          <div style={{
+                                            marginTop: 5, fontSize: 11,
+                                            color: 'rgba(13,40,24,0.45)',
+                                            lineHeight: 1.45, fontStyle: 'italic',
+                                          }}>{alt.ai_tip}</div>
+                                        )}
+
+                                        <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-end' }}>
+                                          <button
+                                            onClick={() => !isPromoting && handleSwapPoi(alt.poi.id, null)}
+                                            disabled={isPromoting}
+                                            style={{
+                                              padding: '4px 12px',
+                                              background: 'transparent',
+                                              border: '1.5px solid ' + TR.lime,
+                                              borderRadius: 99,
+                                              cursor: isPromoting ? 'wait' : 'pointer',
+                                              fontFamily: 'Archivo, sans-serif',
+                                              fontWeight: 800, fontSize: 10,
+                                              letterSpacing: '0.04em', color: TR.fg,
+                                              transition: 'background 0.15s',
+                                            }}
+                                            onMouseEnter={e => { if (!isPromoting) e.currentTarget.style.background = TR.lime }}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                          >
+                                            {isPromoting ? '…' : '+ ДОБАВИТЬ'}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </>
                   )
-                  })
                 })()}
               </div>
             )}
@@ -1413,8 +1693,22 @@ export default function TripPlanScreen() {
           title="Удалить место?"
           body={`«${confirmDelete.poiName}» будет удалено из дня ${activeDay}.`}
           loading={deleting}
+          loadingLabel="УДАЛЯЕМ…"
           onConfirm={handleDeletePoi}
           onCancel={() => setConfirmDelete(null)}
+        />
+      )}
+
+      {confirmUnfinalize != null && (
+        <ConfirmModal
+          title="Вернуть к редактированию?"
+          body={`День ${confirmUnfinalize} будет открыт для изменений. Запасные места вернутся в список.`}
+          loading={false}
+          confirmLabel="ВЕРНУТЬ"
+          confirmColor={TR.fg}
+          confirmTextColor={TR.lime}
+          onConfirm={() => handleUnfinalizeDay(confirmUnfinalize)}
+          onCancel={() => setConfirmUnfinalize(null)}
         />
       )}
 

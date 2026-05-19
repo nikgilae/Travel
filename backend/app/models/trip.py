@@ -192,6 +192,7 @@ class TripPOI(Base):
     budget_estimate: Mapped[str | None] = mapped_column(String, nullable=True)
     ai_tip: Mapped[str | None] = mapped_column(String, nullable=True)
     day_theme: Mapped[str | None] = mapped_column(String, nullable=True)
+    activity_level: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     trip: Mapped["Trip"] = relationship(back_populates="pois")
     poi: Mapped["POI"] = relationship(back_populates="trip_pois")
