@@ -1,33 +1,54 @@
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  /* ── Surfaces ─────────────────────────────────── */
+  --bg:        #F6F7F9;
+  --surface:   #FFFFFF;
+  --surface-2: #F1F3F5;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  /* ── Ink ──────────────────────────────────────── */
+  --ink:       #0A0B0C;
+  --ink-2:     #5B6066;
+  --ink-3:     #9097A0;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
+  /* ── Lines ────────────────────────────────────── */
+  --line:        #E8EAEC;
+  --line-strong: #D6D9DD;
+
+  /* ── Accent — one only ────────────────────────── */
+  --lime:       #B9FF3D;
+  --lime-hover: #A8F02C;
+  --lime-soft:  #F0FFD6;
+  --lime-ink:   #1B2A0A;
+
+  /* ── Semantic ─────────────────────────────────── */
+  --ok:        #1E7A4B;  --ok-soft:   #E4F4EB;
+  --warn:      #B86A00;  --warn-soft: #FBEFD8;
+  --err:       #B43340;  --err-soft:  #FBE5E7;
+
+  /* ── Radius ───────────────────────────────────── */
+  --r-1: 6px; --r-2: 10px; --r-3: 14px; --r-4: 20px; --r-pill: 999px;
+
+  /* ── Spacing — base 4 ─────────────────────────── */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px;
+  --s-5: 24px; --s-6: 32px; --s-7: 48px; --s-8: 64px;
+
+  /* ── Elevation ────────────────────────────────── */
+  --e-0: 0 0 0 1px var(--line);
+  --e-1: 0 1px 0 0 var(--line);
+  --e-2: 0 8px 28px -10px rgba(15,20,30,.18), 0 0 0 1px rgba(15,20,30,.04);
+
+  /* ── Type ─────────────────────────────────────── */
+  --font-ui:   'Onest', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  font: 15px/1.55 var(--font-ui);
+  letter-spacing: 0;
   color-scheme: light;
-  color: var(--text);
+  color: var(--ink);
   background: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
 }
 
 body {
@@ -45,46 +66,41 @@ body {
   box-sizing: border-box;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+h1, h2, h3 {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  color: var(--ink);
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
 p {
   margin: 0;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+::selection {
+  background: var(--lime);
+  color: var(--lime-ink);
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+/* ── Scrollbar ────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong, #D6D9DD);
+  border-radius: 999px;
+  transition: background 0.15s;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--lime, #B9FF3D);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong, #D6D9DD) transparent;
 }

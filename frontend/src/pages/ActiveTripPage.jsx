@@ -27,16 +27,16 @@ export default function ActiveTripPage() {
         {/* Welcome banner */}
         <div style={{
           padding: '20px 22px 16px',
-          background: 'rgba(184,255,79,0.12)',
-          borderBottom: '1px solid rgba(184,255,79,0.2)',
+          background: '#F0FFD6',
+          borderBottom: '1px solid #E8EAEC',
         }}>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontFamily: 'monospace', marginBottom: 6 }}>
-            ✦ TOURRHYTHM · ДЕНЬ 3
+          <div style={{ fontSize: 11, color: '#5B6066', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.06em', marginBottom: 6 }}>
+            TourRhythm · День 3
           </div>
-          <div style={{ fontSize: 22, fontWeight: 900, textTransform: 'uppercase', color: '#fff', lineHeight: 1.1 }}>
+          <div style={{ fontSize: 20, fontWeight: 600, color: '#0A0B0C', lineHeight: 1.2 }}>
             Добро пожаловать<br/>назад!
           </div>
-          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 6 }}>
+          <div style={{ fontSize: 13, color: '#5B6066', marginTop: 6 }}>
             Ты сейчас в Риме? Продолжим маршрут.
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
@@ -44,9 +44,9 @@ export default function ActiveTripPage() {
               onClick={() => navigate('/onboarding')}
               style={{
                 flex: 1, height: 40,
-                background: 'transparent', color: '#fff',
-                border: '1.5px solid rgba(255,255,255,0.3)',
-                borderRadius: 10, fontWeight: 700, fontSize: 13,
+                background: '#FFFFFF', color: '#0A0B0C',
+                border: '1px solid #D6D9DD',
+                borderRadius: 10, fontWeight: 500, fontSize: 13,
                 cursor: 'pointer', fontFamily: 'inherit',
               }}
             >
@@ -55,9 +55,9 @@ export default function ActiveTripPage() {
             <button
               style={{
                 flex: 1, height: 40,
-                background: '#b8ff4f', color: '#1a1f1a',
-                border: 'none', borderRadius: 10,
-                fontWeight: 900, fontSize: 13,
+                background: '#B9FF3D', color: '#0A0B0C',
+                border: '1px solid #B9FF3D', borderRadius: 10,
+                fontWeight: 600, fontSize: 13,
                 cursor: 'pointer', fontFamily: 'inherit',
               }}
             >
@@ -70,11 +70,12 @@ export default function ActiveTripPage() {
 
           {/* Rhythm chart */}
           <div>
-            <div style={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.12em', marginBottom: 10 }}>
+            <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: '#9097A0', letterSpacing: '0.06em', marginBottom: 10 }}>
               РИТМ ДНЯ — ДЕНЬ 3
             </div>
             <div style={{
-              background: '#f5f0e8', borderRadius: 14, padding: '16px',
+              background: '#FFFFFF', borderRadius: 14, padding: '16px',
+              border: '1px solid #E8EAEC',
             }}>
               <svg viewBox="0 0 280 56" style={{ width: '100%', height: 56, display: 'block' }}>
                 <defs>
@@ -85,18 +86,18 @@ export default function ActiveTripPage() {
                 </defs>
                 {[0,1,2,3].map(i => (
                   <line key={i} x1={i*70+20} y1="0" x2={i*70+20} y2="46"
-                    stroke="rgba(26,31,26,0.15)" strokeWidth="1" strokeDasharray="2,3"/>
+                    stroke="rgba(10,11,12,0.08)" strokeWidth="1" strokeDasharray="2,3"/>
                 ))}
                 <path d="M10,40 C30,38 40,15 50,15 C60,15 70,25 90,25 C110,25 125,10 130,10 C135,10 150,30 170,30 C190,30 210,20 230,20 C250,20 265,30 270,35 L270,52 L10,52 Z"
                   fill="url(#at-grad)"/>
                 <path d="M10,40 C30,38 40,15 50,15 C60,15 70,25 90,25 C110,25 125,10 130,10 C135,10 150,30 170,30 C190,30 210,20 230,20 C250,20 265,30 270,35"
                   fill="none" stroke={DAY_COLORS[2]} strokeWidth="2" strokeLinecap="round"/>
-                <circle cx="130" cy="10" r="5" fill={DAY_COLORS[2]} stroke="#f5f0e8" strokeWidth="2"/>
-                <circle cx="50" cy="15" r="3.5" fill={DAY_COLORS[2]} stroke="#f5f0e8" strokeWidth="2"/>
-                <circle cx="230" cy="20" r="3.5" fill={DAY_COLORS[2]} stroke="#f5f0e8" strokeWidth="2"/>
+                <circle cx="130" cy="10" r="5" fill={DAY_COLORS[2]} stroke="#FFFFFF" strokeWidth="2"/>
+                <circle cx="50" cy="15" r="3.5" fill={DAY_COLORS[2]} stroke="#FFFFFF" strokeWidth="2"/>
+                <circle cx="230" cy="20" r="3.5" fill={DAY_COLORS[2]} stroke="#FFFFFF" strokeWidth="2"/>
                 {['09','12','16','20'].map((h,i) => (
                   <text key={h} x={i*70+20} y="54" textAnchor="middle"
-                    fontFamily="monospace" fontSize="8" fill="#888">{h}</text>
+                    fontFamily="JetBrains Mono, monospace" fontSize="8" fill="#9097A0">{h}</text>
                 ))}
               </svg>
             </div>
@@ -104,38 +105,38 @@ export default function ActiveTripPage() {
 
           {/* Today's POIs */}
           <div>
-            <div style={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.12em', marginBottom: 10 }}>
+            <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: '#9097A0', letterSpacing: '0.06em', marginBottom: 10 }}>
               СЕГОДНЯ · ДЕНЬ 3
             </div>
-            <div style={{ background: '#f5f0e8', borderRadius: 14, overflow: 'hidden' }}>
+            <div style={{ background: '#FFFFFF', borderRadius: 14, overflow: 'hidden', border: '1px solid #E8EAEC' }}>
               {POIS.map((p, i) => (
                 <div key={i} style={{
                   display: 'flex', alignItems: 'center', gap: 12,
                   padding: '12px 16px',
-                  borderBottom: i < POIS.length - 1 ? '1px solid rgba(26,31,26,0.08)' : 'none',
-                  background: p.status === 'done' ? 'rgba(26,31,26,0.04)'
-                    : p.status === 'now' ? 'rgba(184,255,79,0.15)'
+                  borderBottom: i < POIS.length - 1 ? '1px solid #E8EAEC' : 'none',
+                  background: p.status === 'done' ? '#F6F7F9'
+                    : p.status === 'now' ? '#F0FFD6'
                     : 'transparent',
                 }}>
                   <span style={{
                     width: 22, height: 22, borderRadius: '50%',
-                    background: p.status === 'done' ? 'rgba(26,31,26,0.15)'
-                      : p.status === 'now' ? '#b8ff4f'
+                    background: p.status === 'done' ? '#F1F3F5'
+                      : p.status === 'now' ? '#B9FF3D'
                       : 'transparent',
-                    border: p.status === 'next' ? '1.5px solid rgba(26,31,26,0.25)' : 'none',
+                    border: p.status === 'next' ? '1px solid #D6D9DD' : 'none',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 12, fontWeight: 700, color: '#1a1f1a',
+                    fontSize: 11, fontWeight: 600, color: '#0A0B0C',
                     flexShrink: 0,
                   }}>
                     {STATUS_ICON[p.status]}
                   </span>
                   <div style={{ flex: 1 }}>
                     <div style={{
-                      fontSize: 14, fontWeight: p.status === 'now' ? 800 : 600,
-                      color: p.status === 'done' ? '#999' : '#1a1f1a',
+                      fontSize: 14, fontWeight: p.status === 'now' ? 600 : 500,
+                      color: p.status === 'done' ? '#9097A0' : '#0A0B0C',
                       textDecoration: p.status === 'done' ? 'line-through' : 'none',
                     }}>{p.n}</div>
-                    <div style={{ fontSize: 11, color: '#888', fontFamily: 'monospace', marginTop: 2 }}>
+                    <div style={{ fontSize: 11, color: '#9097A0', fontFamily: 'JetBrains Mono, monospace', marginTop: 2 }}>
                       {p.t}
                     </div>
                   </div>
@@ -152,30 +153,30 @@ export default function ActiveTripPage() {
 
           {/* Find nearby */}
           <div>
-            <div style={{ fontSize: 10, fontFamily: 'monospace', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.12em', marginBottom: 10 }}>
+            <div style={{ fontSize: 10, fontFamily: 'JetBrains Mono, monospace', color: '#9097A0', letterSpacing: '0.06em', marginBottom: 10 }}>
               НАЙТИ РЯДОМ · 500М
             </div>
-            <div style={{ background: '#f5f0e8', borderRadius: 14, overflow: 'hidden' }}>
+            <div style={{ background: '#FFFFFF', borderRadius: 14, overflow: 'hidden', border: '1px solid #E8EAEC' }}>
               <div style={{
                 display: 'flex', overflowX: 'auto', gap: 0,
-                borderBottom: '1px solid rgba(26,31,26,0.1)',
+                borderBottom: '1px solid #E8EAEC',
               }}>
-                {NEARBY_CATS.map((cat, i) => (
+                {NEARBY_CATS.map((cat) => (
                   <button
                     key={cat}
                     onClick={() => setNearbyFilter(cat)}
                     style={{
                       padding: '10px 14px', fontSize: 12, whiteSpace: 'nowrap',
-                      background: nearbyFilter === cat ? '#1a1f1a' : 'transparent',
-                      color: nearbyFilter === cat ? '#b8ff4f' : '#555',
+                      background: nearbyFilter === cat ? '#0A0B0C' : 'transparent',
+                      color: nearbyFilter === cat ? '#B9FF3D' : '#5B6066',
                       border: 'none', cursor: 'pointer',
-                      fontWeight: nearbyFilter === cat ? 700 : 400,
+                      fontWeight: nearbyFilter === cat ? 600 : 400,
                       fontFamily: 'inherit',
                     }}
                   >{cat}</button>
                 ))}
               </div>
-              <div style={{ padding: '14px 16px', color: '#888', fontSize: 13, textAlign: 'center' }}>
+              <div style={{ padding: '14px 16px', color: '#9097A0', fontSize: 13, textAlign: 'center' }}>
                 Поиск мест рядом — подключится с API карт
               </div>
             </div>
@@ -189,7 +190,7 @@ export default function ActiveTripPage() {
             onClick={() => navigate('/dashboard')}
             style={{
               background: 'none', border: 'none',
-              color: 'rgba(255,255,255,0.35)', fontSize: 13,
+              color: '#9097A0', fontSize: 13,
               cursor: 'pointer', textDecoration: 'underline',
               fontFamily: 'inherit',
             }}

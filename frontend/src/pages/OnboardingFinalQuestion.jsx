@@ -17,23 +17,23 @@ function LoadingScreen({ cityName }) {
       <div className="ofq-phone" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100svh' }}>
         <div style={{
           width: 64, height: 64, borderRadius: '50%',
-          border: '3px solid rgba(184,255,79,0.2)',
-          borderTopColor: '#b8ff4f',
+          border: '3px solid rgba(185,255,61,0.2)',
+          borderTopColor: '#B9FF3D',
           animation: 'ofq-spin 0.9s linear infinite',
           marginBottom: 28,
         }} />
         <div style={{
-          fontFamily: 'inherit', fontWeight: 900, fontSize: 22,
-          textTransform: 'uppercase', color: '#fff', letterSpacing: '-0.01em',
+          fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 20,
+          color: '#0A0B0C', letterSpacing: '-0.005em',
           marginBottom: 10, textAlign: 'center',
         }}>
           Складываю маршрут…
         </div>
         <div style={{
-          fontFamily: 'monospace', fontSize: 11,
-          color: 'rgba(255,255,255,0.4)', letterSpacing: '0.1em',
+          fontFamily: 'var(--font-mono)', fontSize: 11,
+          color: '#9097A0', letterSpacing: '0.12em', textTransform: 'uppercase',
         }}>
-          {cityName ? cityName.toUpperCase() : '···'}
+          {cityName ? cityName : '···'}
         </div>
       </div>
     </div>
@@ -87,12 +87,10 @@ export default function OnboardingFinalQuestion({ city, groupType, rhythm, onBac
       localStorage.setItem('current_trip_id', trip.id)
       localStorage.setItem('trip_display_data', JSON.stringify({ city, groupType, rhythm }))
 
-      // Persist city name per trip so the dashboard can display it
       const tripMeta = JSON.parse(localStorage.getItem('trip_meta') ?? '{}')
       tripMeta[trip.id] = { cityName: city?.n ?? null, city, groupType, rhythm }
       localStorage.setItem('trip_meta', JSON.stringify(tripMeta))
 
-      // Generate AI itinerary before navigating
       const genRes = await fetch(`${API_BASE}/trips/${trip.id}/generate`, {
         method: 'POST',
         headers: {
@@ -127,33 +125,36 @@ export default function OnboardingFinalQuestion({ city, groupType, rhythm, onBac
         <div style={{ padding: '20px 22px 0' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <button onClick={onBack} style={{
-              background: 'none', border: 'none', color: '#fff', opacity: 0.6,
+              background: 'none', border: 'none', color: '#5B6066',
               fontSize: 13, cursor: 'pointer', padding: 0, fontFamily: 'inherit',
             }}>← Назад</button>
             <span style={{
-              fontFamily: 'monospace', fontSize: 11, color: 'rgba(255,255,255,0.5)',
+              fontFamily: 'var(--font-mono)', fontSize: 11, color: '#9097A0',
               letterSpacing: '0.1em',
             }}>ШАГ 5 / 5</span>
           </div>
-          <div style={{ height: 4, background: 'rgba(255,255,255,0.15)', borderRadius: 2, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: '100%', background: '#b8ff4f', borderRadius: 2 }} />
+          <div style={{ height: 4, background: '#F1F3F5', borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: '100%', background: '#B9FF3D', borderRadius: 2 }} />
           </div>
         </div>
 
         {/* Content */}
         <div style={{ padding: '28px 22px 24px' }}>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6, fontFamily: 'monospace' }}>
-            ПОЧТИ ГОТОВО ✦
+          <div style={{
+            fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.14em',
+            textTransform: 'uppercase', color: '#9097A0', marginBottom: 10,
+          }}>
+            ПОЧТИ ГОТОВО
           </div>
           <h1 style={{
-            fontSize: 28, fontWeight: 900, lineHeight: 1.15, textTransform: 'uppercase',
-            color: '#fff', margin: '0 0 8px', fontFamily: 'inherit',
+            fontSize: 26, fontWeight: 600, lineHeight: 1.2,
+            letterSpacing: '-0.012em',
+            color: '#0A0B0C', margin: '0 0 8px', fontFamily: 'var(--font-ui)',
           }}>
             Зачем ты едешь<br/>в {cityName}?
           </h1>
           <p style={{
-            fontSize: 13, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5, margin: '0 0 20px',
-            fontStyle: 'italic',
+            fontSize: 14, color: '#5B6066', lineHeight: 1.55, margin: '0 0 20px',
           }}>
             Чем честнее ответ — тем точнее маршрут.
           </p>
@@ -165,34 +166,40 @@ export default function OnboardingFinalQuestion({ city, groupType, rhythm, onBac
             rows={5}
             style={{
               width: '100%', padding: '14px 16px',
-              background: 'rgba(255,255,255,0.08)',
-              border: '1.5px solid rgba(255,255,255,0.18)',
+              background: '#FFFFFF',
+              border: '1px solid #E8EAEC',
               borderRadius: 14, resize: 'none', outline: 'none',
-              fontFamily: 'inherit', fontSize: 15, lineHeight: 1.5,
-              color: '#fff', boxSizing: 'border-box',
+              fontFamily: 'var(--font-ui)', fontSize: 14, lineHeight: 1.55,
+              color: '#0A0B0C', boxSizing: 'border-box',
+              transition: 'border-color 0.12s ease, box-shadow 0.12s ease',
             }}
-            onFocus={e => { e.target.style.borderColor = '#b8ff4f' }}
-            onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.18)' }}
+            onFocus={e => {
+              e.target.style.borderColor = '#0A0B0C'
+              e.target.style.boxShadow = '0 0 0 3px rgba(185,255,61,0.45)'
+            }}
+            onBlur={e => {
+              e.target.style.borderColor = '#E8EAEC'
+              e.target.style.boxShadow = 'none'
+            }}
           />
 
           {text.length > 0 && (
             <div style={{
               marginTop: 10, padding: '10px 14px',
-              background: 'rgba(184,255,79,0.1)',
-              border: '1.5px solid rgba(184,255,79,0.3)',
-              borderRadius: 10, fontSize: 12, color: '#b8ff4f', lineHeight: 1.4,
+              background: '#F0FFD6',
+              border: '1px solid rgba(185,255,61,0.4)',
+              borderRadius: 10, fontSize: 12, color: '#1B2A0A', lineHeight: 1.4,
             }}>
-              ✦ ИИ учтёт твой запрос при составлении маршрута
+              ИИ учтёт твой запрос при составлении маршрута
             </div>
           )}
 
-          {/* API error */}
           {apiError && (
             <div style={{
               marginTop: 12, padding: '12px 14px',
-              background: 'rgba(220,50,50,0.15)',
-              border: '1.5px solid rgba(220,50,50,0.4)',
-              borderRadius: 10, fontSize: 13, color: '#ff8080', lineHeight: 1.4,
+              background: '#FBE5E7',
+              border: '1px solid rgba(180,51,64,0.3)',
+              borderRadius: 10, fontSize: 13, color: '#B43340', lineHeight: 1.4,
             }}>
               {apiError}
             </div>
@@ -203,23 +210,25 @@ export default function OnboardingFinalQuestion({ city, groupType, rhythm, onBac
         <div style={{
           position: 'sticky', bottom: 0,
           padding: '16px 22px 28px',
-          background: 'linear-gradient(to top, #1a1f1a 75%, transparent)',
+          background: 'linear-gradient(to top, #F6F7F9 75%, transparent)',
         }}>
           <button
             onClick={() => handleSubmit(text)}
             style={{
-              width: '100%', height: 54,
-              background: '#b8ff4f',
-              border: '2px solid #1a1f1a',
-              borderRadius: 14,
-              fontWeight: 900, fontSize: 15, letterSpacing: '0.05em',
-              textTransform: 'uppercase', color: '#1a1f1a',
+              width: '100%', height: 44,
+              background: '#B9FF3D',
+              border: '1px solid #B9FF3D',
+              borderRadius: 10,
+              fontWeight: 500, fontSize: 14, letterSpacing: '-0.005em',
+              color: '#0A0B0C',
               cursor: 'pointer',
-              boxShadow: '4px 4px 0 0 rgba(184,255,79,0.3)',
-              fontFamily: 'inherit',
+              transition: 'background 0.12s ease, transform 0.06s ease',
+              fontFamily: 'var(--font-ui)',
             }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#A8F02C'; e.currentTarget.style.borderColor = '#A8F02C' }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#B9FF3D'; e.currentTarget.style.borderColor = '#B9FF3D' }}
           >
-            ✦ Создать мой маршрут
+            Создать маршрут
           </button>
         </div>
 

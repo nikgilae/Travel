@@ -30,22 +30,19 @@ export default function BottomTabBar({ tabs, theme = 'light' }) {
   const { pathname } = useLocation()
 
   const isDark = theme === 'dark'
-  const bg = isDark ? '#1a1f1a' : '#f1ede0'
-  const borderColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(13,40,24,0.12)'
-  const inactive = isDark ? 'rgba(255,255,255,0.32)' : 'rgba(13,40,24,0.38)'
-  const active = '#b9ff3d'
+  const bg          = isDark ? '#111714' : '#FFFFFF'
+  const borderColor = isDark ? 'rgba(255,255,255,0.08)' : '#E8EAEC'
+  const inactive    = isDark ? 'rgba(255,255,255,0.32)' : '#9097A0'
+  const active      = '#B9FF3D'
 
   return (
     <div style={{
       flexShrink: 0,
-      height: 64,
+      height: 60,
       background: bg,
       borderTop: `1px solid ${borderColor}`,
       display: 'flex',
       alignItems: 'stretch',
-      boxShadow: isDark
-        ? '0 -4px 20px rgba(0,0,0,0.25)'
-        : '0 -4px 20px rgba(13,40,24,0.07)',
     }}>
       {tabs.map(tab => {
         const isActive = pathname === tab.route
@@ -59,23 +56,22 @@ export default function BottomTabBar({ tabs, theme = 'light' }) {
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 3,
+              gap: 4,
               background: 'none',
               border: 'none',
               cursor: 'pointer',
               color: isActive ? active : inactive,
               transition: 'color 0.15s',
-              padding: '6px 0 10px',
+              padding: '6px 0 8px',
               WebkitTapHighlightColor: 'transparent',
             }}
           >
             {tab.icon}
             <span style={{
               fontSize: 10,
-              fontFamily: 'Archivo, sans-serif',
-              fontWeight: 700,
-              letterSpacing: '0.07em',
-              textTransform: 'uppercase',
+              fontFamily: 'var(--font-ui, Onest, sans-serif)',
+              fontWeight: 500,
+              letterSpacing: 0,
               lineHeight: 1,
             }}>
               {tab.label}

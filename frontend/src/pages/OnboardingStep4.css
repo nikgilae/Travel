@@ -1,5 +1,5 @@
 .tr-app {
-  background: #f1ede0;
+  background: var(--bg, #F6F7F9);
   min-height: 100svh;
   display: flex;
   justify-content: center;
@@ -10,16 +10,16 @@
   width: 100%;
   max-width: 430px;
   min-height: 100svh;
-  background: #f1ede0;
+  background: var(--bg, #F6F7F9);
   position: relative;
   overflow-x: hidden;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Onest', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 @media (min-width: 500px) {
   .tr-app {
-    background: #e8e2cf;
+    background: var(--surface-2, #F1F3F5);
     align-items: center;
     min-height: 100svh;
   }
@@ -28,7 +28,7 @@
     max-height: 900px;
     overflow-y: auto;
     border-radius: 40px;
-    box-shadow: 0 24px 64px rgba(13, 40, 24, 0.22);
+    box-shadow: 0 24px 48px rgba(10,11,12,0.12);
     margin: 32px 0;
   }
 }

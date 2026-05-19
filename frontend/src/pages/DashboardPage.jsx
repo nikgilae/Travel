@@ -48,7 +48,7 @@ const TrashIcon = () => (
 
 function SkeletonCard() {
   return (
-    <div style={{ background: '#f5f0e8', borderRadius: 16, padding: '16px 18px' }}>
+    <div style={{ background: '#FFFFFF', borderRadius: 14, padding: '16px 18px', boxShadow: '0 0 0 1px #E8EAEC' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
         <div>
           <div className="dash-shimmer" style={{ width: 120, height: 20, borderRadius: 6, marginBottom: 7 }} />
@@ -76,32 +76,32 @@ function TripCard({ trip, meta, onClick, onDelete, isDeleting }) {
     <div
       onClick={onClick}
       style={{
-        background: '#f5f0e8', borderRadius: 16, padding: '16px 18px',
-        cursor: 'pointer', border: '1.5px solid transparent',
+        background: '#FFFFFF', borderRadius: 14, padding: '16px 18px',
+        cursor: 'pointer', border: '1px solid #E8EAEC',
         transition: 'border-color 0.15s, opacity 0.3s, transform 0.3s',
         opacity: isDeleting ? 0 : 1,
         transform: isDeleting ? 'translateX(16px)' : 'none',
         pointerEvents: isDeleting ? 'none' : 'auto',
       }}
-      onMouseEnter={e => { if (!isDeleting) e.currentTarget.style.borderColor = '#b8ff4f' }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = 'transparent' }}
+      onMouseEnter={e => { if (!isDeleting) e.currentTarget.style.borderColor = '#B9FF3D' }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8EAEC' }}
     >
       {/* Top row: city + days badge */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
         <div>
           <div style={{
-            fontSize: 20, fontWeight: 900, textTransform: 'uppercase',
-            color: '#1a1f1a', lineHeight: 1.1, letterSpacing: '-0.02em',
+            fontSize: 18, fontWeight: 600,
+            color: '#0A0B0C', lineHeight: 1.2, letterSpacing: '-0.01em',
           }}>{city}</div>
-          <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>
+          <div style={{ fontSize: 12, color: '#5B6066', marginTop: 2 }}>
             {PURPOSE_LABEL[trip.purpose] ?? trip.purpose}
           </div>
         </div>
         {days && (
           <div style={{
-            background: '#1a1f1a', color: '#b8ff4f',
-            borderRadius: 8, padding: '4px 10px',
-            fontSize: 11, fontWeight: 700, fontFamily: 'monospace', flexShrink: 0,
+            background: '#0A0B0C', color: '#B9FF3D',
+            borderRadius: 6, padding: '3px 8px',
+            fontSize: 11, fontWeight: 500, fontFamily: 'var(--font-mono)', flexShrink: 0,
           }}>
             {days} дн
           </div>
@@ -111,22 +111,22 @@ function TripCard({ trip, meta, onClick, onDelete, isDeleting }) {
       {/* Tags */}
       <div style={{
         display: 'flex', gap: 6, flexWrap: 'wrap',
-        fontFamily: 'monospace', fontSize: 10, color: '#555',
+        fontFamily: 'var(--font-mono)', fontSize: 10, color: '#5B6066',
       }}>
         {[groupLabel(trip.group_size), BUDGET_LABEL[trip.budget] ?? trip.budget].map(tag => (
           <span key={tag} style={{
-            padding: '3px 8px', background: 'rgba(26,31,26,0.07)',
-            borderRadius: 99, border: '1px solid rgba(26,31,26,0.1)',
+            padding: '3px 8px', background: '#F1F3F5',
+            borderRadius: 99, border: '1px solid #E8EAEC',
           }}>{tag}</span>
         ))}
       </div>
 
       {/* Footer row: date + delete + open */}
       <div style={{
-        marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(26,31,26,0.1)',
+        marginTop: 12, paddingTop: 10, borderTop: '1px solid #E8EAEC',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
-        <span style={{ fontSize: 12, color: '#888' }}>
+        <span style={{ fontSize: 12, color: '#9097A0' }}>
           {dateStr ?? new Date(trip.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -136,26 +136,26 @@ function TripCard({ trip, meta, onClick, onDelete, isDeleting }) {
             style={{
               width: 26, height: 26, borderRadius: '50%',
               background: 'transparent',
-              border: '1px solid rgba(26,31,26,0.15)',
+              border: '1px solid #E8EAEC',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', color: 'rgba(26,31,26,0.3)',
+              cursor: 'pointer', color: '#9097A0',
               transition: 'background 0.15s, color 0.15s, border-color 0.15s',
               flexShrink: 0,
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.background     = 'rgba(200,85,61,0.1)'
-              e.currentTarget.style.color          = '#c8553d'
-              e.currentTarget.style.borderColor    = 'rgba(200,85,61,0.35)'
+              e.currentTarget.style.background     = '#FBE5E7'
+              e.currentTarget.style.color          = '#B43340'
+              e.currentTarget.style.borderColor    = 'rgba(180,51,64,0.3)'
             }}
             onMouseLeave={e => {
               e.currentTarget.style.background     = 'transparent'
-              e.currentTarget.style.color          = 'rgba(26,31,26,0.3)'
-              e.currentTarget.style.borderColor    = 'rgba(26,31,26,0.15)'
+              e.currentTarget.style.color          = '#9097A0'
+              e.currentTarget.style.borderColor    = '#E8EAEC'
             }}
           >
             <TrashIcon />
           </button>
-          <span style={{ fontSize: 12, color: '#1a1f1a', fontWeight: 700 }}>Открыть →</span>
+          <span style={{ fontSize: 12, color: '#0A0B0C', fontWeight: 600 }}>Открыть →</span>
         </div>
       </div>
     </div>
@@ -173,21 +173,21 @@ function ConfirmDeleteModal({ cityName, onCancel, onConfirm, loading }) {
       padding: '0 24px',
     }}>
       <div style={{
-        background: '#1a1f1a', border: '1.5px solid rgba(255,255,255,0.1)',
+        background: '#FFFFFF', border: '1px solid #E8EAEC',
         borderRadius: 20, padding: '24px 22px',
         width: '100%', maxWidth: 360,
-        boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+        boxShadow: '0 8px 28px -10px rgba(15,20,30,.18), 0 0 0 1px rgba(15,20,30,.04)',
       }}>
         <div style={{
-          fontFamily: 'Archivo, sans-serif', fontWeight: 900, fontSize: 17,
-          textTransform: 'uppercase', color: '#fff', marginBottom: 10,
-          letterSpacing: '-0.01em',
+          fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 17,
+          color: '#0A0B0C', marginBottom: 10,
+          letterSpacing: '-0.005em',
         }}>
           Удалить маршрут?
         </div>
         <div style={{
-          fontSize: 13, color: 'rgba(255,255,255,0.5)', lineHeight: 1.55,
-          fontFamily: 'JetBrains Mono, monospace', marginBottom: 22,
+          fontSize: 13, color: '#5B6066', lineHeight: 1.55,
+          fontFamily: 'var(--font-ui)', marginBottom: 22,
         }}>
           Маршрут «{cityName}» будет удалён без возможности восстановления.
         </div>
@@ -198,30 +198,30 @@ function ConfirmDeleteModal({ cityName, onCancel, onConfirm, loading }) {
             style={{
               flex: 1, height: 44,
               background: 'transparent',
-              border: '1.5px solid rgba(255,255,255,0.15)',
+              border: '1px solid #E8EAEC',
               borderRadius: 10, cursor: 'pointer',
-              color: 'rgba(255,255,255,0.6)',
-              fontFamily: 'Archivo, sans-serif',
-              fontWeight: 700, fontSize: 12, letterSpacing: '0.04em',
+              color: '#5B6066',
+              fontFamily: 'var(--font-ui)',
+              fontWeight: 500, fontSize: 13, letterSpacing: 0,
             }}
           >
-            ОТМЕНА
+            Отмена
           </button>
           <button
             onClick={onConfirm}
             disabled={loading}
             style={{
               flex: 1, height: 44,
-              background: loading ? 'rgba(200,85,61,0.4)' : 'rgba(200,85,61,0.85)',
-              border: '1.5px solid rgba(200,85,61,0.5)',
+              background: loading ? '#FBE5E7' : '#B43340',
+              border: '1px solid transparent',
               borderRadius: 10, cursor: loading ? 'wait' : 'pointer',
               color: '#fff',
-              fontFamily: 'Archivo, sans-serif',
-              fontWeight: 800, fontSize: 12, letterSpacing: '0.04em',
+              fontFamily: 'var(--font-ui)',
+              fontWeight: 500, fontSize: 13, letterSpacing: 0,
               transition: 'background 0.15s',
             }}
           >
-            {loading ? '...' : 'УДАЛИТЬ'}
+            {loading ? '...' : 'Удалить'}
           </button>
         </div>
       </div>
@@ -252,13 +252,13 @@ function ProfileButton({ onLogout }) {
         onClick={() => setOpen(o => !o)}
         style={{
           width: 36, height: 36, borderRadius: '50%',
-          background: open ? '#b8ff4f' : 'rgba(184,255,79,0.15)',
-          border: '1.5px solid rgba(184,255,79,0.35)',
+          background: open ? '#B9FF3D' : '#F1F3F5',
+          border: '1px solid ' + (open ? '#B9FF3D' : '#E8EAEC'),
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           cursor: 'pointer', transition: 'background 0.15s, border-color 0.15s',
-          color: open ? '#1a1f1a' : '#b8ff4f',
-          fontFamily: 'Archivo, sans-serif',
-          fontWeight: 900, fontSize: 14, letterSpacing: 0,
+          color: '#0A0B0C',
+          fontFamily: 'var(--font-ui)',
+          fontWeight: 600, fontSize: 14, letterSpacing: 0,
         }}
       >
         {letter}
@@ -267,26 +267,26 @@ function ProfileButton({ onLogout }) {
       {open && (
         <div style={{
           position: 'absolute', top: 44, right: 0,
-          background: '#1a1f1a', border: '1.5px solid rgba(255,255,255,0.12)',
+          background: '#FFFFFF', border: '1px solid #E8EAEC',
           borderRadius: 14, padding: '14px 16px',
           minWidth: 210, zIndex: 100,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
+          boxShadow: '0 8px 28px -10px rgba(15,20,30,.18), 0 0 0 1px rgba(15,20,30,.04)',
         }}>
           <div style={{
-            fontSize: 10, color: 'rgba(255,255,255,0.38)',
+            fontSize: 10, color: '#9097A0',
             fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.1em',
             marginBottom: 6, textTransform: 'uppercase',
           }}>
             Аккаунт
           </div>
           <div style={{
-            fontSize: 13, color: '#fff', fontWeight: 600,
+            fontSize: 13, color: '#0A0B0C', fontWeight: 500,
             marginBottom: 14, wordBreak: 'break-all', lineHeight: 1.3,
-            fontFamily: 'Inter, sans-serif',
+            fontFamily: 'Onest, sans-serif',
           }}>
             {email || '—'}
           </div>
-          <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', marginBottom: 12 }} />
+          <div style={{ height: 1, background: '#E8EAEC', marginBottom: 12 }} />
           <button
             onClick={() => { setOpen(false); onLogout() }}
             style={{
@@ -296,10 +296,10 @@ function ProfileButton({ onLogout }) {
               borderRadius: 8, cursor: 'pointer',
               color: '#e87460', fontSize: 12, fontWeight: 700,
               letterSpacing: '0.05em',
-              fontFamily: 'Archivo, sans-serif',
+              fontFamily: 'Onest, sans-serif',
             }}
           >
-            ВЫЙТИ
+            Выйти
           </button>
         </div>
       )}
@@ -379,10 +379,10 @@ export default function DashboardPage() {
           justifyContent: 'space-between', marginBottom: 8,
         }}>
           <div style={{
-            fontSize: 11, color: 'rgba(255,255,255,0.45)',
-            fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.12em',
+            fontSize: 11, color: '#9097A0',
+            fontFamily: 'var(--font-mono)', letterSpacing: '0.14em', textTransform: 'uppercase',
           }}>
-            ✦ TOURRHYTHM
+            TOURRHYTHM
           </div>
           <ProfileButton onLogout={() => {
             localStorage.removeItem('access_token')
@@ -391,9 +391,9 @@ export default function DashboardPage() {
           }} />
         </div>
         <h1 style={{
-          fontSize: 32, fontWeight: 900, textTransform: 'uppercase',
-          color: '#fff', margin: 0, lineHeight: 1.05, letterSpacing: '-0.02em',
-          fontFamily: 'Archivo, sans-serif',
+          fontSize: 28, fontWeight: 600,
+          color: '#0A0B0C', margin: 0, lineHeight: 1.15, letterSpacing: '-0.012em',
+          fontFamily: 'var(--font-ui)',
         }}>
           Мои<br/>маршруты
         </h1>
@@ -405,15 +405,15 @@ export default function DashboardPage() {
           onClick={() => navigate('/onboarding')}
           style={{
             width: '100%', height: 52,
-            background: '#b8ff4f',
-            border: '2px solid rgba(255,255,255,0.1)',
-            borderRadius: 14,
-            fontWeight: 900, fontSize: 14, letterSpacing: '0.05em',
-            textTransform: 'uppercase', color: '#1a1f1a',
-            cursor: 'pointer', fontFamily: 'Archivo, sans-serif',
+            background: '#B9FF3D',
+            border: '1px solid #B9FF3D',
+            borderRadius: 10,
+            fontWeight: 500, fontSize: 14, letterSpacing: '-0.005em',
+            color: '#0A0B0C',
+            cursor: 'pointer', fontFamily: 'var(--font-ui)',
           }}
         >
-          + Создать новый маршрут
+          + Создать маршрут
         </button>
       </div>
 
@@ -428,10 +428,10 @@ export default function DashboardPage() {
         ) : error ? (
           <div style={{
             padding: '16px', borderRadius: 12,
-            background: 'rgba(255,80,80,0.12)',
-            border: '1px solid rgba(255,80,80,0.25)',
-            fontSize: 13, color: '#ff8080', lineHeight: 1.5,
-            fontFamily: 'JetBrains Mono, monospace',
+            background: '#FBE5E7',
+            border: '1px solid rgba(180,51,64,0.25)',
+            fontSize: 13, color: '#B43340', lineHeight: 1.5,
+            fontFamily: 'var(--font-ui)',
           }}>
             {error}
           </div>
@@ -440,15 +440,15 @@ export default function DashboardPage() {
           <div style={{ padding: '36px 0 20px', textAlign: 'center' }}>
             <div style={{ fontSize: 40, marginBottom: 16 }}>🗺️</div>
             <div style={{
-              fontFamily: 'Archivo, sans-serif', fontWeight: 900, fontSize: 22,
-              textTransform: 'uppercase', color: '#fff',
-              lineHeight: 1, letterSpacing: '-0.02em', marginBottom: 10,
+              fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 22,
+              color: '#0A0B0C',
+              lineHeight: 1.15, letterSpacing: '-0.012em', marginBottom: 10,
             }}>
               Пока пусто
             </div>
             <div style={{
-              fontSize: 12, color: 'rgba(255,255,255,0.42)',
-              fontFamily: 'JetBrains Mono, monospace', lineHeight: 1.65,
+              fontSize: 13, color: '#5B6066',
+              fontFamily: 'var(--font-ui)', lineHeight: 1.55,
               marginBottom: 28, maxWidth: 240, margin: '0 auto 28px',
             }}>
               Создай первый маршрут или спроси AI-чат о любой стране
@@ -458,35 +458,35 @@ export default function DashboardPage() {
                 onClick={() => navigate('/onboarding')}
                 style={{
                   height: 48,
-                  background: '#b8ff4f', color: '#1a1f1a',
-                  border: 'none', borderRadius: 12,
-                  fontFamily: 'Archivo, sans-serif',
-                  fontWeight: 900, fontSize: 13, letterSpacing: '0.05em',
-                  textTransform: 'uppercase', cursor: 'pointer',
+                  background: '#B9FF3D', color: '#0A0B0C',
+                  border: '1px solid #B9FF3D', borderRadius: 10,
+                  fontFamily: 'var(--font-ui)',
+                  fontWeight: 500, fontSize: 14, letterSpacing: '-0.005em',
+                  cursor: 'pointer',
                 }}
               >
-                СОЗДАТЬ МАРШРУТ
+                Создать маршрут
               </button>
               <button
                 onClick={() => navigate('/dashboard/chat')}
                 style={{
                   height: 48,
-                  background: 'transparent', color: 'rgba(255,255,255,0.65)',
-                  border: '1.5px solid rgba(255,255,255,0.14)', borderRadius: 12,
-                  fontFamily: 'Archivo, sans-serif',
-                  fontWeight: 700, fontSize: 13, letterSpacing: '0.05em',
-                  textTransform: 'uppercase', cursor: 'pointer',
+                  background: 'transparent', color: '#0A0B0C',
+                  border: '1px solid #E8EAEC', borderRadius: 10,
+                  fontFamily: 'var(--font-ui)',
+                  fontWeight: 500, fontSize: 14, letterSpacing: '-0.005em',
+                  cursor: 'pointer',
                 }}
               >
-                ОТКРЫТЬ ЧАТ
+                Открыть чат
               </button>
             </div>
           </div>
         ) : (
           <>
             <div style={{
-              fontSize: 11, color: 'rgba(255,255,255,0.45)',
-              fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.1em', marginBottom: 4,
+              fontSize: 11, color: '#9097A0',
+              fontFamily: 'var(--font-mono)', letterSpacing: '0.14em', marginBottom: 4,
             }}>
               СОХРАНЁННЫЕ · {trips.length}
             </div>

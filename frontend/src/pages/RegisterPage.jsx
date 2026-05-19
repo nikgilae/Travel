@@ -4,30 +4,69 @@ import { register, login } from '../api/auth'
 import { setToken } from '../utils/authToken'
 import './AuthPage.css'
 
-function validatePassword(pw) {
-  if (pw.length < 8) return 'Минимум 8 символов'
-  if (!/[A-Z]/.test(pw)) return 'Нужна хотя бы одна заглавная буква'
-  return null
+const PW_RULES = [
+  { key: 'len',     label: 'Минимум 8 символов',       test: pw => pw.length >= 8 },
+  { key: 'upper',   label: 'Заглавная буква (A–Z)',     test: pw => /[A-Z]/.test(pw) },
+  { key: 'special', label: 'Специальный символ (!@#…)', test: pw => /[^A-Za-z0-9]/.test(pw) },
+]
+
+function pwValid(pw) {
+  return PW_RULES.every(r => r.test(pw))
+}
+
+function PasswordRules({ password, touched }) {
+  if (!touched) return null
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 5,
+      padding: '10px 12px',
+      background: '#F6F7F9',
+      borderRadius: 10,
+      border: '1px solid #E8EAEC',
+    }}>
+      {PW_RULES.map(r => {
+        const ok = r.test(password)
+        return (
+          <div key={r.key} style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            fontSize: 12,
+            color: ok ? '#1E7A4B' : '#5B6066',
+            fontFamily: 'Onest, sans-serif',
+            transition: 'color 0.15s',
+          }}>
+            <span style={{
+              width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: ok ? '#E4F4EB' : '#F1F3F5',
+              border: `1px solid ${ok ? '#1E7A4B' : '#D6D9DD'}`,
+              fontSize: 9, fontWeight: 700,
+              transition: 'all 0.15s',
+            }}>
+              {ok ? '✓' : '·'}
+            </span>
+            {r.label}
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 export default function RegisterPage() {
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [passwordError, setPasswordError] = useState('')
+  const [pwTouched, setPwTouched] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  function handlePasswordChange(e) {
-    const val = e.target.value
-    setPassword(val)
-    setPasswordError(val ? (validatePassword(val) ?? '') : '')
-  }
+  const isValid = pwValid(password)
+  const showError = pwTouched && !isValid && password.length > 0
 
   async function handleSubmit(e) {
     e.preventDefault()
-    const pwErr = validatePassword(password)
-    if (pwErr) { setPasswordError(pwErr); return }
+    setPwTouched(true)
+    if (!isValid) return
     setError('')
     setLoading(true)
     try {
@@ -46,7 +85,7 @@ export default function RegisterPage() {
   return (
     <div className="auth-app">
       <div className="auth-card">
-        <div className="auth-logo">✦ TOURRHYTHM</div>
+        <div className="auth-logo">TourRhythm</div>
         <h1 className="auth-title">Создать аккаунт</h1>
 
         <form onSubmit={handleSubmit} className="auth-form">
@@ -66,15 +105,16 @@ export default function RegisterPage() {
           <div className="auth-field">
             <label className="auth-label">ПАРОЛЬ</label>
             <input
-              className={`auth-input${passwordError ? ' auth-input--error' : ''}`}
+              className={`auth-input${showError ? ' auth-input--error' : pwTouched && isValid ? ' auth-input--ok' : ''}`}
               type="password"
               value={password}
-              onChange={handlePasswordChange}
-              placeholder="••••••••"
+              onChange={e => { setPassword(e.target.value); setPwTouched(true) }}
+              onBlur={() => setPwTouched(true)}
+              placeholder="Например: Travel#2025"
               required
               autoComplete="new-password"
             />
-            {passwordError && <p className="auth-field-error">{passwordError}</p>}
+            <PasswordRules password={password} touched={pwTouched} />
           </div>
 
           {error && <p className="auth-error">{error}</p>}
@@ -82,7 +122,7 @@ export default function RegisterPage() {
           <button
             className="auth-btn"
             type="submit"
-            disabled={loading || !!passwordError}
+            disabled={loading}
           >
             {loading ? '···' : 'ЗАРЕГИСТРИРОВАТЬСЯ →'}
           </button>

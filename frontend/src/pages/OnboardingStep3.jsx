@@ -2,15 +2,15 @@ import { useState } from 'react'
 import './OnboardingStep3.css'
 
 const TR = {
-  bg:         '#f1ede0',
-  surface:    '#fbf7ea',
-  surface2:   '#e8e2cf',
-  fg:         '#0d2818',
-  fgMute:     '#5e6e58',
-  hairline:   'rgba(13,40,24,0.12)',
-  hairlineSt: 'rgba(13,40,24,0.22)',
-  lime:       '#b9ff3d',
-  warn:       '#c8553d',
+  bg:         '#F6F7F9',
+  surface:    '#FFFFFF',
+  surface2:   '#F1F3F5',
+  fg:         '#0A0B0C',
+  fgMute:     '#5B6066',
+  hairline:   '#E8EAEC',
+  hairlineSt: '#D6D9DD',
+  lime:       '#B9FF3D',
+  warn:       '#B43340',
 }
 
 const RHYTHMS = [
@@ -91,7 +91,7 @@ export default function OnboardingStep3({ city, groupType, onBack, onContinue })
           <button
             className="tr-icon-btn"
             onClick={onBack}
-            style={{ color: TR.fg, border: '1.5px solid ' + TR.fg }}
+            style={{ color: TR.fg, border: '1px solid ' + TR.hairline }}
           >
             <ChevronLeft />
           </button>
@@ -126,9 +126,9 @@ export default function OnboardingStep3({ city, groupType, onBack, onContinue })
         {/* ── Hero ── */}
         <div style={{ padding: '4px 22px 18px' }}>
           <h1 style={{
-            fontFamily: 'Archivo, sans-serif',
-            fontWeight: 900, fontSize: 56, lineHeight: 0.86,
-            letterSpacing: '-0.04em', textTransform: 'uppercase',
+            fontFamily: 'Onest, sans-serif',
+            fontWeight: 600, fontSize: 42, lineHeight: 1.05,
+            letterSpacing: '-0.02em',
             color: TR.fg, margin: 0,
           }}>
             В КАКОМ<br/>РИТМЕ?
@@ -156,10 +156,8 @@ export default function OnboardingStep3({ city, groupType, onBack, onContinue })
                   padding: '18px 18px 16px', borderRadius: 14,
                   background: isSel ? TR.fg : TR.surface,
                   color: isSel ? TR.bg : TR.fg,
-                  border: '1.5px solid ' + (isSel ? TR.fg : TR.hairline),
-                  boxShadow: isSel
-                    ? '0 0 0 4px ' + TR.lime + ', 5px 5px 0 0 ' + TR.fg
-                    : 'none',
+                  border: '1px solid ' + (isSel ? TR.fg : TR.hairline),
+                  boxShadow: isSel ? '0 0 0 3px rgba(185,255,61,0.35)' : 'none',
                   transform: isSel ? 'translate(-2px,-2px) scale(1.015)' : 'none',
                   transformOrigin: 'left center',
                   transition: 'all .25s ease',
@@ -171,8 +169,8 @@ export default function OnboardingStep3({ city, groupType, onBack, onContinue })
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
                     <div style={{
-                      fontFamily: 'Archivo, sans-serif',
-                      fontSize: 20, fontWeight: 900, lineHeight: 1,
+                      fontFamily: 'Onest, sans-serif',
+                      fontSize: 20, fontWeight: 600, lineHeight: 1,
                       letterSpacing: '-0.02em',
                     }}>{r.label}</div>
                     <div style={{
@@ -242,7 +240,7 @@ export default function OnboardingStep3({ city, groupType, onBack, onContinue })
                   }}>↳ {r.verdict.text}</div>
                   {isSel && (
                     <div style={{
-                      fontFamily: 'Archivo, sans-serif', fontSize: 10, fontWeight: 800,
+                      fontFamily: 'Onest, sans-serif', fontSize: 10, fontWeight: 500,
                       letterSpacing: '0.06em', color: TR.lime, flexShrink: 0,
                     }}>★ ВЫБРАНО</div>
                   )}
@@ -267,9 +265,9 @@ export default function OnboardingStep3({ city, groupType, onBack, onContinue })
             onClick={onBack}
             style={{
               height: 60, padding: '0 22px', borderRadius: 14,
-              background: 'transparent', color: TR.fg, border: '1.5px solid ' + TR.fg,
-              fontFamily: 'Archivo, sans-serif', fontSize: 13, fontWeight: 800,
-              letterSpacing: '0.04em', textTransform: 'uppercase', cursor: 'pointer',
+              background: 'transparent', color: TR.fg, border: '1px solid ' + TR.hairline,
+              fontFamily: 'Onest, sans-serif', fontSize: 13, fontWeight: 500,
+              letterSpacing: '-0.005em', textTransform: 'uppercase', cursor: 'pointer',
             }}
           >
             Назад
@@ -278,12 +276,12 @@ export default function OnboardingStep3({ city, groupType, onBack, onContinue })
             className="tr-cta-btn"
             onClick={() => onContinue?.(selected)}
             style={{
-              flex: 1, height: 60, borderRadius: 14,
-              background: TR.lime, color: TR.fg, border: '2px solid ' + TR.fg,
-              fontFamily: 'Archivo, sans-serif', fontSize: 15, fontWeight: 800,
-              letterSpacing: '0.04em', textTransform: 'uppercase',
+              flex: 1, height: 44, borderRadius: 10,
+              background: TR.lime, color: TR.fg, border: '1px solid ' + TR.lime,
+              fontFamily: 'Onest, sans-serif', fontSize: 14, fontWeight: 500,
+              letterSpacing: '-0.005em',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-              boxShadow: '4px 4px 0 0 ' + TR.fg, cursor: 'pointer',
+              boxShadow: 'none', cursor: 'pointer',
             }}
           >
             Дальше <ArrowRight />

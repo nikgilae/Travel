@@ -13,47 +13,47 @@ const tripHistoryCache = {}
 // ── Design tokens ──────────────────────────────────────────────────────────────
 
 const DARK = {
-  bg:          '#111714',
-  surface:     '#1a1f1a',
-  surface2:    '#222822',
-  fg:          '#ffffff',
+  bg:          '#0F1011',
+  surface:     '#18191A',
+  surface2:    '#212224',
+  fg:          '#FFFFFF',
   fgMute:      'rgba(255,255,255,0.4)',
   hairline:    'rgba(255,255,255,0.08)',
-  lime:        '#b8ff4f',
-  userBubble:  '#b8ff4f',
-  userText:    '#0f1a0f',
-  aiBubble:    '#1e2520',
+  lime:        '#B9FF3D',
+  userBubble:  '#B9FF3D',
+  userText:    '#0A0B0C',
+  aiBubble:    '#212224',
   aiText:      'rgba(255,255,255,0.88)',
   chipBg:      'rgba(255,255,255,0.05)',
-  chipBorder:  'rgba(255,255,255,0.12)',
-  chipHover:   'rgba(184,255,79,0.12)',
-  inputBg:     '#1a1f1a',
-  inputBorder: 'rgba(255,255,255,0.14)',
-  statusOn:    '#4ade80',
-  statusWait:  '#f59e0b',
-  statusOff:   '#f87171',
+  chipBorder:  'rgba(255,255,255,0.1)',
+  chipHover:   'rgba(185,255,61,0.12)',
+  inputBg:     '#18191A',
+  inputBorder: 'rgba(255,255,255,0.1)',
+  statusOn:    '#1E7A4B',
+  statusWait:  '#B86A00',
+  statusOff:   '#B43340',
 }
 
 const LIGHT = {
-  bg:          '#f1ede0',
-  surface:     '#fbf7ea',
-  surface2:    '#e8e2cf',
-  fg:          '#0d2818',
-  fgMute:      '#7a8e74',
-  hairline:    'rgba(13,40,24,0.1)',
-  lime:        '#b9ff3d',
-  userBubble:  '#b9ff3d',
-  userText:    '#0d2818',
-  aiBubble:    '#fbf7ea',
-  aiText:      '#0d2818',
-  chipBg:      '#fbf7ea',
-  chipBorder:  'rgba(13,40,24,0.16)',
+  bg:          '#F6F7F9',
+  surface:     '#FFFFFF',
+  surface2:    '#F1F3F5',
+  fg:          '#0A0B0C',
+  fgMute:      '#5B6066',
+  hairline:    '#E8EAEC',
+  lime:        '#B9FF3D',
+  userBubble:  '#B9FF3D',
+  userText:    '#0A0B0C',
+  aiBubble:    '#FFFFFF',
+  aiText:      '#0A0B0C',
+  chipBg:      '#F1F3F5',
+  chipBorder:  '#E8EAEC',
   chipHover:   'rgba(185,255,61,0.18)',
-  inputBg:     '#fbf7ea',
-  inputBorder: 'rgba(13,40,24,0.2)',
-  statusOn:    '#4ade80',
-  statusWait:  '#f59e0b',
-  statusOff:   '#f87171',
+  inputBg:     '#FFFFFF',
+  inputBorder: '#E8EAEC',
+  statusOn:    '#1E7A4B',
+  statusWait:  '#B86A00',
+  statusOff:   '#B43340',
 }
 
 // ── Suggestion chips ───────────────────────────────────────────────────────────
@@ -87,8 +87,8 @@ const BotIcon = ({ color }) => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
     <path d="M13.5 9.5a2 2 0 0 1-2 2H4.5L2.5 14V4a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2z"
       fill={color}/>
-    <circle cx="6" cy="7.5" r="1" fill={color === '#0f1a0f' || color === '#0d2818' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.35)'}/>
-    <circle cx="10" cy="7.5" r="1" fill={color === '#0f1a0f' || color === '#0d2818' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.35)'}/>
+    <circle cx="6" cy="7.5" r="1" fill="rgba(0,0,0,0.35)"/>
+    <circle cx="10" cy="7.5" r="1" fill="rgba(0,0,0,0.35)"/>
   </svg>
 )
 
@@ -116,7 +116,7 @@ function MessageBubble({ msg, T }) {
         border: isSystem
           ? '1px solid rgba(200,85,61,0.22)'
           : `1px solid ${T.hairline}`,
-        fontFamily: isSystem ? 'JetBrains Mono, monospace' : 'Inter, sans-serif',
+        fontFamily: isSystem ? 'JetBrains Mono, monospace' : 'Onest, sans-serif',
         wordBreak: 'break-word',
         whiteSpace: 'pre-wrap',
       }}>
@@ -368,12 +368,12 @@ export default function ChatScreen({ mode, tripId, cityName, live = false }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0,
         }}>
-          <BotIcon color={mode === 'general' ? '#0f1a0f' : '#0d2818'} />
+          <BotIcon color="#0A0B0C" />
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
-            fontFamily: 'Archivo, sans-serif', fontWeight: 900,
+            fontFamily: 'Onest, sans-serif', fontWeight: 600,
             fontSize: 13, letterSpacing: '-0.01em',
             color: T.fg, textTransform: 'uppercase',
           }}>{headerTitle}</div>
@@ -411,7 +411,7 @@ export default function ChatScreen({ mode, tripId, cityName, live = false }) {
             padding: '48px 0', gap: 8, pointerEvents: 'none',
           }}>
             <div style={{
-              fontFamily: 'Archivo, sans-serif', fontWeight: 900,
+              fontFamily: 'Onest, sans-serif', fontWeight: 600,
               fontSize: 17, letterSpacing: '-0.02em',
               textTransform: 'uppercase', color: T.fg, opacity: 0.18,
             }}>Начни диалог</div>
@@ -495,7 +495,7 @@ export default function ChatScreen({ mode, tripId, cityName, live = false }) {
             border: `1.5px solid ${T.inputBorder}`,
             borderRadius: 12,
             padding: '0 14px',
-            fontFamily: 'Inter, sans-serif',
+            fontFamily: 'Onest, sans-serif',
             fontSize: 14, color: T.fg,
             outline: 'none',
             transition: 'border-color 0.14s',

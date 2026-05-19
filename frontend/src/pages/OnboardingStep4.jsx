@@ -2,15 +2,15 @@ import { useState, useEffect } from 'react'
 import './OnboardingStep4.css'
 
 const TR = {
-  bg:         '#f1ede0',
-  surface:    '#fbf7ea',
-  surface2:   '#e8e2cf',
-  fg:         '#0d2818',
-  fgMute:     '#5e6e58',
-  hairline:   'rgba(13,40,24,0.12)',
-  hairlineSt: 'rgba(13,40,24,0.22)',
-  lime:       '#b9ff3d',
-  warn:       '#c8553d',
+  bg:         '#F6F7F9',
+  surface:    '#FFFFFF',
+  surface2:   '#F1F3F5',
+  fg:         '#0A0B0C',
+  fgMute:     '#5B6066',
+  hairline:   '#E8EAEC',
+  hairlineSt: '#D6D9DD',
+  lime:       '#B9FF3D',
+  warn:       '#B43340',
 }
 
 const STEPS = [
@@ -84,8 +84,8 @@ export default function OnboardingStep4({ city, groupType, rhythm, onComplete })
           flexShrink: 0,
         }}>
           <div style={{
-            fontFamily: 'Archivo, sans-serif',
-            fontSize: 13, fontWeight: 800, letterSpacing: '0.04em', color: TR.fg,
+            fontFamily: 'Onest, sans-serif',
+            fontSize: 13, fontWeight: 500, letterSpacing: '-0.005em', color: TR.fg,
           }}>
             TOUR<span style={{ color: TR.fgMute }}>·</span>RHYTHM
           </div>
@@ -117,8 +117,8 @@ export default function OnboardingStep4({ city, groupType, rhythm, onComplete })
             </svg>
           </div>
           <h1 style={{
-            fontFamily: 'Archivo, sans-serif',
-            fontWeight: 900, fontSize: 42, lineHeight: 0.88,
+            fontFamily: 'Onest, sans-serif',
+            fontWeight: 600, fontSize: 42, lineHeight: 0.88,
             letterSpacing: '-0.04em', textTransform: 'uppercase',
             color: TR.fg, textAlign: 'center', margin: 0,
           }}>
@@ -152,7 +152,7 @@ export default function OnboardingStep4({ city, groupType, rhythm, onComplete })
 
           <div style={{
             background: TR.surface, borderRadius: 14,
-            border: '1.5px solid ' + TR.hairline, overflow: 'hidden',
+            border: '1px solid ' + TR.hairline, overflow: 'hidden',
           }}>
             {STEPS.map((s, i) => {
               const isDone   = i < doneCount

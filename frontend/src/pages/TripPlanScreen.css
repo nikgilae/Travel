@@ -1,5 +1,5 @@
 .tr-app {
-  background: #f1ede0;
+  background: var(--bg, #F6F7F9);
   min-height: 100svh;
   display: flex;
   justify-content: center;
@@ -10,11 +10,11 @@
   width: 100%;
   max-width: 430px;
   min-height: 100svh;
-  background: #f1ede0;
+  background: var(--bg, #F6F7F9);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-ui, 'Onest', sans-serif);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -27,7 +27,7 @@
 
 @media (min-width: 500px) {
   .tr-app {
-    background: #e8e2cf;
+    background: var(--surface-2, #F1F3F5);
     align-items: center;
     min-height: 100svh;
   }
@@ -36,21 +36,28 @@
     height: min(calc(100svh - 64px), 900px);
     overflow: hidden;
     border-radius: 40px;
-    box-shadow: 0 24px 64px rgba(13, 40, 24, 0.22);
+    box-shadow: 0 24px 48px rgba(10,11,12,0.12);
     margin: 32px 0;
   }
 }
 
 .tr-icon-btn {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-2, 10px);
   background: transparent;
+  border: 1px solid var(--line, #E8EAEC);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
+  color: var(--ink, #0A0B0C);
+  transition: background 0.12s ease;
+}
+
+.tr-icon-btn:hover {
+  background: var(--surface-2, #F1F3F5);
 }
 
 /* Day pills horizontal scroll — hide scrollbar */
@@ -64,29 +71,32 @@
 .tr-action-btn {
   height: 28px;
   padding: 0 12px;
-  border-radius: 99px;
+  border-radius: var(--r-pill, 999px);
   background: transparent;
-  border: 1.5px solid rgba(13, 40, 24, 0.22);
-  font-family: 'Archivo', sans-serif;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  color: #0d2818;
+  border: 1px solid var(--line-strong, #D6D9DD);
+  font-family: var(--font-ui, 'Onest', sans-serif);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--ink-2, #5B6066);
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background 0.12s ease, border-color 0.12s ease;
 }
 
-.tr-action-btn:active {
-  background: rgba(13, 40, 24, 0.08);
+.tr-action-btn:hover {
+  background: var(--surface-2, #F1F3F5);
+  border-color: var(--line-strong, #D6D9DD);
 }
 
 .tr-action-btn--primary {
-  background: #b9ff3d;
-  border-color: #0d2818;
+  background: var(--lime, #B9FF3D);
+  border-color: var(--lime, #B9FF3D);
+  color: var(--ink, #0A0B0C);
 }
 
-.tr-action-btn--primary:active {
-  background: #a8e832;
+.tr-action-btn--primary:hover {
+  background: var(--lime-hover, #A8F02C);
+  border-color: var(--lime-hover, #A8F02C);
 }
 
 @keyframes tr-shimmer {
@@ -95,7 +105,7 @@
 }
 
 .tr-shimmer {
-  background: linear-gradient(90deg, #e8e2cf 25%, #f1ede0 50%, #e8e2cf 75%);
+  background: linear-gradient(90deg, #F1F3F5 25%, #E8EAEC 50%, #F1F3F5 75%);
   background-size: 800px 100%;
   animation: tr-shimmer 1.4s ease-in-out infinite;
   display: block;

@@ -30,7 +30,7 @@ export default function LoginPage() {
   return (
     <div className="auth-app">
       <div className="auth-card">
-        <div className="auth-logo">✦ TOURRHYTHM</div>
+        <div className="auth-logo">TourRhythm</div>
         <h1 className="auth-title">Войти</h1>
 
         <form onSubmit={handleSubmit} className="auth-form">

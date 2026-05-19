@@ -6,15 +6,15 @@ const API_BASE = 'http://localhost:8000'
 function getToken() { return localStorage.getItem('access_token') ?? '' }
 
 const TR = {
-  bg:       '#f1ede0',
-  surface:  '#fbf7ea',
-  surface2: '#e8e2cf',
-  fg:       '#0d2818',
-  fgMute:   '#5e6e58',
-  hairline: 'rgba(13,40,24,0.12)',
-  lime:     '#b9ff3d',
-  limeText: '#3d6600',
-  warn:     '#c8553d',
+  bg:       '#F6F7F9',
+  surface:  '#FFFFFF',
+  surface2: '#F1F3F5',
+  fg:       '#0A0B0C',
+  fgMute:   '#5B6066',
+  hairline: '#E8EAEC',
+  lime:     '#B9FF3D',
+  limeText: '#1B2A0A',
+  warn:     '#B43340',
 }
 
 // ── Filter → Google Places type ────────────────────────────────────────────────
@@ -117,19 +117,19 @@ function PlaceCard({ place, userPos, tripId }) {
       background: TR.surface, borderRadius: 16,
       border: `1px solid ${TR.hairline}`,
       padding: '14px 16px',
-      boxShadow: '0 1px 6px rgba(13,40,24,0.05)',
+      boxShadow: '0 0 0 1px #E8EAEC',
     }}>
       {/* Title + distance */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 4 }}>
         <div style={{
-          flex: 1, fontFamily: 'Archivo, sans-serif',
-          fontWeight: 800, fontSize: 14, color: TR.fg, lineHeight: 1.25,
+          flex: 1, fontFamily: 'Onest, sans-serif',
+          fontWeight: 500, fontSize: 14, color: TR.fg, lineHeight: 1.25,
         }}>
           {place.name}
         </div>
         {dist != null && (
           <span style={{
-            flexShrink: 0, fontSize: 10, fontWeight: 700,
+            flexShrink: 0, fontSize: 10, fontWeight: 500,
             fontFamily: 'JetBrains Mono, monospace',
             color: TR.limeText,
             background: 'rgba(185,255,61,0.22)',
@@ -145,7 +145,7 @@ function PlaceCard({ place, userPos, tripId }) {
         display: 'flex', alignItems: 'center', gap: 8,
         fontSize: 11, color: TR.fgMute,
         fontFamily: 'JetBrains Mono, monospace',
-        letterSpacing: '0.03em', marginBottom: 6, flexWrap: 'wrap',
+        letterSpacing: 0 + ',', marginBottom: 6, flexWrap: 'wrap',
       }}>
         <span>{typeLabel}</span>
         {place.rating && <><span style={{ opacity: 0.4 }}>·</span><StarRating rating={place.rating} /></>}
@@ -163,7 +163,7 @@ function PlaceCard({ place, userPos, tripId }) {
       {place.vicinity && (
         <div style={{
           fontSize: 11, color: TR.fgMute,
-          fontFamily: 'Inter, sans-serif', lineHeight: 1.4,
+          fontFamily: 'Onest, sans-serif', lineHeight: 1.4,
           marginBottom: 12,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
@@ -179,8 +179,8 @@ function PlaceCard({ place, userPos, tripId }) {
           rel="noopener noreferrer"
           style={{
             padding: '6px 14px', borderRadius: 8,
-            fontSize: 11, fontFamily: 'Archivo, sans-serif',
-            fontWeight: 800, letterSpacing: '0.04em',
+            fontSize: 11, fontFamily: 'Onest, sans-serif',
+            fontWeight: 500, letterSpacing: 0 + ',',
             border: `1.5px solid ${TR.fg}`,
             background: TR.lime, color: TR.fg,
             textDecoration: 'none', display: 'inline-block',
@@ -197,8 +197,8 @@ function PlaceCard({ place, userPos, tripId }) {
             })}
             style={{
               padding: '6px 14px', borderRadius: 8,
-              fontSize: 11, fontFamily: 'Archivo, sans-serif',
-              fontWeight: 700, letterSpacing: '0.04em',
+              fontSize: 11, fontFamily: 'Onest, sans-serif',
+              fontWeight: 500, letterSpacing: 0 + ',',
               border: `1.5px solid ${TR.hairline}`,
               background: 'transparent', color: TR.fgMute, cursor: 'pointer',
             }}
@@ -318,7 +318,7 @@ export default function NearbyPage() {
             РЯДОМ С ВАМИ
           </div>
           <div style={{
-            fontFamily: 'Archivo, sans-serif', fontWeight: 900,
+            fontFamily: 'Onest, sans-serif', fontWeight: 600,
             fontSize: 26, letterSpacing: '-0.03em',
             color: TR.fg, textTransform: 'uppercase', lineHeight: 1,
           }}>
@@ -364,8 +364,8 @@ export default function NearbyPage() {
                 border: `1.5px solid ${active ? TR.fg : TR.hairline}`,
                 background: active ? TR.lime : 'transparent',
                 color: TR.fg,
-                fontFamily: 'Archivo, sans-serif',
-                fontWeight: 700, fontSize: 12, letterSpacing: '0.03em',
+                fontFamily: 'Onest, sans-serif',
+                fontWeight: 500, fontSize: 12, letterSpacing: 0 + ',',
                 transition: 'background 0.13s, border-color 0.13s',
                 WebkitTapHighlightColor: 'transparent',
               }}
@@ -393,8 +393,8 @@ export default function NearbyPage() {
             <div style={{ fontSize: 40 }}>📍</div>
             <div>
               <div style={{
-                fontFamily: 'Archivo, sans-serif', fontWeight: 800,
-                fontSize: 16, textTransform: 'uppercase', color: TR.fg, marginBottom: 8,
+                fontFamily: 'Onest, sans-serif', fontWeight: 500,
+                fontSize: 16, color: TR.fg, marginBottom: 8,
               }}>
                 Геолокация недоступна
               </div>
@@ -410,10 +410,10 @@ export default function NearbyPage() {
               style={{
                 padding: '11px 24px',
                 background: TR.lime, color: TR.fg,
-                border: `1.5px solid ${TR.fg}`, borderRadius: 10,
-                fontFamily: 'Archivo, sans-serif',
-                fontWeight: 800, fontSize: 12, letterSpacing: '0.05em',
-                cursor: 'pointer', boxShadow: `2px 2px 0 0 ${TR.fg}`,
+                border: `1px solid ${TR.fg}`, borderRadius: 10,
+                fontFamily: 'Onest, sans-serif',
+                fontWeight: 500, fontSize: 12, letterSpacing: '-0.005em',
+                cursor: 'pointer', boxShadow: 'none',
               }}
             >
               РАЗРЕШИТЬ ДОСТУП
@@ -470,8 +470,8 @@ export default function NearbyPage() {
             }}>
               <div style={{ fontSize: 32 }}>🔍</div>
               <div style={{
-                fontFamily: 'Archivo, sans-serif', fontWeight: 800,
-                fontSize: 15, textTransform: 'uppercase', color: TR.fg,
+                fontFamily: 'Onest, sans-serif', fontWeight: 500,
+                fontSize: 15, color: TR.fg,
               }}>
                 Ничего не нашлось
               </div>
@@ -488,7 +488,7 @@ export default function NearbyPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{
                 fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
-                color: TR.fgMute, letterSpacing: '0.08em',
+                color: TR.fgMute, letterSpacing: 0 + ',',
                 textTransform: 'uppercase', marginBottom: 2,
               }}>
                 {sorted.length} {sorted.length === 1 ? 'место' : sorted.length < 5 ? 'места' : 'мест'} · по расстоянию

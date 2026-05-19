@@ -8,11 +8,11 @@ import {
 } from '@react-google-maps/api'
 
 const LIBRARIES = ['places', 'geometry']
-const LIME = '#C8FF00'
-const GREY = '#9e9e9e'
-const BG = '#f5f0e8'
-const FG = '#1a1f1a'
-const MUTED = '#666'
+const LIME = '#B9FF3D'
+const GREY = '#9097A0'
+const BG = '#F6F7F9'
+const FG = '#0A0B0C'
+const MUTED = '#5B6066'
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 function fmtTime(dt) {
@@ -155,7 +155,7 @@ export default function TripMap({ allPois, numDays, activeDay, setActiveDay, cit
               style={{
                 flexShrink: 0, padding: '5px 14px', borderRadius: 99,
                 fontSize: 11, fontFamily: 'JetBrains Mono, monospace',
-                border: '1.5px solid ' + (active ? FG : 'rgba(26,31,26,0.2)'),
+                border: '1px solid ' + (active ? FG : '#E8EAEC'),
                 background: active ? LIME : 'transparent',
                 color: FG, cursor: 'pointer',
                 fontWeight: active ? 700 : 400,
@@ -172,7 +172,7 @@ export default function TripMap({ allPois, numDays, activeDay, setActiveDay, cit
         {!isLoaded ? (
           <div style={{
             height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: '#e8e5dc', fontFamily: 'JetBrains Mono, monospace',
+            background: '#F1F3F5', fontFamily: 'JetBrains Mono, monospace',
             fontSize: 11, color: MUTED, letterSpacing: 1,
           }}>
             ЗАГРУЗКА КАРТЫ...
@@ -249,7 +249,7 @@ export default function TripMap({ allPois, numDays, activeDay, setActiveDay, cit
                     onClick={() => setSelectedId(isActive ? null : p.poi.id)}
                     style={{
                       width: 26, height: 26, borderRadius: '50%',
-                      background: GREY, border: '2px solid rgba(26,31,26,0.5)',
+                      background: GREY, border: '2px solid rgba(10,11,12,0.5)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: 10, fontWeight: 700, color: '#fff',
                       cursor: 'pointer',
@@ -353,7 +353,7 @@ export default function TripMap({ allPois, numDays, activeDay, setActiveDay, cit
                   style={{
                     flexShrink: 0, width: 140, padding: '10px 12px',
                     background: isSelected ? LIME : '#fff',
-                    border: '1.5px solid ' + (isSelected ? FG : 'rgba(26,31,26,0.12)'),
+                    border: '1.5px solid ' + (isSelected ? FG : 'rgba(10,11,12,0.12)'),
                     borderRadius: 12, cursor: 'pointer',
                     boxShadow: isSelected ? `2px 2px 0 ${FG}` : '0 1px 4px rgba(0,0,0,0.07)',
                     transition: 'all 0.15s',
@@ -387,7 +387,7 @@ export default function TripMap({ allPois, numDays, activeDay, setActiveDay, cit
             {/* Divider + Alt POI cards (only before finalization) */}
             {!isFinalized && altPois.length > 0 && (
               <>
-                <div style={{ flexShrink: 0, width: 1, height: 60, background: 'rgba(26,31,26,0.15)', margin: '0 2px' }} />
+                <div style={{ flexShrink: 0, width: 1, height: 60, background: 'rgba(10,11,12,0.15)', margin: '0 2px' }} />
                 {altPois.map((p, i) => {
                   const isSelected = selectedId === p.poi.id
                   const coords = getCoords(p)
@@ -403,25 +403,25 @@ export default function TripMap({ allPois, numDays, activeDay, setActiveDay, cit
                       }}
                       style={{
                         flexShrink: 0, width: 128, padding: '10px 12px',
-                        background: isSelected ? 'rgba(158,158,158,0.18)' : 'rgba(26,31,26,0.04)',
-                        border: '1.5px dashed ' + (isSelected ? GREY : 'rgba(26,31,26,0.2)'),
+                        background: isSelected ? 'rgba(158,158,158,0.18)' : 'rgba(10,11,12,0.04)',
+                        border: '1.5px dashed ' + (isSelected ? GREY : 'rgba(10,11,12,0.2)'),
                         borderRadius: 12, cursor: 'pointer',
                         transition: 'all 0.15s', opacity: 0.82,
                       }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
                         <div style={{
                           width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
-                          background: GREY, border: '1.5px solid rgba(26,31,26,0.4)',
+                          background: GREY, border: '1.5px solid rgba(10,11,12,0.4)',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           fontSize: 8, fontWeight: 700, color: '#fff',
                           fontFamily: 'JetBrains Mono, monospace',
                         }}>{LETTERS[i % 26]}</div>
                         <div style={{
-                          fontWeight: 600, fontSize: 10, color: 'rgba(26,31,26,0.6)',
+                          fontWeight: 600, fontSize: 10, color: 'rgba(10,11,12,0.6)',
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
                         }}>{p.poi.name}</div>
                       </div>
-                      <div style={{ fontSize: 9, color: 'rgba(26,31,26,0.42)' }}>
+                      <div style={{ fontSize: 9, color: 'rgba(10,11,12,0.42)' }}>
                         {p.poi.is_indoor ? 'Закрытое' : 'На улице'}
                       </div>
                     </div>

@@ -4,11 +4,11 @@
 
 .ofq-app {
   min-height: 100svh;
-  background: #1a1f1a;
+  background: var(--bg, #F6F7F9);
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-ui, 'Onest', sans-serif);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -16,7 +16,7 @@
   width: 100%;
   max-width: 430px;
   min-height: 100svh;
-  background: #1a1f1a;
+  background: var(--bg, #F6F7F9);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -31,7 +31,7 @@
     max-height: 900px;
     overflow-y: auto;
     border-radius: 40px;
-    box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    box-shadow: var(--e-2, 0 8px 28px -10px rgba(15,20,30,.18), 0 0 0 1px rgba(15,20,30,.04));
     margin: 32px 0;
   }
 }

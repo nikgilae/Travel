@@ -2,15 +2,15 @@ import { useState } from 'react'
 import './OnboardingDates.css'
 
 const TR = {
-  bg:         '#f1ede0',
-  surface:    '#fbf7ea',
-  surface2:   '#e8e2cf',
-  fg:         '#0d2818',
-  fgMute:     '#5e6e58',
-  hairline:   'rgba(13,40,24,0.12)',
-  hairlineSt: 'rgba(13,40,24,0.22)',
-  lime:       '#b9ff3d',
-  warn:       '#c8553d',
+  bg:         '#F6F7F9',
+  surface:    '#FFFFFF',
+  surface2:   '#F1F3F5',
+  fg:         '#0A0B0C',
+  fgMute:     '#5B6066',
+  hairline:   '#E8EAEC',
+  hairlineSt: '#D6D9DD',
+  lime:       '#B9FF3D',
+  warn:       '#B43340',
 }
 
 const MAX_DAYS = 21
@@ -162,7 +162,7 @@ export default function OnboardingDates({ city, groupType, onBack, onContinue })
           display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0,
         }}>
           <button className="tr-icon-btn" onClick={onBack}
-            style={{ color: TR.fg, border: '1.5px solid ' + TR.fg }}>
+            style={{ color: TR.fg, border: '1px solid ' + TR.hairline }}>
             <ChevronLeft />
           </button>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -191,7 +191,7 @@ export default function OnboardingDates({ city, groupType, onBack, onContinue })
         {/* ── Hero ── */}
         <div style={{ padding: '4px 22px 14px' }}>
           <h1 style={{
-            fontFamily: 'Archivo, sans-serif', fontWeight: 900, fontSize: 56,
+            fontFamily: 'Onest, sans-serif', fontWeight: 600, fontSize: 56,
             lineHeight: 0.86, letterSpacing: '-0.04em', textTransform: 'uppercase',
             color: TR.fg, margin: 0,
           }}>
@@ -203,7 +203,7 @@ export default function OnboardingDates({ city, groupType, onBack, onContinue })
         <div style={{ padding: '0 22px' }}>
           <div style={{
             background: TR.surface, borderRadius: 16,
-            border: '1.5px solid ' + TR.hairline, overflow: 'hidden',
+            border: '1px solid ' + TR.hairline, overflow: 'hidden',
           }}>
             {/* Month nav */}
             <div style={{
@@ -213,13 +213,13 @@ export default function OnboardingDates({ city, groupType, onBack, onContinue })
             }}>
               <button onClick={prevMonth} style={{
                 width: 32, height: 32, borderRadius: 8,
-                background: 'transparent', border: '1.5px solid ' + TR.hairlineSt,
+                background: 'transparent', border: '1px solid ' + TR.hairlineSt,
                 color: TR.fg, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}><ChevronLeft /></button>
 
               <div style={{
-                fontFamily: 'Archivo, sans-serif', fontWeight: 900, fontSize: 15,
+                fontFamily: 'Onest, sans-serif', fontWeight: 600, fontSize: 15,
                 letterSpacing: '-0.01em', color: TR.fg, textTransform: 'uppercase',
               }}>
                 {MONTH_NAMES[viewMonth]} {viewYear}
@@ -227,7 +227,7 @@ export default function OnboardingDates({ city, groupType, onBack, onContinue })
 
               <button onClick={nextMonth} style={{
                 width: 32, height: 32, borderRadius: 8,
-                background: 'transparent', border: '1.5px solid ' + TR.hairlineSt,
+                background: 'transparent', border: '1px solid ' + TR.hairlineSt,
                 color: TR.fg, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}><ChevronRight /></button>
@@ -260,7 +260,7 @@ export default function OnboardingDates({ city, groupType, onBack, onContinue })
                       height: 34,
                       borderRadius: 6,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontFamily: 'Archivo, sans-serif',
+                      fontFamily: 'Onest, sans-serif',
                       fontWeight: isEndpoint ? 900 : 600,
                       fontSize: 13,
                       background: isEndpoint
@@ -288,7 +288,7 @@ export default function OnboardingDates({ city, groupType, onBack, onContinue })
           {overLimit && (
             <div style={{
               padding: '11px 14px', borderRadius: 10,
-              background: 'rgba(200,85,61,0.10)', border: '1.5px solid ' + TR.warn,
+              background: 'rgba(200,85,61,0.10)', border: '1px solid ' + TR.warn,
               fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
               color: TR.warn, letterSpacing: 0.4,
             }}>
@@ -310,7 +310,7 @@ export default function OnboardingDates({ city, groupType, onBack, onContinue })
           {canContinue && (
             <div style={{
               padding: '12px 14px', borderRadius: 12,
-              background: TR.lime, border: '1.5px solid ' + TR.fg,
+              background: TR.lime, border: '1px solid ' + TR.hairline,
               fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
               color: TR.fg, letterSpacing: 0.5,
             }}>
@@ -330,9 +330,9 @@ export default function OnboardingDates({ city, groupType, onBack, onContinue })
         }}>
           <button onClick={onBack} style={{
             height: 60, padding: '0 22px', borderRadius: 14,
-            background: 'transparent', color: TR.fg, border: '1.5px solid ' + TR.fg,
-            fontFamily: 'Archivo, sans-serif', fontSize: 13, fontWeight: 800,
-            letterSpacing: '0.04em', textTransform: 'uppercase', cursor: 'pointer',
+            background: 'transparent', color: TR.fg, border: '1px solid ' + TR.hairline,
+            fontFamily: 'Onest, sans-serif', fontSize: 13, fontWeight: 500,
+            letterSpacing: '-0.005em', textTransform: 'uppercase', cursor: 'pointer',
           }}>Назад</button>
           <button
             className="tr-cta-btn"
@@ -340,12 +340,12 @@ export default function OnboardingDates({ city, groupType, onBack, onContinue })
               ? handleContinue
               : () => onContinue?.({ startDay: null, duration: null, label: null, endLabel: null })}
             style={{
-              flex: 1, height: 60, borderRadius: 14,
-              background: TR.lime, color: TR.fg, border: '2px solid ' + TR.fg,
-              fontFamily: 'Archivo, sans-serif', fontSize: 15, fontWeight: 800,
-              letterSpacing: '0.04em', textTransform: 'uppercase',
+              flex: 1, height: 44, borderRadius: 10,
+              background: TR.lime, color: TR.fg, border: '1px solid ' + TR.lime,
+              fontFamily: 'Onest, sans-serif', fontSize: 14, fontWeight: 500,
+              letterSpacing: '-0.005em',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-              boxShadow: '4px 4px 0 0 ' + TR.fg, cursor: 'pointer',
+              boxShadow: 'none', cursor: 'pointer',
               opacity: canContinue ? 1 : 0.6,
             }}
           >

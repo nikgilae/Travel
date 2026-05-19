@@ -23,19 +23,19 @@ function calcNumDays(startDate, endDate) {
 }
 
 const TR = {
-  bg:         '#f1ede0',
-  surface:    '#fbf7ea',
-  surface2:   '#e8e2cf',
-  fg:         '#0d2818',
-  fgMute:     '#5e6e58',
-  hairline:   'rgba(13,40,24,0.12)',
-  hairlineSt: 'rgba(13,40,24,0.22)',
-  lime:       '#b9ff3d',
-  warn:       '#c8553d',
+  bg:         '#F6F7F9',
+  surface:    '#FFFFFF',
+  surface2:   '#F1F3F5',
+  fg:         '#0A0B0C',
+  fgMute:     '#5B6066',
+  hairline:   '#E8EAEC',
+  hairlineSt: '#D6D9DD',
+  lime:       '#B9FF3D',
+  warn:       '#B43340',
 }
 
 const DAY_COLORS = [
-  '#c8553d', '#4a7c59', '#5a6e9a', '#8a5a2a', '#6a4a8a', '#3a7a6a', '#7a5a3a',
+  '#B43340', '#4a7c59', '#5a6e9a', '#8a5a2a', '#6a4a8a', '#3a7a6a', '#7a5a3a',
 ]
 
 const WEEKDAYS = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС']
@@ -110,9 +110,9 @@ function Toast({ message, onDone }) {
       zIndex: 2000, pointerEvents: 'none',
       background: TR.fg, color: TR.lime,
       padding: '10px 18px', borderRadius: 99,
-      fontFamily: 'Archivo, sans-serif', fontWeight: 800, fontSize: 12,
-      letterSpacing: '0.05em', whiteSpace: 'nowrap',
-      boxShadow: '0 4px 16px rgba(13,40,24,0.25)',
+      fontFamily: 'Onest, sans-serif', fontWeight: 500, fontSize: 12,
+      letterSpacing: '-0.005em', whiteSpace: 'nowrap',
+      boxShadow: '0 4px 16px rgba(10,11,12,0.08)',
       animation: 'tr-toast-in 0.18s ease',
     }}>
       {message}
@@ -127,16 +127,16 @@ function ConfirmModal({ title, body, onConfirm, onCancel, loading, confirmLabel 
     <div style={{
       position: 'fixed', inset: 0, zIndex: 1100,
       display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
-      background: 'rgba(13,40,24,0.5)',
+      background: 'rgba(10,11,12,0.5)',
     }} onClick={onCancel}>
       <div style={{
         background: TR.bg, borderRadius: '20px 20px 0 0',
-        border: '1.5px solid ' + TR.fg, borderBottom: 'none',
+        border: '1px solid ' + TR.fg, borderBottom: 'none',
         padding: '24px 22px 32px',
       }} onClick={e => e.stopPropagation()}>
         <div style={{
-          fontFamily: 'Archivo, sans-serif', fontWeight: 900, fontSize: 18,
-          letterSpacing: '-0.02em', color: TR.fg, textTransform: 'uppercase',
+          fontFamily: 'Onest, sans-serif', fontWeight: 600, fontSize: 18,
+          letterSpacing: '-0.02em', color: TR.fg, 
           marginBottom: 10,
         }}>{title}</div>
         {body && (
@@ -147,18 +147,18 @@ function ConfirmModal({ title, body, onConfirm, onCancel, loading, confirmLabel 
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={onCancel} style={{
             flex: 1, height: 46,
-            background: 'transparent', border: '1.5px solid ' + TR.hairlineSt,
+            background: 'transparent', border: '1px solid ' + TR.hairlineSt,
             borderRadius: 12, cursor: 'pointer',
-            fontFamily: 'Archivo, sans-serif', fontWeight: 800, fontSize: 13,
+            fontFamily: 'Onest, sans-serif', fontWeight: 500, fontSize: 13,
             letterSpacing: '0.04em', color: TR.fg,
           }}>ОТМЕНА</button>
           <button onClick={onConfirm} disabled={loading} style={{
             flex: 1, height: 46,
-            background: confirmColor, border: '1.5px solid ' + TR.fg,
+            background: confirmColor, border: '1px solid ' + TR.fg,
             borderRadius: 12, cursor: loading ? 'wait' : 'pointer',
-            fontFamily: 'Archivo, sans-serif', fontWeight: 800, fontSize: 13,
+            fontFamily: 'Onest, sans-serif', fontWeight: 500, fontSize: 13,
             letterSpacing: '0.04em', color: confirmTextColor,
-            boxShadow: '2px 2px 0 0 ' + TR.fg,
+            boxShadow: 'none',
             opacity: loading ? 0.6 : 1,
           }}>{loading ? (loadingLabel ?? confirmLabel + '…') : confirmLabel}</button>
         </div>
@@ -259,17 +259,17 @@ function PlaceDetailsModal({ poi, cityName, onClose }) {
     <div style={{
       position: 'fixed', inset: 0, zIndex: 1000,
       display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
-      background: 'rgba(13,40,24,0.5)',
+      background: 'rgba(10,11,12,0.5)',
     }} onClick={onClose}>
       <div style={{
         background: TR.bg, borderRadius: '20px 20px 0 0',
         maxHeight: '80vh', overflowY: 'auto',
-        border: '1.5px solid ' + TR.fg,
+        border: '1px solid ' + TR.fg,
         borderBottom: 'none',
       }} onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div style={{ padding: '16px 22px 12px', borderBottom: '1px solid ' + TR.hairline, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ fontFamily: 'Archivo, sans-serif', fontWeight: 800, fontSize: 16, letterSpacing: '-0.02em', color: TR.fg, textTransform: 'uppercase' }}>
+          <div style={{ fontFamily: 'Onest, sans-serif', fontWeight: 500, fontSize: 16, letterSpacing: '-0.02em', color: TR.fg, }}>
             {poi.name}
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: TR.fgMute, lineHeight: 1 }}>×</button>
@@ -322,8 +322,8 @@ function PlaceDetailsModal({ poi, cityName, onClose }) {
                 <a href={mapsUrl} target="_blank" rel="noreferrer" style={{
                   display: 'block', padding: '11px 0', textAlign: 'center',
                   background: TR.fg, color: TR.lime,
-                  borderRadius: 10, fontFamily: 'Archivo, sans-serif',
-                  fontWeight: 800, fontSize: 13, letterSpacing: '0.05em',
+                  borderRadius: 10, fontFamily: 'Onest, sans-serif',
+                  fontWeight: 500, fontSize: 13, letterSpacing: '-0.005em',
                   textDecoration: 'none',
                 }}>
                   ОТКРЫТЬ В GOOGLE MAPS
@@ -461,9 +461,9 @@ function ListTab({ allPois }) {
         {[null, ...days].map((d, i) => (
           <button key={i} onClick={() => setFilterDay(d ?? null)} style={{
             flexShrink: 0, padding: '5px 12px',
-            border: '1.5px solid ' + TR.hairlineSt,
+            border: '1px solid ' + TR.hairlineSt,
             borderRadius: 99, fontSize: 10,
-            fontFamily: 'Archivo, sans-serif', fontWeight: 800, letterSpacing: '0.05em',
+            fontFamily: 'Onest, sans-serif', fontWeight: 500, letterSpacing: '-0.005em',
             background: filterDay === (d ?? null) ? TR.fg : 'transparent',
             color: filterDay === (d ?? null) ? TR.lime : TR.fg,
             cursor: 'pointer',
@@ -519,8 +519,8 @@ function ListTab({ allPois }) {
               }}/>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
-                  fontFamily: 'Archivo, sans-serif', fontWeight: 800, fontSize: 13,
-                  textTransform: 'uppercase', letterSpacing: '-0.01em',
+                  fontFamily: 'Onest, sans-serif', fontWeight: 500, fontSize: 13,
+                   letterSpacing: '-0.01em',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   color: TR.fg,
                 }}>{p.poi.name}</div>
@@ -584,8 +584,8 @@ function BudgetTab({ trip, poisByDay, numDays }) {
       <div style={{ padding: '52px 22px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
         <div style={{ fontSize: 36 }}>💸</div>
         <div style={{
-          fontFamily: 'Archivo, sans-serif', fontWeight: 800, fontSize: 14,
-          textTransform: 'uppercase', letterSpacing: '0.02em', color: TR.fg, textAlign: 'center',
+          fontFamily: 'Onest, sans-serif', fontWeight: 500, fontSize: 14,
+           letterSpacing: '0.02em', color: TR.fg, textAlign: 'center',
         }}>Нет данных по бюджету</div>
         <div style={{
           fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: TR.fgMute,
@@ -603,18 +603,18 @@ function BudgetTab({ trip, poisByDay, numDays }) {
       {/* ── Block 1: Total ── */}
       <div style={{
         background: TR.surface, borderRadius: 16,
-        border: '1.5px solid ' + TR.hairline,
+        border: '1px solid ' + TR.hairline,
         padding: '20px 20px 18px',
-        boxShadow: '0 1px 4px rgba(13,40,24,0.06)',
+        boxShadow: 'none',
       }}>
         <div style={{
           fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
           letterSpacing: '0.22em', color: TR.fgMute,
-          textTransform: 'uppercase', marginBottom: 10,
+           marginBottom: 10,
         }}>ИТОГО НА ПОЕЗДКУ</div>
 
         <div style={{
-          fontFamily: 'Archivo, sans-serif', fontWeight: 900, fontSize: 38,
+          fontFamily: 'Onest, sans-serif', fontWeight: 600, fontSize: 32,
           lineHeight: 1, letterSpacing: '-0.03em', color: TR.fg, marginBottom: 12,
         }}>
           ₽{totalBudget.toLocaleString('ru-RU')}
@@ -623,7 +623,7 @@ function BudgetTab({ trip, poisByDay, numDays }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span style={{
             background: TR.fg, color: TR.lime,
-            fontFamily: 'Archivo, sans-serif', fontWeight: 800,
+            fontFamily: 'Onest, sans-serif', fontWeight: 500,
             fontSize: 10, letterSpacing: '0.08em',
             padding: '3px 9px', borderRadius: 6,
           }}>{budgetLabel}</span>
@@ -637,26 +637,26 @@ function BudgetTab({ trip, poisByDay, numDays }) {
       {/* ── Block 2: Categories ── */}
       <div style={{
         background: TR.surface, borderRadius: 16,
-        border: '1.5px solid ' + TR.hairline,
+        border: '1px solid ' + TR.hairline,
         overflow: 'hidden',
-        boxShadow: '0 1px 4px rgba(13,40,24,0.06)',
+        boxShadow: 'none',
       }}>
-        <div style={{ padding: '14px 20px 10px', borderBottom: '1px solid rgba(13,40,24,0.08)' }}>
+        <div style={{ padding: '14px 20px 10px', borderBottom: '1px solid rgba(10,11,12,0.08)' }}>
           <div style={{
             fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
-            letterSpacing: '0.22em', color: TR.fgMute, textTransform: 'uppercase',
+            letterSpacing: '0.22em', color: TR.fgMute, 
           }}>ПО КАТЕГОРИЯМ</div>
         </div>
         {BUDGET_CATS.map((cat, i) => (
           <div key={cat.label} style={{
             padding: '12px 20px',
             display: 'flex', alignItems: 'center', gap: 12,
-            borderBottom: i < BUDGET_CATS.length - 1 ? '1px solid rgba(13,40,24,0.06)' : 'none',
+            borderBottom: i < BUDGET_CATS.length - 1 ? '1px solid rgba(10,11,12,0.06)' : 'none',
           }}>
             <span style={{ fontSize: 17, lineHeight: 1, flexShrink: 0 }}>{cat.icon}</span>
             <span style={{
               flex: 1,
-              fontFamily: 'Archivo, sans-serif', fontWeight: 600, fontSize: 13, color: TR.fg,
+              fontFamily: 'Onest, sans-serif', fontWeight: 600, fontSize: 13, color: TR.fg,
             }}>{cat.label}</span>
             <span style={{
               fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: TR.fg, fontWeight: 600,
@@ -668,14 +668,14 @@ function BudgetTab({ trip, poisByDay, numDays }) {
       {/* ── Block 3: Per day ── */}
       <div style={{
         background: TR.surface, borderRadius: 16,
-        border: '1.5px solid ' + TR.hairline,
+        border: '1px solid ' + TR.hairline,
         overflow: 'hidden',
-        boxShadow: '0 1px 4px rgba(13,40,24,0.06)',
+        boxShadow: 'none',
       }}>
-        <div style={{ padding: '14px 20px 10px', borderBottom: '1px solid rgba(13,40,24,0.08)' }}>
+        <div style={{ padding: '14px 20px 10px', borderBottom: '1px solid rgba(10,11,12,0.08)' }}>
           <div style={{
             fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
-            letterSpacing: '0.22em', color: TR.fgMute, textTransform: 'uppercase',
+            letterSpacing: '0.22em', color: TR.fgMute, 
           }}>ПО ДНЯМ</div>
         </div>
 
@@ -693,15 +693,15 @@ function BudgetTab({ trip, poisByDay, numDays }) {
                   padding: '13px 20px',
                   display: 'flex', alignItems: 'center', gap: 10,
                   cursor: dayPois.length > 0 ? 'pointer' : 'default',
-                  borderBottom: !isLast || isOpen ? '1px solid rgba(13,40,24,0.06)' : 'none',
+                  borderBottom: !isLast || isOpen ? '1px solid rgba(10,11,12,0.06)' : 'none',
                   transition: 'background 0.12s',
                 }}
-                onMouseEnter={e => { if (dayPois.length > 0) e.currentTarget.style.background = 'rgba(13,40,24,0.03)' }}
+                onMouseEnter={e => { if (dayPois.length > 0) e.currentTarget.style.background = 'rgba(10,11,12,0.03)' }}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               >
                 <div style={{ flex: 1, display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
                   <span style={{
-                    fontFamily: 'Archivo, sans-serif', fontWeight: 700,
+                    fontFamily: 'Onest, sans-serif', fontWeight: 700,
                     fontSize: 13, color: TR.fg,
                   }}>День {d}</span>
                   {label && (
@@ -725,13 +725,13 @@ function BudgetTab({ trip, poisByDay, numDays }) {
               </div>
 
               {isOpen && dayPois.length > 0 && (
-                <div style={{ borderBottom: !isLast ? '1px solid rgba(13,40,24,0.06)' : 'none' }}>
+                <div style={{ borderBottom: !isLast ? '1px solid rgba(10,11,12,0.06)' : 'none' }}>
                   {dayPois.map((p) => (
                     <div key={p.poi.id} style={{
                       padding: '9px 20px 9px 38px',
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      borderTop: '1px solid rgba(13,40,24,0.05)',
-                      background: 'rgba(13,40,24,0.02)',
+                      borderTop: '1px solid rgba(10,11,12,0.05)',
+                      background: 'rgba(10,11,12,0.02)',
                       gap: 10,
                     }}>
                       <span style={{ fontSize: 12, color: TR.fg, lineHeight: 1.3, flex: 1 }}>
@@ -776,7 +776,7 @@ function SummarySheet({ trip, onClose }) {
       style={{
         position: 'fixed', inset: 0, zIndex: 1100,
         display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
-        background: visible ? 'rgba(13,40,24,0.4)' : 'rgba(13,40,24,0)',
+        background: visible ? 'rgba(10,11,12,0.4)' : 'rgba(10,11,12,0)',
         transition: 'background 0.25s ease',
       }}
     >
@@ -792,7 +792,7 @@ function SummarySheet({ trip, onClose }) {
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 6 }}>
-          <div style={{ width: 32, height: 4, borderRadius: 2, background: 'rgba(13,40,24,0.18)' }} />
+          <div style={{ width: 32, height: 4, borderRadius: 2, background: 'rgba(10,11,12,0.18)' }} />
         </div>
 
         <div style={{
@@ -801,8 +801,8 @@ function SummarySheet({ trip, onClose }) {
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
           <div style={{
-            fontFamily: 'Archivo, sans-serif', fontWeight: 900, fontSize: 16,
-            letterSpacing: '-0.02em', color: TR.fg, textTransform: 'uppercase',
+            fontFamily: 'Onest, sans-serif', fontWeight: 600, fontSize: 16,
+            letterSpacing: '-0.02em', color: TR.fg, 
           }}>О маршруте</div>
           <button onClick={close} style={{
             background: 'none', border: 'none', cursor: 'pointer',
@@ -1072,19 +1072,19 @@ export default function TripPlanScreen() {
         }}>
           <button className="tr-icon-btn"
             onClick={() => navigate('/dashboard/routes')}
-            style={{ color: TR.fg, border: '1.5px solid ' + TR.fg }}>
+            style={{ color: TR.fg, border: '1px solid ' + TR.fg }}>
             <ChevronLeft />
           </button>
           <div style={{
-            fontFamily: 'Archivo, sans-serif',
-            fontSize: 13, fontWeight: 800, letterSpacing: '0.04em', color: TR.fg,
+            fontFamily: 'Onest, sans-serif',
+            fontSize: 13, fontWeight: 500, letterSpacing: '0.04em', color: TR.fg,
           }}>
             ВАШ<span style={{ color: TR.fgMute }}>·</span>МАРШРУТ
           </div>
           <button className="tr-icon-btn"
             onClick={handleShare}
             title="Поделиться маршрутом"
-            style={{ color: TR.fg, border: '1.5px solid ' + TR.hairlineSt }}>
+            style={{ color: TR.fg, border: '1px solid ' + TR.hairlineSt }}>
             <ShareIcon />
           </button>
         </div>
@@ -1094,15 +1094,15 @@ export default function TripPlanScreen() {
           <div style={{
             fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
             letterSpacing: '0.22em', color: TR.fgMute, marginBottom: 6,
-            textTransform: 'uppercase',
+            
           }}>
             {cityCode !== '—' ? `${cityCode} · ` : ''}{numDays} ДНЕЙ
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
             <h1 style={{
-              fontFamily: 'Archivo, sans-serif',
-              fontWeight: 900, fontSize: 42, lineHeight: 0.86,
-              letterSpacing: '-0.04em', textTransform: 'uppercase',
+              fontFamily: 'Onest, sans-serif',
+              fontWeight: 600, fontSize: 42, lineHeight: 0.86,
+              letterSpacing: '-0.04em', 
               color: TR.fg, margin: 0, flex: 1,
             }}>
               {typeof cityName === 'string' ? cityName.toUpperCase() : 'МАРШРУТ'},<br/>
@@ -1153,10 +1153,10 @@ export default function TripPlanScreen() {
               flex: 1, height: 36,
               background: activeTab === i ? TR.bg : 'transparent',
               color: TR.fg, border: 'none', borderRadius: 9,
-              fontFamily: 'Archivo, sans-serif',
+              fontFamily: 'Onest, sans-serif',
               fontSize: 11, fontWeight: activeTab === i ? 800 : 600,
-              letterSpacing: '0.06em',
-              boxShadow: activeTab === i ? '0 1px 3px rgba(13,40,24,0.12)' : 'none',
+              letterSpacing: 0 + ',',
+              boxShadow: activeTab === i ? '0 1px 3px rgba(10,11,12,0.12)' : 'none',
               cursor: 'pointer', transition: 'all 0.15s ease',
             }}>{tab}</button>
           ))}
@@ -1206,18 +1206,18 @@ export default function TripPlanScreen() {
                     <div style={{
                       fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
                       color: isSel ? TR.fg : TR.fgMute,
-                      letterSpacing: 0.8, textTransform: 'uppercase',
+                      letterSpacing: 0.8, 
                       fontWeight: isToday ? 700 : 400,
                     }}>{dayWeekday(d)}</div>
                     <div style={{
                       width: 34, height: 34, borderRadius: 9,
                       background: isSel ? TR.fg : 'transparent',
                       color: isSel ? TR.lime : TR.fg,
-                      border: '1.5px solid ' + (isSel ? TR.fg : TR.hairline),
+                      border: '1px solid ' + (isSel ? TR.fg : TR.hairline),
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontFamily: 'Archivo, sans-serif', fontSize: 15, fontWeight: 800,
-                      boxShadow: isSel ? '2px 2px 0 0 ' + TR.fg : 'none',
-                      transform: isSel ? 'translate(-1px,-1px)' : 'none',
+                      fontFamily: 'Onest, sans-serif', fontSize: 15, fontWeight: 500,
+                      boxShadow: isSel ? '0 0 0 3px rgba(185,255,61,0.35)' : 'none',
+                      transform: 'none',
                       transition: 'all 0.15s ease',
                     }}>
                       {dateNum}
@@ -1238,7 +1238,7 @@ export default function TripPlanScreen() {
             <div style={{ padding: '4px 22px 0' }}>
               <div style={{
                 padding: '14px 16px', background: TR.surface, borderRadius: 14,
-                border: '1.5px solid ' + TR.hairline,
+                border: '1px solid ' + TR.hairline,
               }}>
                 <div style={{
                   display: 'flex', justifyContent: 'space-between',
@@ -1247,11 +1247,11 @@ export default function TripPlanScreen() {
                   <div>
                     <div style={{
                       fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
-                      letterSpacing: '0.22em', color: TR.fgMute, textTransform: 'uppercase',
+                      letterSpacing: '0.22em', color: TR.fgMute, 
                     }}>ДЕНЬ {String(activeDay).padStart(2, '0')} · РИТМ</div>
                     <div style={{
-                      fontFamily: 'Archivo, sans-serif',
-                      fontSize: 18, fontWeight: 800, lineHeight: 1.05,
+                      fontFamily: 'Onest, sans-serif',
+                      fontSize: 18, fontWeight: 500, lineHeight: 1.05,
                       letterSpacing: '-0.02em', color: TR.fg, marginTop: 4,
                     }}>
                       {(() => {
@@ -1285,12 +1285,12 @@ export default function TripPlanScreen() {
                       onClick={() => setConfirmUnfinalize(activeDay)}
                       style={{
                         width: '100%', height: 36,
-                        background: TR.fg, border: '1.5px solid ' + TR.fg,
+                        background: TR.fg, border: '1px solid ' + TR.fg,
                         borderRadius: 10, cursor: 'pointer',
-                        fontFamily: 'Archivo, sans-serif', fontWeight: 800, fontSize: 11,
-                        letterSpacing: '0.05em', color: TR.lime,
+                        fontFamily: 'Onest, sans-serif', fontWeight: 500, fontSize: 11,
+                        letterSpacing: '-0.005em', color: TR.lime,
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                        boxShadow: '2px 2px 0 0 rgba(13,40,24,0.3)',
+                        boxShadow: 'none',
                         transition: 'opacity 0.15s',
                       }}
                       onMouseEnter={e => e.currentTarget.style.opacity = '0.8'}
@@ -1305,10 +1305,10 @@ export default function TripPlanScreen() {
                       style={{
                         width: '100%', height: 36,
                         background: 'transparent',
-                        border: '1.5px solid ' + TR.hairlineSt,
+                        border: '1px solid ' + TR.hairlineSt,
                         borderRadius: 10, cursor: finalizingDay === activeDay ? 'wait' : 'pointer',
-                        fontFamily: 'Archivo, sans-serif', fontWeight: 800, fontSize: 11,
-                        letterSpacing: '0.05em', color: TR.fg,
+                        fontFamily: 'Onest, sans-serif', fontWeight: 500, fontSize: 11,
+                        letterSpacing: '-0.005em', color: TR.fg,
                         opacity: finalizingDay === activeDay ? 0.5 : 1,
                         transition: 'border-color 0.15s',
                       }}
@@ -1348,7 +1348,7 @@ export default function TripPlanScreen() {
                         {mainPois.length > 1 && (
                           <div style={{
                             position: 'absolute', left: DOT_X, top: 20, bottom: 8,
-                            width: 1, background: '#b8ff4f', opacity: 0.6,
+                            width: 1, background: '#B9FF3D', opacity: 0.6,
                             pointerEvents: 'none',
                           }} />
                         )}
@@ -1385,8 +1385,8 @@ export default function TripPlanScreen() {
                                 }}>
                                   <div style={{
                                     width: 14, height: 14, borderRadius: '50%',
-                                    background: '#b8ff4f', border: '2px solid ' + TR.bg,
-                                    boxShadow: '0 0 0 1.5px #b8ff4f',
+                                    background: '#B9FF3D', border: '1px solid ' + TR.bg,
+                                    boxShadow: '0 0 0 1.5px #B9FF3D',
                                   }} />
                                 </div>
 
@@ -1395,20 +1395,20 @@ export default function TripPlanScreen() {
                                   <div style={{
                                     padding: '12px 14px',
                                     background: TR.surface,
-                                    border: '1.5px solid ' + TR.fg,
+                                    border: '1px solid ' + TR.fg,
                                     borderRadius: 12,
-                                    boxShadow: '3px 3px 0 0 ' + TR.fg,
-                                    transform: 'translate(-1px,-1px)',
+                                    boxShadow: 'none',
+                                    transform: 'none',
                                   }}>
                                     <div style={{
                                       display: 'flex', justifyContent: 'space-between',
                                       alignItems: 'flex-start', gap: 8,
                                     }}>
                                       <div style={{
-                                        fontFamily: 'Archivo, sans-serif',
-                                        fontSize: 18, fontWeight: 800,
+                                        fontFamily: 'Onest, sans-serif',
+                                        fontSize: 18, fontWeight: 500,
                                         lineHeight: 1.1, letterSpacing: '-0.02em',
-                                        textTransform: 'uppercase', flex: 1, color: TR.fg,
+                                         flex: 1, color: TR.fg,
                                       }}>{p.poi.name}</div>
                                       {p.budget_estimate && (
                                         <div style={{
@@ -1488,7 +1488,7 @@ export default function TripPlanScreen() {
                                             style={{
                                               flexShrink: 0, width: 160,
                                               background: TR.surface,
-                                              border: '1.5px solid ' + TR.hairlineSt,
+                                              border: '1px solid ' + TR.hairlineSt,
                                               borderRadius: 12, padding: '10px 12px',
                                               cursor: isPromoting ? 'wait' : 'pointer',
                                               opacity: isPromoting ? 0.5 : 1,
@@ -1498,9 +1498,9 @@ export default function TripPlanScreen() {
                                             onMouseLeave={e => e.currentTarget.style.borderColor = TR.hairlineSt}
                                           >
                                             <div style={{
-                                              fontFamily: 'Archivo, sans-serif', fontWeight: 800,
+                                              fontFamily: 'Onest, sans-serif', fontWeight: 500,
                                               fontSize: 13, letterSpacing: '-0.01em',
-                                              textTransform: 'uppercase', color: TR.fg,
+                                               color: TR.fg,
                                               lineHeight: 1.2, marginBottom: 6,
                                               overflow: 'hidden', display: '-webkit-box',
                                               WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
@@ -1556,7 +1556,7 @@ export default function TripPlanScreen() {
                             <div style={{ flex: 1, height: 1, background: TR.hairlineSt }} />
                             <span style={{
                               fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
-                              letterSpacing: '0.18em', color: TR.fgMute, textTransform: 'uppercase',
+                              letterSpacing: '0.18em', color: TR.fgMute, 
                             }}>ЗАПАСНЫЕ ВАРИАНТЫ</span>
                             <div style={{ flex: 1, height: 1, background: TR.hairlineSt }} />
                           </div>
@@ -1567,7 +1567,7 @@ export default function TripPlanScreen() {
                             {altPois.length > 1 && (
                               <div style={{
                                 position: 'absolute', left: DOT_X, top: 20, bottom: 8,
-                                width: 0, borderLeft: '1.5px dashed rgba(13,40,24,0.18)',
+                                width: 0, borderLeft: '1.5px dashed rgba(10,11,12,0.18)',
                                 pointerEvents: 'none',
                               }} />
                             )}
@@ -1585,7 +1585,7 @@ export default function TripPlanScreen() {
                                     <div style={{ width: 46, flexShrink: 0, textAlign: 'right', paddingTop: 6 }}>
                                       <div style={{
                                         fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
-                                        color: 'rgba(13,40,24,0.25)', letterSpacing: 0.4,
+                                        color: 'rgba(10,11,12,0.25)', letterSpacing: 0.4,
                                       }}>—</div>
                                     </div>
 
@@ -1598,7 +1598,7 @@ export default function TripPlanScreen() {
                                       <div style={{
                                         width: 12, height: 12, borderRadius: '50%',
                                         background: TR.bg,
-                                        border: '1.5px solid rgba(13,40,24,0.28)',
+                                        border: '1.5px solid rgba(10,11,12,0.28)',
                                       }} />
                                     </div>
 
@@ -1606,8 +1606,8 @@ export default function TripPlanScreen() {
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                       <div style={{
                                         padding: '10px 14px',
-                                        background: 'rgba(13,40,24,0.03)',
-                                        border: '1.5px dashed rgba(13,40,24,0.22)',
+                                        background: 'rgba(10,11,12,0.03)',
+                                        border: '1.5px dashed rgba(10,11,12,0.22)',
                                         borderRadius: 12,
                                       }}>
                                         <div style={{
@@ -1615,16 +1615,16 @@ export default function TripPlanScreen() {
                                           alignItems: 'flex-start', gap: 8,
                                         }}>
                                           <div style={{
-                                            fontFamily: 'Archivo, sans-serif',
+                                            fontFamily: 'Onest, sans-serif',
                                             fontSize: 15, fontWeight: 700,
                                             lineHeight: 1.15, letterSpacing: '-0.015em',
-                                            textTransform: 'uppercase', flex: 1,
-                                            color: 'rgba(13,40,24,0.55)',
+                                             flex: 1,
+                                            color: 'rgba(10,11,12,0.55)',
                                           }}>{alt.poi.name}</div>
                                           {alt.budget_estimate && (
                                             <div style={{
                                               flexShrink: 0, fontFamily: 'JetBrains Mono, monospace',
-                                              fontSize: 10, color: 'rgba(13,40,24,0.4)',
+                                              fontSize: 10, color: 'rgba(10,11,12,0.4)',
                                               whiteSpace: 'nowrap',
                                             }}>{alt.budget_estimate}</div>
                                           )}
@@ -1633,7 +1633,7 @@ export default function TripPlanScreen() {
                                         {alt.ai_tip && (
                                           <div style={{
                                             marginTop: 5, fontSize: 11,
-                                            color: 'rgba(13,40,24,0.45)',
+                                            color: 'rgba(10,11,12,0.45)',
                                             lineHeight: 1.45, fontStyle: 'italic',
                                           }}>{alt.ai_tip}</div>
                                         )}
@@ -1645,11 +1645,11 @@ export default function TripPlanScreen() {
                                             style={{
                                               padding: '4px 12px',
                                               background: 'transparent',
-                                              border: '1.5px solid ' + TR.lime,
+                                              border: '1px solid ' + TR.lime,
                                               borderRadius: 99,
                                               cursor: isPromoting ? 'wait' : 'pointer',
-                                              fontFamily: 'Archivo, sans-serif',
-                                              fontWeight: 800, fontSize: 10,
+                                              fontFamily: 'Onest, sans-serif',
+                                              fontWeight: 500, fontSize: 10,
                                               letterSpacing: '0.04em', color: TR.fg,
                                               transition: 'background 0.15s',
                                             }}

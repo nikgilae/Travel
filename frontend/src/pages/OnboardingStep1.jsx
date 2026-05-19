@@ -5,15 +5,15 @@ import { useOnboarding } from '../store/onboardingStore.jsx'
 const API_BASE = 'http://localhost:8000'
 
 const TR = {
-  bg:         '#f1ede0',
-  surface:    '#fbf7ea',
-  surface2:   '#e8e2cf',
-  fg:         '#0d2818',
-  fgMute:     '#5e6e58',
-  hairline:   'rgba(13,40,24,0.12)',
-  hairlineSt: 'rgba(13,40,24,0.22)',
-  lime:       '#C8FF00',
-  warn:       '#c8553d',
+  bg:         '#F6F7F9',
+  surface:    '#FFFFFF',
+  surface2:   '#F1F3F5',
+  fg:         '#0A0B0C',
+  fgMute:     '#5B6066',
+  hairline:   '#E8EAEC',
+  hairlineSt: '#D6D9DD',
+  lime:       '#B9FF3D',
+  warn:       '#B43340',
 }
 
 const TOP9 = [
@@ -259,8 +259,8 @@ export default function OnboardingStep1({ onContinue }) {
         }}>
           <div style={{ width: 38, height: 38 }} />
           <div style={{
-            fontFamily: 'Archivo, sans-serif',
-            fontSize: 13, fontWeight: 800, letterSpacing: '0.04em', color: TR.fg,
+            fontFamily: 'Onest, sans-serif',
+            fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em', color: TR.fg,
           }}>
             TOUR<span style={{ color: TR.fgMute }}>·</span>RHYTHM
           </div>
@@ -291,9 +291,9 @@ export default function OnboardingStep1({ onContinue }) {
         {/* ── Hero ── */}
         <div style={{ padding: '4px 22px 18px' }}>
           <h1 style={{
-            fontFamily: 'Archivo, sans-serif',
-            fontWeight: 900, fontSize: 56, lineHeight: 0.86,
-            letterSpacing: '-0.04em', textTransform: 'uppercase',
+            fontFamily: 'Onest, sans-serif',
+            fontWeight: 600, fontSize: 42, lineHeight: 1.05,
+            letterSpacing: '-0.02em',
             color: TR.fg, margin: 0,
           }}>
             КУДА<br/>ЕДЕМ?
@@ -311,7 +311,7 @@ export default function OnboardingStep1({ onContinue }) {
               style={{
                 width: '100%', height: 50, paddingLeft: 42, paddingRight: 14,
                 borderRadius: 99, border: '1.5px solid ' + TR.fg,
-                background: TR.surface, fontFamily: 'Inter, sans-serif', fontSize: 15,
+                background: TR.surface, fontFamily: 'Onest, sans-serif', fontSize: 15,
                 color: TR.fg, outline: 'none', boxSizing: 'border-box',
               }}
             />
@@ -416,10 +416,10 @@ export default function OnboardingStep1({ onContinue }) {
                 style={{
                   background: TR.surface,
                   borderRadius: 16,
-                  border: '1.5px solid ' + (isSel ? TR.fg : TR.hairline),
+                  border: '1px solid ' + (isSel ? TR.fg : TR.hairline),
                   overflow: 'hidden',
-                  boxShadow: isSel ? '4px 4px 0 0 ' + TR.fg : 'none',
-                  transform: isSel ? 'translate(-2px,-2px)' : 'none',
+                  boxShadow: isSel ? '0 0 0 3px rgba(185,255,61,0.35)' : 'none',
+                  transform: 'none',
                   transition: 'box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease',
                   cursor: 'pointer',
                 }}
@@ -434,9 +434,9 @@ export default function OnboardingStep1({ onContinue }) {
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 }}>
                   <div style={{
-                    fontFamily: 'Archivo, sans-serif',
-                    fontSize: 22, fontWeight: 900, lineHeight: 1,
-                    letterSpacing: '-0.02em', textTransform: 'uppercase',
+                    fontFamily: 'Onest, sans-serif',
+                    fontSize: 17, fontWeight: 600, lineHeight: 1.2,
+                    letterSpacing: '-0.005em',
                     color: TR.fg,
                   }}>
                     {country.name}
@@ -496,9 +496,9 @@ export default function OnboardingStep1({ onContinue }) {
                                       ? 'rgba(200,255,0,0.18)'
                                       : 'transparent',
                                   color: TR.fg,
-                                  border: '1.5px solid ' + (isCitySel ? TR.fg : TR.hairlineSt),
-                                  boxShadow: isCitySel ? '2px 2px 0 0 ' + TR.fg : 'none',
-                                  transform: isCitySel ? 'translate(-1px,-1px)' : 'none',
+                                  border: '1px solid ' + (isCitySel ? TR.fg : TR.hairlineSt),
+                                  boxShadow: 'none',
+                                  transform: 'none',
                                 }}
                               >
                                 {city.name}
@@ -542,18 +542,18 @@ export default function OnboardingStep1({ onContinue }) {
             onClick={handleContinue}
             disabled={!canContinue}
             style={{
-              width: '100%', height: 60, borderRadius: 14,
+              width: '100%', height: 44, borderRadius: 10,
               background: canContinue ? TR.lime : TR.surface2,
               color: TR.fg,
-              border: '2px solid ' + (canContinue ? TR.fg : TR.hairlineSt),
-              fontFamily: 'Archivo, sans-serif',
-              fontSize: 15, fontWeight: 800,
-              letterSpacing: '0.04em', textTransform: 'uppercase',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-              boxShadow: canContinue ? '4px 4px 0 0 ' + TR.fg : 'none',
+              border: '1px solid ' + (canContinue ? TR.lime : TR.hairlineSt),
+              fontFamily: 'var(--font-ui)',
+              fontSize: 14, fontWeight: 500,
+              letterSpacing: '-0.005em',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              boxShadow: 'none',
               cursor: canContinue ? 'pointer' : 'default',
-              opacity: canContinue ? 1 : 0.6,
-              transition: 'all 0.2s ease',
+              opacity: canContinue ? 1 : 0.5,
+              transition: 'background 0.12s ease, opacity 0.12s ease',
             }}
           >
             {canContinue
