@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import './OnboardingStep1.css'
 import { useOnboarding } from '../store/onboardingStore.jsx'
 
-const API_BASE = 'http://localhost:8000'
+const API_BASE = import.meta.env.VITE_API_URL
 
 const TR = {
   bg:         '#F6F7F9',

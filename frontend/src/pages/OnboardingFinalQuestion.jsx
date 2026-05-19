@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import './OnboardingFinalQuestion.css'
 import { useOnboarding } from '../store/onboardingStore.jsx'
 
-const API_BASE = 'http://localhost:8000'
+const API_BASE = import.meta.env.VITE_API_URL
 
 function getToken() {
   return localStorage.getItem('access_token') ?? ''
