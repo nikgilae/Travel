@@ -1,52 +1,55 @@
-.tr-app {
+/* ── Onboarding outer wrapper (flex-column, full-height) ── */
+.tr-onb-app {
   background: var(--bg, #F6F7F9);
-  min-height: 100svh;
+  min-height: 100dvh;
   display: flex;
   justify-content: center;
   align-items: flex-start;
 }
 
-.tr-phone {
-  width: 100%;
-  max-width: 430px;
-  min-height: 100svh;
-  background: var(--bg, #F6F7F9);
-  position: relative;
-  overflow-x: hidden;
-  font-family: 'Onest', sans-serif;
-  -webkit-font-smoothing: antialiased;
-}
-
 @media (min-width: 500px) {
-  .tr-app {
+  .tr-onb-app {
     background: var(--surface-2, #F1F3F5);
     align-items: center;
-    min-height: 100svh;
+    min-height: 100dvh;
   }
-  .tr-phone {
-    min-height: auto;
-    max-height: 900px;
-    overflow-y: auto;
+
+  .tr-onb-app > div {
+    min-height: auto !important;
+    height: min(calc(100dvh - 64px), 900px) !important;
     border-radius: 40px;
     box-shadow: 0 24px 48px rgba(10,11,12,0.12);
     margin: 32px 0;
   }
 }
 
+/* ── Search input placeholder ── */
 .tr-search-input::placeholder {
   color: var(--ink-2, #5B6066);
   opacity: 0.8;
 }
 
+/* ── Country card touch feedback ── */
 .tr-city-card {
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.18s ease;
 }
 
 .tr-city-card:active {
-  transform: scale(0.98) !important;
+  transform: scale(0.98);
 }
 
+/* ── City row touch feedback ── */
+.tr-city-row {
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.tr-city-row:active {
+  transform: scale(0.98);
+}
+
+/* ── CTA button ── */
 .tr-cta-btn {
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
@@ -54,54 +57,4 @@
 .tr-cta-btn:active {
   transform: translate(2px, 2px) !important;
   box-shadow: none !important;
-}
-
-/* ── Expand animation (CSS grid trick) ── */
-.tr-expand {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 0.3s ease;
-}
-
-.tr-expand--open {
-  grid-template-rows: 1fr;
-}
-
-.tr-expand-inner {
-  overflow: hidden;
-}
-
-/* ── Horizontal city scroll ── */
-.tr-city-scroll {
-  display: flex;
-  flex-direction: row;
-  gap: 8px;
-  overflow-x: auto;
-  padding: 2px 16px 4px;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  flex-wrap: nowrap;
-}
-
-.tr-city-scroll::-webkit-scrollbar {
-  display: none;
-}
-
-/* ── City pill button ── */
-.tr-city-pill {
-  flex-shrink: 0;
-  padding: 8px 16px;
-  border-radius: 99px;
-  font-family: 'Onest', sans-serif;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0;
-  text-transform: none;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
-}
-
-.tr-city-pill:active {
-  transform: translate(1px, 1px) !important;
 }

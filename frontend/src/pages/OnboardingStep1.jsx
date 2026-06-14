@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import './OnboardingStep1.css'
 import { useOnboarding } from '../store/onboardingStore.jsx'
 
@@ -91,9 +91,9 @@ const IconDots = () => (
   </svg>
 )
 
-// ── Country photo ──────────────────────────────────────────────
+// ── Country visual card ────────────────────────────────────────
 
-const CountryPhoto = ({ visual, name, height = 140 }) => {
+const CountryPhoto = ({ visual, name, height = 110 }) => {
   const id = name.replace(/\s/g, '-')
   return (
     <svg
@@ -125,137 +125,390 @@ const CountryPhoto = ({ visual, name, height = 140 }) => {
   )
 }
 
+// ── Shared layout pieces ───────────────────────────────────────
+
+function SearchInput({ value, onChange, placeholder }) {
+  return (
+    <div style={{ position: 'relative' }}>
+      <input
+        className="tr-search-input"
+        placeholder={placeholder}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        style={{
+          width: '100%', height: 50, paddingLeft: 42, paddingRight: value ? 40 : 14,
+          borderRadius: 99, border: '1.5px solid ' + TR.fg,
+          background: TR.surface, fontFamily: 'Onest, sans-serif', fontSize: 15,
+          color: TR.fg, outline: 'none', boxSizing: 'border-box',
+        }}
+      />
+      <span style={{
+        position: 'absolute', left: 16, top: '50%',
+        transform: 'translateY(-50%)', color: TR.fg,
+        display: 'flex', pointerEvents: 'none',
+      }}>
+        <IconSearch />
+      </span>
+      {value && (
+        <button
+          onClick={() => onChange('')}
+          style={{
+            position: 'absolute', right: 14, top: '50%',
+            transform: 'translateY(-50%)',
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: TR.fgMute, fontSize: 18, lineHeight: 1, padding: 0,
+          }}
+        >×</button>
+      )}
+    </div>
+  )
+}
+
+function CtaBar({ onClick, disabled, label, icon }) {
+  return (
+    <div style={{
+      flexShrink: 0,
+      padding: '12px 22px 28px',
+      background: TR.bg,
+      borderTop: '1px solid ' + TR.hairline,
+    }}>
+      <button
+        className="tr-cta-btn"
+        onClick={onClick}
+        disabled={disabled}
+        style={{
+          width: '100%', height: 48, borderRadius: 12,
+          background: !disabled ? TR.lime : TR.surface2,
+          color: TR.fg,
+          border: '1px solid ' + (!disabled ? TR.fg : TR.hairlineSt),
+          fontFamily: 'Onest, sans-serif',
+          fontSize: 15, fontWeight: 600,
+          letterSpacing: '-0.01em',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          cursor: !disabled ? 'pointer' : 'default',
+          opacity: !disabled ? 1 : 0.45,
+          transition: 'background 0.12s ease, opacity 0.12s ease',
+        }}
+      >
+        {label}
+        {!disabled && icon}
+      </button>
+    </div>
+  )
+}
+
 // ── Main component ─────────────────────────────────────────────
 
 export default function OnboardingStep1({ onContinue }) {
   const { update } = useOnboarding()
 
-  const [search, setSearch] = useState('')
+  const [phase, setPhase] = useState('country')
+  const [countrySearch, setCountrySearch] = useState('')
+  const [citySearch, setCitySearch] = useState('')
   const [allCountries, setAllCountries] = useState([])
   const [citiesMap, setCitiesMap] = useState({})
-  const [selectedCountryId, setSelectedCountryId] = useState(null)
-  const [selectedCityId, setSelectedCityId] = useState(null)
+  const [selectedCountry, setSelectedCountry] = useState(null)
+  const [selectedCity, setSelectedCity] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [citiesLoading, setCitiesLoading] = useState(false)
   const [error, setError] = useState(null)
+  const cityScrollRef = useRef(null)
+  const countryScrollRef = useRef(null)
 
-  // Load all countries on mount, then pre-fetch top-9 cities
   useEffect(() => {
     apiFetch('/countries')
-      .then(async data => {
-        setAllCountries(data)
-        setLoading(false)
-
-        // Pre-fetch cities for top-9 countries in parallel
-        const top9 = TOP9.map(name => data.find(c => c.name === name)).filter(Boolean)
-        const results = await Promise.allSettled(
-          top9.map(c => apiFetch(`/countries/${c.id}/cities`).then(cities => ({ id: c.id, cities })))
-        )
-        const newMap = {}
-        for (const r of results) {
-          if (r.status === 'fulfilled') {
-            newMap[r.value.id] = r.value.cities
-          }
-        }
-        setCitiesMap(newMap)
-      })
-      .catch(() => {
-        setError('Не удалось загрузить страны. Проверьте подключение.')
-        setLoading(false)
-      })
+      .then(data => { setAllCountries(data); setLoading(false) })
+      .catch(() => { setError('Не удалось загрузить страны. Проверьте подключение.'); setLoading(false) })
   }, [])
 
-  // Load cities for a country if not yet loaded
-  async function ensureCities(country) {
+  async function loadCities(country) {
     if (citiesMap[country.id] !== undefined) return
+    setCitiesLoading(true)
     try {
       const cities = await apiFetch(`/countries/${country.id}/cities`)
       setCitiesMap(prev => ({ ...prev, [country.id]: cities }))
     } catch {
       setCitiesMap(prev => ({ ...prev, [country.id]: [] }))
+    } finally {
+      setCitiesLoading(false)
     }
   }
 
   function handleSelectCountry(country) {
-    if (selectedCountryId === country.id) {
-      setSelectedCountryId(null)
-      setSelectedCityId(null)
-      update({ city_id: null })
-      return
-    }
-    setSelectedCountryId(country.id)
-    setSelectedCityId(null)
+    setSelectedCountry(prev => prev?.id === country.id ? null : country)
+    setSelectedCity(null)
     update({ city_id: null })
-    ensureCities(country)
+    loadCities(country)
   }
 
-  // Compute displayed countries + highlighted city per country
-  const q = search.trim().toLowerCase()
-
-  let displayed = []
-  let highlightedCityByCountry = {} // { countryId: cityId }
-
-  if (!q) {
-    // Top-9 in fixed order
-    displayed = TOP9
-      .map(name => allCountries.find(c => c.name === name))
-      .filter(Boolean)
-  } else {
-    const seen = new Set()
-    const result = []
-
-    for (const c of allCountries) {
-      if (c.name.toLowerCase().includes(q)) {
-        if (!seen.has(c.id)) { seen.add(c.id); result.push(c) }
-      }
-    }
-
-    // Also search pre-loaded cities
-    for (const [countryId, cities] of Object.entries(citiesMap)) {
-      const matchCity = cities.find(city => city.name.toLowerCase().includes(q))
-      if (matchCity) {
-        const country = allCountries.find(c => c.id === countryId)
-        if (country && !seen.has(country.id)) {
-          seen.add(country.id)
-          result.push(country)
-        }
-        if (matchCity) {
-          highlightedCityByCountry[countryId] = matchCity.id
-        }
-      }
-    }
-
-    displayed = result
+  function handleGoToCity() {
+    if (!selectedCountry) return
+    setPhase('city')
+    setCitySearch('')
+    if (cityScrollRef.current) cityScrollRef.current.scrollTop = 0
   }
 
-  const selectedCountry = allCountries.find(c => c.id === selectedCountryId)
-  const selectedCity = selectedCountryId
-    ? (citiesMap[selectedCountryId] ?? []).find(c => c.id === selectedCityId)
-    : null
+  function handleSelectCity(city) {
+    setSelectedCity(prev => prev?.id === city.id ? null : city)
+    // Only update city_id if it's a real city from the database
+    if (city.id) {
+      update({ city_id: city.id })
+    }
+  }
 
-  const canContinue = !!(selectedCountry && selectedCity)
+  function handleSelectCustomCity(customName) {
+    // Create a temporary city object for custom cities
+    const customCity = {
+      id: `custom_${customName.toLowerCase().replace(/\s+/g, '_')}`,
+      name: customName,
+      isCustom: true,
+    }
+    setSelectedCity(customCity)
+    update({ city_id: null }) // Custom cities don't have real IDs
+  }
 
   function handleContinue() {
-    if (!canContinue) return
-    update({ city_id: selectedCity.id })
+    if (!selectedCountry || !selectedCity) return
     onContinue?.({
       n: selectedCity.name,
       sub: selectedCountry.name,
       days: '7–10 дней',
       code: selectedCity.name.slice(0, 3).toUpperCase(),
-      cityId: selectedCity.id,
+      cityId: selectedCity.isCustom ? null : selectedCity.id,
       countryId: selectedCountry.id,
     })
   }
 
-  return (
-    <div className="tr-app">
-      <div className="tr-phone">
+  // ── Computed lists ──────────────────────────────────────────
 
-        {/* ── Top bar ── */}
+  const cq = countrySearch.trim().toLowerCase()
+  let displayedCountries
+  if (!cq) {
+    const top9List = TOP9.map(name => allCountries.find(c => c.name === name)).filter(Boolean)
+    const top9Ids = new Set(top9List.map(c => c.id))
+    const rest = allCountries
+      .filter(c => !top9Ids.has(c.id))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+    displayedCountries = [...top9List, ...rest]
+  } else {
+    displayedCountries = allCountries
+      .filter(c => c.name.toLowerCase().includes(cq))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+  }
+
+  const cities = selectedCountry ? (citiesMap[selectedCountry.id] ?? []) : []
+  const dq = citySearch.trim().toLowerCase()
+  const displayedCities = !dq ? cities : cities.filter(c => c.name.toLowerCase().includes(dq))
+
+  // Determine if user can create a custom city
+  const canCreateCustomCity = dq && displayedCities.length === 0 && dq.length >= 2 && /^[а-яА-ЯёЁa-zA-Z\s\-]+$/.test(citySearch.trim())
+  const customCityName = canCreateCustomCity ? citySearch.trim() : null
+
+  // ── Phone shell (flex column, full height) ─────────────────
+
+  const phoneShell = {
+    width: '100%', maxWidth: 430,
+    display: 'flex', flexDirection: 'column',
+    height: '100dvh', overflow: 'hidden',
+    background: TR.bg,
+    fontFamily: 'Onest, sans-serif',
+    WebkitFontSmoothing: 'antialiased',
+  }
+
+  // ── CITY PHASE ─────────────────────────────────────────────
+
+  if (phase === 'city') {
+    return (
+      <div className="tr-onb-app">
+        <div style={phoneShell}>
+
+          {/* Header */}
+          <div style={{
+            flexShrink: 0, height: 52, padding: '0 16px 0 8px',
+            display: 'flex', alignItems: 'center', gap: 4,
+          }}>
+            <button
+              onClick={() => setPhase('country')}
+              style={{
+                width: 40, height: 40, borderRadius: '50%',
+                background: 'transparent', border: 'none',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', color: TR.fg, flexShrink: 0,
+              }}
+            >
+              <IconChevronLeft />
+            </button>
+            <div style={{
+              fontFamily: 'Onest, sans-serif',
+              fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em',
+              color: TR.fg, flex: 1,
+            }}>
+              {selectedCountry?.name}
+            </div>
+            <div style={{
+              fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+              color: TR.fgMute, letterSpacing: 0.8,
+            }}>
+              STEP 01 / 05
+            </div>
+          </div>
+
+          {/* Title */}
+          <div style={{ flexShrink: 0, padding: '0 22px 14px' }}>
+            <h1 style={{
+              fontFamily: 'Onest, sans-serif',
+              fontWeight: 600, fontSize: 28, lineHeight: 1.1,
+              letterSpacing: '-0.02em', color: TR.fg, margin: 0,
+            }}>
+              ВЫБЕРИТЕ ГОРОД
+            </h1>
+          </div>
+
+          {/* Search */}
+          <div style={{ flexShrink: 0, padding: '0 22px 12px' }}>
+            <SearchInput
+              value={citySearch}
+              onChange={setCitySearch}
+              placeholder="Поиск города"
+            />
+          </div>
+
+          {/* Section label */}
+          {dq && (
+            <div style={{
+              flexShrink: 0, padding: '0 22px 8px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+            }}>
+              <div style={{
+                fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+                letterSpacing: '0.22em', textTransform: 'uppercase',
+                color: TR.fg, fontWeight: 600,
+              }}>
+                РЕЗУЛЬТАТЫ / {displayedCities.length + (canCreateCustomCity ? 1 : 0)}
+              </div>
+            </div>
+          )}
+
+          {/* Scrollable city list */}
+          <div
+            ref={cityScrollRef}
+            style={{ flex: 1, overflowY: 'auto', padding: '0 22px 8px' }}
+          >
+            {citiesLoading && (
+              <div style={{
+                padding: '40px 0', textAlign: 'center',
+                fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
+                color: TR.fgMute, letterSpacing: 1,
+              }}>
+                ЗАГРУЗКА···
+              </div>
+            )}
+
+            {!citiesLoading && displayedCities.length === 0 && (
+              <div style={{
+                padding: '24px 0', textAlign: 'center',
+                fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
+                color: TR.fgMute, letterSpacing: 1,
+              }}>
+                {dq ? 'НИЧЕГО НЕ НАЙДЕНО' : 'НЕТ ГОРОДОВ'}
+              </div>
+            )}
+
+            {!citiesLoading && displayedCities.map(city => {
+              const isSel = city.id === selectedCity?.id
+              return (
+                <div
+                  key={city.id}
+                  className="tr-city-row"
+                  onClick={() => handleSelectCity(city)}
+                  style={{
+                    padding: '14px 16px',
+                    borderRadius: 12,
+                    background: isSel ? TR.lime : TR.surface,
+                    border: '1px solid ' + (isSel ? TR.fg : TR.hairline),
+                    marginBottom: 8,
+                    cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    transition: 'background 0.15s ease, border-color 0.15s ease',
+                    boxShadow: isSel ? '0 0 0 3px rgba(185,255,61,0.3)' : 'none',
+                  }}
+                >
+                  <span style={{
+                    fontFamily: 'Onest, sans-serif',
+                    fontSize: 16, fontWeight: isSel ? 600 : 500,
+                    color: TR.fg, letterSpacing: '-0.005em',
+                  }}>
+                    {city.name}
+                  </span>
+                  {isSel && (
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <path d="M3 8 L7 12 L13 4" stroke={TR.fg} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </div>
+              )
+            })}
+
+            {canCreateCustomCity && (
+              <div
+                className="tr-city-row"
+                onClick={() => handleSelectCustomCity(customCityName)}
+                style={{
+                  padding: '14px 16px',
+                  borderRadius: 12,
+                  background: selectedCity?.isCustom ? TR.lime : TR.surface,
+                  border: '1px solid ' + (selectedCity?.isCustom ? TR.fg : TR.hairlineSt),
+                  marginBottom: 8,
+                  cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  transition: 'background 0.15s ease, border-color 0.15s ease',
+                  boxShadow: selectedCity?.isCustom ? '0 0 0 3px rgba(185,255,61,0.3)' : 'none',
+                }}
+              >
+                <span style={{
+                  fontFamily: 'Onest, sans-serif',
+                  fontSize: 16, fontWeight: selectedCity?.isCustom ? 600 : 500,
+                  color: TR.fg, letterSpacing: '-0.005em',
+                }}>
+                  {customCityName}
+                </span>
+                {selectedCity?.isCustom && (
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 8 L7 12 L13 4" stroke={TR.fg} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </div>
+            )}
+
+            <div style={{ height: 8 }} />
+          </div>
+
+          {/* CTA — always visible */}
+          <CtaBar
+            onClick={handleContinue}
+            disabled={!selectedCity}
+            label={selectedCity ? `Продолжить с ${selectedCity.name}` : 'Выберите город'}
+            icon={<IconArrowRight />}
+          />
+
+        </div>
+      </div>
+    )
+  }
+
+  // ── COUNTRY PHASE ──────────────────────────────────────────
+
+  const top9Count = TOP9.filter(name => allCountries.find(c => c.name === name)).length
+
+  return (
+    <div className="tr-onb-app">
+      <div style={phoneShell}>
+
+        {/* Top bar */}
         <div style={{
+          flexShrink: 0,
           height: 52, padding: '0 22px',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          flexShrink: 0,
         }}>
           <div style={{ width: 38, height: 38 }} />
           <div style={{
@@ -275,9 +528,10 @@ export default function OnboardingStep1({ onContinue }) {
           </button>
         </div>
 
-        {/* ── Ledger ── */}
+        {/* Progress ledger */}
         <div style={{
-          margin: '8px 22px 12px',
+          flexShrink: 0,
+          margin: '0 22px 12px',
           padding: '10px 14px',
           border: '1px solid ' + TR.hairline,
           borderRadius: 10,
@@ -288,8 +542,8 @@ export default function OnboardingStep1({ onContinue }) {
           <span>STEP 01 / 05</span>
         </div>
 
-        {/* ── Hero ── */}
-        <div style={{ padding: '4px 22px 18px' }}>
+        {/* Hero */}
+        <div style={{ flexShrink: 0, padding: '4px 22px 14px' }}>
           <h1 style={{
             fontFamily: 'Onest, sans-serif',
             fontWeight: 600, fontSize: 42, lineHeight: 1.05,
@@ -300,47 +554,19 @@ export default function OnboardingStep1({ onContinue }) {
           </h1>
         </div>
 
-        {/* ── Search ── */}
-        <div style={{ padding: '0 22px 14px' }}>
-          <div style={{ position: 'relative' }}>
-            <input
-              className="tr-search-input"
-              placeholder="Страна или город"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{
-                width: '100%', height: 50, paddingLeft: 42, paddingRight: 14,
-                borderRadius: 99, border: '1.5px solid ' + TR.fg,
-                background: TR.surface, fontFamily: 'Onest, sans-serif', fontSize: 15,
-                color: TR.fg, outline: 'none', boxSizing: 'border-box',
-              }}
-            />
-            <span style={{
-              position: 'absolute', left: 16, top: '50%',
-              transform: 'translateY(-50%)', color: TR.fg,
-              display: 'flex', pointerEvents: 'none',
-            }}>
-              <IconSearch />
-            </span>
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                style={{
-                  position: 'absolute', right: 14, top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  color: TR.fgMute, fontSize: 18, lineHeight: 1, padding: 0,
-                }}
-              >
-                ×
-              </button>
-            )}
-          </div>
+        {/* Search */}
+        <div style={{ flexShrink: 0, padding: '0 22px 12px' }}>
+          <SearchInput
+            value={countrySearch}
+            onChange={setCountrySearch}
+            placeholder="Страна"
+          />
         </div>
 
-        {/* ── Section label ── */}
-        {!q && !loading && !error && (
+        {/* Section label */}
+        {!loading && !error && (
           <div style={{
+            flexShrink: 0,
             padding: '0 22px 10px',
             display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
           }}>
@@ -349,27 +575,22 @@ export default function OnboardingStep1({ onContinue }) {
               letterSpacing: '0.22em', textTransform: 'uppercase',
               color: TR.fg, fontWeight: 600,
             }}>
-              ТОП / {displayed.length}
+              {cq ? `РЕЗУЛЬТАТЫ / ${displayedCountries.length}` : `РАБОТАЕТ ${allCountries.length} СТРАН`}
             </div>
-            <div style={{
-              fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
-              color: TR.fgMute, letterSpacing: 1,
-            }}>↓</div>
-          </div>
-        )}
-        {q && !loading && !error && (
-          <div style={{
-            padding: '0 22px 10px',
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
-            letterSpacing: '0.22em', textTransform: 'uppercase',
-            color: TR.fg, fontWeight: 600,
-          }}>
-            РЕЗУЛЬТАТЫ / {displayed.length}
+            {!cq && (
+              <div style={{
+                fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+                color: TR.fgMute, letterSpacing: 1,
+              }}>↓ ВСЕ СТРАНЫ НИЖЕ</div>
+            )}
           </div>
         )}
 
-        {/* ── Body ── */}
-        <div style={{ padding: '0 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* Scrollable country list */}
+        <div
+          ref={countryScrollRef}
+          style={{ flex: 1, overflowY: 'auto', padding: '0 22px 8px' }}
+        >
 
           {loading && (
             <div style={{
@@ -393,7 +614,7 @@ export default function OnboardingStep1({ onContinue }) {
             </div>
           )}
 
-          {!loading && !error && displayed.length === 0 && (
+          {!loading && !error && displayedCountries.length === 0 && (
             <div style={{
               padding: '24px 0', textAlign: 'center',
               fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
@@ -403,164 +624,98 @@ export default function OnboardingStep1({ onContinue }) {
             </div>
           )}
 
-          {!loading && !error && displayed.map(country => {
-            const isSel = country.id === selectedCountryId
-            const visual = getVisual(country.name)
-            const cities = citiesMap[country.id] ?? []
-            const highlightedCity = highlightedCityByCountry[country.id] ?? null
-
-            return (
-              <div
-                key={country.id}
-                className="tr-city-card"
-                style={{
-                  background: TR.surface,
-                  borderRadius: 16,
-                  border: '1px solid ' + (isSel ? TR.fg : TR.hairline),
-                  overflow: 'hidden',
-                  boxShadow: isSel ? '0 0 0 3px rgba(185,255,61,0.35)' : 'none',
-                  transform: 'none',
-                  transition: 'box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease',
-                  cursor: 'pointer',
-                }}
-                onClick={() => handleSelectCountry(country)}
-              >
-                {/* Photo */}
-                <CountryPhoto visual={visual} name={country.name} height={130} />
-
-                {/* Name bar */}
+          {!loading && !error && (
+            <>
+              {/* Top-9 divider label when not searching */}
+              {!cq && (
                 <div style={{
-                  padding: '12px 16px 0',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
+                  letterSpacing: '0.2em', color: TR.fgMute, textTransform: 'uppercase',
+                  marginBottom: 10,
                 }}>
-                  <div style={{
-                    fontFamily: 'Onest, sans-serif',
-                    fontSize: 17, fontWeight: 600, lineHeight: 1.2,
-                    letterSpacing: '-0.005em',
-                    color: TR.fg,
-                  }}>
-                    {country.name}
-                  </div>
-                  <div style={{
-                    fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
-                    color: TR.fgMute, letterSpacing: 1,
-                    transition: 'transform 0.25s ease',
-                    transform: isSel ? 'rotate(180deg)' : 'none',
-                  }}>
-                    ↓
-                  </div>
+                  ПОПУЛЯРНЫЕ
                 </div>
+              )}
 
-                {/* Expandable section */}
-                <div className={`tr-expand${isSel ? ' tr-expand--open' : ''}`}>
-                  <div className="tr-expand-inner">
+              {displayedCountries.map((country, idx) => {
+                const isSel = country.id === selectedCountry?.id
+                const visual = getVisual(country.name)
+                const isFirstNonTop9 = !cq && idx === top9Count
 
-                    {/* Description */}
-                    {country.description && (
+                return (
+                  <div key={country.id}>
+                    {/* Divider before "all countries" section */}
+                    {isFirstNonTop9 && (
                       <div style={{
-                        padding: '10px 16px 0',
-                        fontSize: 13, lineHeight: 1.5, color: TR.fgMute,
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        margin: '16px 0 12px',
                       }}>
-                        {country.description}
-                      </div>
-                    )}
-
-                    {/* City pills */}
-                    {cities.length > 0 && (
-                      <div style={{ padding: '10px 0 14px' }}>
+                        <div style={{ flex: 1, height: 1, background: TR.hairline }} />
                         <div style={{
                           fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
-                          letterSpacing: '0.2em', textTransform: 'uppercase',
-                          color: TR.fgMute, padding: '0 16px', marginBottom: 8,
+                          letterSpacing: '0.2em', color: TR.fgMute, textTransform: 'uppercase',
+                          flexShrink: 0,
                         }}>
-                          ВЫБЕРИТЕ ГОРОД
+                          ВСЕ СТРАНЫ
                         </div>
-                        <div className="tr-city-scroll">
-                          {cities.map(city => {
-                            const isCitySel = city.id === selectedCityId
-                            const isHighlighted = city.id === highlightedCity && !isCitySel
-                            return (
-                              <button
-                                key={city.id}
-                                onClick={e => {
-                                  e.stopPropagation()
-                                  const next = isCitySel ? null : city.id
-                                  setSelectedCityId(next)
-                                  update({ city_id: next })
-                                }}
-                                className="tr-city-pill"
-                                style={{
-                                  background: isCitySel
-                                    ? TR.lime
-                                    : isHighlighted
-                                      ? 'rgba(200,255,0,0.18)'
-                                      : 'transparent',
-                                  color: TR.fg,
-                                  border: '1px solid ' + (isCitySel ? TR.fg : TR.hairlineSt),
-                                  boxShadow: 'none',
-                                  transform: 'none',
-                                }}
-                              >
-                                {city.name}
-                              </button>
-                            )
-                          })}
-                        </div>
+                        <div style={{ flex: 1, height: 1, background: TR.hairline }} />
                       </div>
                     )}
 
-                    {isSel && cities.length === 0 && (
+                    <div
+                      className="tr-city-card"
+                      onClick={() => handleSelectCountry(country)}
+                      style={{
+                        background: TR.surface,
+                        borderRadius: 16,
+                        border: '1.5px solid ' + (isSel ? TR.fg : TR.hairline),
+                        overflow: 'hidden',
+                        boxShadow: isSel ? '0 0 0 3px rgba(185,255,61,0.35)' : 'none',
+                        transition: 'box-shadow 0.2s ease, border-color 0.2s ease',
+                        cursor: 'pointer',
+                        marginBottom: 10,
+                      }}
+                    >
+                      <CountryPhoto visual={visual} name={country.name} height={110} />
+
                       <div style={{
-                        padding: '10px 16px 14px',
-                        fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
-                        color: TR.fgMute, letterSpacing: 0.8,
+                        padding: '12px 16px 14px',
                       }}>
-                        ЗАГРУЗКА ГОРОДОВ···
+                        <div>
+                          <div style={{
+                            fontFamily: 'Onest, sans-serif',
+                            fontSize: 17, fontWeight: 600, lineHeight: 1.2,
+                            letterSpacing: '-0.005em', color: TR.fg,
+                          }}>
+                            {country.name}
+                          </div>
+                          {country.description && (
+                            <div style={{
+                              fontSize: 12, color: TR.fgMute, marginTop: 3,
+                              lineHeight: 1.4, maxWidth: 240,
+                            }}>
+                              {country.description}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    )}
-
+                    </div>
                   </div>
-                </div>
+                )
+              })}
+            </>
+          )}
 
-                {/* Bottom padding for closed card */}
-                {!isSel && <div style={{ height: 14 }} />}
-              </div>
-            )
-          })}
+          <div style={{ height: 8 }} />
         </div>
 
-        <div style={{ height: 24 }} />
-
-        {/* ── Sticky CTA ── */}
-        <div style={{
-          position: 'sticky', bottom: 0,
-          padding: '14px 22px 22px',
-          background: `linear-gradient(to top, ${TR.bg} 75%, transparent)`,
-        }}>
-          <button
-            className="tr-cta-btn"
-            onClick={handleContinue}
-            disabled={!canContinue}
-            style={{
-              width: '100%', height: 44, borderRadius: 10,
-              background: canContinue ? TR.lime : TR.surface2,
-              color: TR.fg,
-              border: '1px solid ' + (canContinue ? TR.lime : TR.hairlineSt),
-              fontFamily: 'var(--font-ui)',
-              fontSize: 14, fontWeight: 500,
-              letterSpacing: '-0.005em',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              boxShadow: 'none',
-              cursor: canContinue ? 'pointer' : 'default',
-              opacity: canContinue ? 1 : 0.5,
-              transition: 'background 0.12s ease, opacity 0.12s ease',
-            }}
-          >
-            {canContinue
-              ? <>Продолжить с {selectedCity.name} <IconArrowRight /></>
-              : 'Выберите страну и город'}
-          </button>
-        </div>
+        {/* CTA — always visible */}
+        <CtaBar
+          onClick={handleGoToCity}
+          disabled={!selectedCountry}
+          label={selectedCountry ? `Выбрать город в ${selectedCountry.name}` : 'Выберите страну'}
+          icon={<IconArrowRight />}
+        />
 
       </div>
     </div>

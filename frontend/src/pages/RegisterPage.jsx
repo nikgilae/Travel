@@ -5,8 +5,10 @@ import { setToken } from '../utils/authToken'
 import './AuthPage.css'
 
 const PW_RULES = [
-  { key: 'len',     label: 'Минимум 8 символов',       test: pw => pw.length >= 8 },
+  { key: 'len',     label: 'Минимум 12 символов',      test: pw => pw.length >= 12 },
   { key: 'upper',   label: 'Заглавная буква (A–Z)',     test: pw => /[A-Z]/.test(pw) },
+  { key: 'lower',   label: 'Строчная буква (a–z)',      test: pw => /[a-z]/.test(pw) },
+  { key: 'digit',   label: 'Цифра (0–9)',               test: pw => /[0-9]/.test(pw) },
   { key: 'special', label: 'Специальный символ (!@#…)', test: pw => /[^A-Za-z0-9]/.test(pw) },
 ]
 
