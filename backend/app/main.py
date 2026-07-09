@@ -46,26 +46,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-from app.api import chat
-
-logger = logging.getLogger(__name__)
-
-app = FastAPI(
-    title="Smart Travel Companion API",
-    description="Backend API для планирования путешествий и контекстного ассистента",
-    version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
-)
-
-# ── CORS ──────────────────────────────────────────────────────────────────────
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # ── ОБРАБОТЧИКИ ОШИБОК (RFC 7807) ─────────────────────────────────────────────
 @app.exception_handler(RequestValidationError)

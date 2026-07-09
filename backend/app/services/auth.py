@@ -6,6 +6,7 @@ from app.core.exceptions import AlreadyExistsException, UnauthorizedException
 from app.config import settings
 from app.models.user import User
 from app.repositories.user import UserRepository
+from app.repositories.trip import TripRepository
 
 
 class AuthService:
@@ -26,8 +27,9 @@ class AuthService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self.user_repo = UserRepository(session)
+        self.trip_repo = TripRepository(session)
 
-    async def register(self, email: str, password: str) -> tuple[User, str]:
+    async def register(self, email: str, password: str) -> tuple[User, str, bool]:
         """
         Зарегистрировать нового пользователя.
 
@@ -43,8 +45,9 @@ class AuthService:
 
         Returns
         -------
-        tuple[User, str]
-            Кортеж из объекта пользователя и JWT access токена.
+        tuple[User, str, bool]
+            Кортеж из объекта пользователя, JWT access токена и флага is_first_login.
+            is_first_login всегда true при регистрации.
 
         Raises
         ------
@@ -62,14 +65,16 @@ class AuthService:
         await self.session.commit()
 
         token = create_access_token(user.id)
-        return user, token
+        return user, token, True
 
-    async def login(self, email: str, password: str) -> tuple[User, str]:
+    async def login(self, email: str, password: str) -> tuple[User, str, bool]:
         """
         Аутентифицировать пользователя и выдать JWT токен.
 
         Ищет пользователя по email, проверяет пароль,
         возвращает токен при успешной аутентификации.
+        Также проверяет, это ли первый вход (у пользователя ещё нет
+        ни одной поездки (отправляется на онбординг)).
 
         Parameters
         ----------
@@ -80,8 +85,10 @@ class AuthService:
 
         Returns
         -------
-        tuple[User, str]
-            Кортеж из объекта пользователя и JWT access токена.
+        tuple[User, str, bool]
+            Кортеж из объекта пользователя, JWT access токена и флага is_first_login.
+            is_first_login = true если у пользователя ещё нет ни одной поездки
+            (отправляется на онбординг).
 
         Raises
         ------
@@ -98,4 +105,7 @@ class AuthService:
             raise UnauthorizedException("Invalid email or password")
 
         token = create_access_token(user.id)
-        return user, token
+
+        is_first_login = not await self.trip_repo.exists_by_user_id(user.id)
+
+        return user, token, is_first_login

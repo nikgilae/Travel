@@ -95,12 +95,17 @@ class TokenResponse(BaseModel):
         Тип токена. Всегда 'bearer' по стандарту OAuth2.
     expires_in : int
         Время жизни токена в секундах.
+    is_first_login : bool
+        Флаг, показывающий первый ли это вход пользователя.
+        true если у пользователя нет ни одной поездки
+        (в т.ч. сразу после регистрации).
     """
 
     user_id: uuid.UUID
     access_token: str
     token_type: str = "bearer"
     expires_in: int
+    is_first_login: bool = False
 
 class UserResponse(BaseModel):
     """

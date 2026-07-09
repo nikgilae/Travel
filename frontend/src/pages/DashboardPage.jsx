@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import SelectionCircle from '../components/SelectionCircle'
 import './DashboardPage.css'
 
 const API_BASE = import.meta.env.VITE_API_URL
@@ -67,7 +68,7 @@ function SkeletonCard() {
 
 // ── Trip card ──────────────────────────────────────────────────────────────────
 
-function TripCard({ trip, meta, onClick, onDelete, isDeleting }) {
+function TripCard({ trip, meta, onClick, onDelete, isDeleting, isSelected, onToggleSelect }) {
   const days    = calcDays(trip.start_date, trip.end_date)
   const dateStr = formatDateRange(trip.start_date, trip.end_date)
   const city    = meta?.cityName ?? 'Маршрут'
@@ -82,10 +83,20 @@ function TripCard({ trip, meta, onClick, onDelete, isDeleting }) {
         opacity: isDeleting ? 0 : 1,
         transform: isDeleting ? 'translateX(16px)' : 'none',
         pointerEvents: isDeleting ? 'none' : 'auto',
+        position: 'relative',
       }}
       onMouseEnter={e => { if (!isDeleting) e.currentTarget.style.borderColor = '#B9FF3D' }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8EAEC' }}
     >
+      {onToggleSelect && (
+        <SelectionCircle
+          isSelected={isSelected}
+          onToggle={(e) => {
+            e.stopPropagation()
+            onToggleSelect()
+          }}
+        />
+      )}
       {/* Top row: city + days badge */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
         <div>
@@ -321,6 +332,19 @@ export default function DashboardPage() {
   const [deletingId,    setDeletingId]    = useState(null) // animating out
   const [deleteLoading, setDeleteLoading] = useState(false)
 
+  // Selection state
+  const [selectedTrips, setSelectedTrips] = useState(new Set())
+
+  const toggleTripSelection = (tripId) => {
+    const newSelected = new Set(selectedTrips)
+    if (newSelected.has(tripId)) {
+      newSelected.delete(tripId)
+    } else {
+      newSelected.add(tripId)
+    }
+    setSelectedTrips(newSelected)
+  }
+
   const tripMeta = JSON.parse(localStorage.getItem('trip_meta') ?? '{}')
 
   useEffect(() => {
@@ -498,6 +522,8 @@ export default function DashboardPage() {
                 onClick={() => openTrip(trip)}
                 onDelete={requestDelete}
                 isDeleting={deletingId === trip.id}
+                isSelected={selectedTrips.has(trip.id)}
+                onToggleSelect={() => toggleTripSelection(trip.id)}
               />
             ))}
           </>

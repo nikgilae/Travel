@@ -19,7 +19,9 @@ export default function LoginPage() {
       const data = await login(email, password)
       setToken(data.access_token)
       localStorage.setItem('user_email', email)
-      navigate('/onboarding')
+      // Маршрутизация в зависимости от is_first_login
+      const destination = data.is_first_login ? '/onboarding' : '/dashboard/routes'
+      navigate(destination)
     } catch (err) {
       setError(err.message)
     } finally {

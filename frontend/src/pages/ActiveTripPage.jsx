@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import SelectionCircle from '../components/SelectionCircle'
 import './ActiveTripPage.css'
 
 const DAY_COLORS = ['#e84040','#e87010','#d4a000','#30a050','#2080d0','#8040c0','#c040a0']
@@ -19,6 +20,17 @@ const NEARBY_CATS = ['Всё', 'Еда', 'Парки', 'Музеи', 'Кафе']
 export default function ActiveTripPage() {
   const navigate = useNavigate()
   const [nearbyFilter, setNearbyFilter] = useState('Всё')
+  const [selectedPOIs, setSelectedPOIs] = useState(new Set())
+
+  const togglePOISelection = (index) => {
+    const newSelected = new Set(selectedPOIs)
+    if (newSelected.has(index)) {
+      newSelected.delete(index)
+    } else {
+      newSelected.add(index)
+    }
+    setSelectedPOIs(newSelected)
+  }
 
   return (
     <div className="at-app">
@@ -117,7 +129,12 @@ export default function ActiveTripPage() {
                   background: p.status === 'done' ? '#F6F7F9'
                     : p.status === 'now' ? '#F0FFD6'
                     : 'transparent',
+                  position: 'relative',
                 }}>
+                  <SelectionCircle
+                    isSelected={selectedPOIs.has(i)}
+                    onToggle={() => togglePOISelection(i)}
+                  />
                   <span style={{
                     width: 22, height: 22, borderRadius: '50%',
                     background: p.status === 'done' ? '#F1F3F5'

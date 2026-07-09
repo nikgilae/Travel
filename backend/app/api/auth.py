@@ -54,13 +54,14 @@ async def register(
     Returns
     -------
     TokenResponse
-        user_id, access_token, token_type, expires_in.
+        user_id, access_token, token_type, expires_in, is_first_login.
     """
-    user, token = await service.register(data.email, data.password)
+    user, token, is_first_login = await service.register(data.email, data.password)
     return TokenResponse(
         user_id=user.id,
         access_token=token,
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        is_first_login=is_first_login,
     )
 
 
@@ -92,11 +93,12 @@ async def login(
     Returns
     -------
     TokenResponse
-        user_id, access_token, token_type, expires_in.
+        user_id, access_token, token_type, expires_in, is_first_login.
     """
-    user, token = await service.login(data.email, data.password)
+    user, token, is_first_login = await service.login(data.email, data.password)
     return TokenResponse(
         user_id=user.id,
         access_token=token,
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        is_first_login=is_first_login,
     )

@@ -76,6 +76,7 @@ export default function RegisterPage() {
       const data = await login(email, password)
       setToken(data.access_token)
       localStorage.setItem('user_email', email)
+      // После регистрации всегда на онбординг
       navigate('/onboarding')
     } catch (err) {
       setError(err.message)

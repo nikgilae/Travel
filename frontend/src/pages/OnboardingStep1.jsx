@@ -83,14 +83,6 @@ const IconChevronLeft = () => (
   </svg>
 )
 
-const IconDots = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-    <circle cx="3" cy="8" r="1.4" fill="currentColor"/>
-    <circle cx="8" cy="8" r="1.4" fill="currentColor"/>
-    <circle cx="13" cy="8" r="1.4" fill="currentColor"/>
-  </svg>
-)
-
 // ── Country visual card ────────────────────────────────────────
 
 const CountryPhoto = ({ visual, name, height = 110 }) => {
@@ -517,15 +509,7 @@ export default function OnboardingStep1({ onContinue }) {
           }}>
             TOUR<span style={{ color: TR.fgMute }}>·</span>RHYTHM
           </div>
-          <button style={{
-            width: 38, height: 38, borderRadius: '50%',
-            background: 'transparent', color: TR.fg,
-            border: '1.5px solid ' + TR.fg,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer',
-          }}>
-            <IconDots />
-          </button>
+          <div style={{ width: 38, height: 38 }} />
         </div>
 
         {/* Progress ledger */}

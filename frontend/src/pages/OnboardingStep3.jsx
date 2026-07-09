@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import SelectionCircle from '../components/SelectionCircle'
 import './OnboardingStep3.css'
 
 const TR = {
@@ -165,6 +166,13 @@ export default function OnboardingStep3({ city, groupType, onBack, onContinue })
                   position: 'relative',
                 }}
               >
+                <SelectionCircle
+                  isSelected={isSel}
+                  onToggle={(e) => {
+                    e.stopPropagation()
+                    setSelected(r.id)
+                  }}
+                />
                 {/* Header row */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>

@@ -15,6 +15,7 @@ class TestAuthService:
         self.mock_session = AsyncMock()
         self.service = AuthService(self.mock_session)
         self.service.user_repo = AsyncMock()
+        self.service.trip_repo = AsyncMock()
 
     async def test_register_success(self):
         """Успешная регистрация — создаёт пользователя и возвращает токен."""
@@ -24,11 +25,12 @@ class TestAuthService:
         mock_user.email = "new@test.com"
         self.service.user_repo.create.return_value = mock_user
 
-        user, token = await self.service.register("new@test.com", "Password123")
+        user, token, is_first_login = await self.service.register("new@test.com", "Password123")
 
         assert user.email == "new@test.com"
         assert token is not None
         assert len(token) > 0
+        assert is_first_login is True
         self.service.user_repo.create.assert_called_once()
         self.mock_session.commit.assert_called_once()
 
@@ -47,11 +49,13 @@ class TestAuthService:
         mock_user.id = uuid.uuid4()
         mock_user.hashed_password = hash_password("Password123")
         self.service.user_repo.get_by_email.return_value = mock_user
+        self.service.trip_repo.exists_by_user_id.return_value = False
 
-        user, token = await self.service.login("user@test.com", "Password123")
+        user, token, is_first_login = await self.service.login("user@test.com", "Password123")
 
         assert user is mock_user
         assert token is not None
+        assert is_first_login is True
 
     async def test_login_wrong_password(self):
         """Неверный пароль — выбрасывает UnauthorizedException."""

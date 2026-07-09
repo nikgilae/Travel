@@ -16,6 +16,7 @@ import OnboardingStyle      from './pages/OnboardingStyle'
 import OnboardingBudget     from './pages/OnboardingBudget'
 import OnboardingFinalQuestion from './pages/OnboardingFinalQuestion'
 import BottomTabBar, { RouteIcon, ChatIcon, NearbyIcon } from './components/BottomTabBar'
+import ProtectedRoute       from './components/ProtectedRoute'
 
 // ── Helpers ────────────────────────────────────────────────
 
@@ -162,18 +163,30 @@ export default function App() {
         <Route path="/register" element={<RegisterPage />} />
 
         {/* Onboarding (no nav bar) */}
-        <Route path="/onboarding" element={<OnboardingFlow />} />
+        <Route path="/onboarding" element={
+          <ProtectedRoute>
+            <OnboardingFlow />
+          </ProtectedRoute>
+        } />
 
         {/* Level 1 — Dashboard */}
         <Route path="/dashboard" element={<Navigate to="/dashboard/routes" replace />} />
-        <Route element={<DashboardLayout />}>
+        <Route element={
+          <ProtectedRoute>
+            <DashboardLayout />
+          </ProtectedRoute>
+        }>
           <Route path="/dashboard/routes" element={<DashboardPage />} />
           <Route path="/dashboard/chat"   element={<GeneralChatPage />} />
           <Route path="/dashboard/nearby" element={<NearbyPage />} />
         </Route>
 
         {/* Level 2 — Trip */}
-        <Route path="/trip/:id" element={<TripLayout />}>
+        <Route path="/trip/:id" element={
+          <ProtectedRoute>
+            <TripLayout />
+          </ProtectedRoute>
+        }>
           <Route index         element={<Navigate to="plan" replace />} />
           <Route path="plan"   element={<TripPlanScreen />} />
           <Route path="chat"   element={<TripChatPage />} />

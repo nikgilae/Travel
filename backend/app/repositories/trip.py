@@ -92,6 +92,29 @@ class TripRepository(BaseRepository[Trip]):
         )
         return result.scalar_one_or_none()
 
+    async def exists_by_user_id(self, user_id: UUID) -> bool:
+        """
+        Проверить, есть ли у пользователя хотя бы одна поездка.
+
+        Используется при логине для вычисления is_first_login:
+        пользователь без поездок отправляется на онбординг.
+        Загружает только id с LIMIT 1 вместо всех строк — дешёвая проверка.
+
+        Parameters
+        ----------
+        user_id : UUID
+            UUID пользователя.
+
+        Returns
+        -------
+        bool
+            True если у пользователя есть хотя бы одна поездка.
+        """
+        result = await self.session.execute(
+            select(Trip.id).where(Trip.user_id == user_id).limit(1)
+        )
+        return result.scalar_one_or_none() is not None
+
 
 class TripPOIRepository(BaseRepository[TripPOI]):
     """
