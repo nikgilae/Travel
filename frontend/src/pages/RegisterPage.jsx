@@ -93,8 +93,9 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="auth-field">
-            <label className="auth-label">EMAIL</label>
+            <label className="auth-label" htmlFor="register-email">EMAIL</label>
             <input
+              id="register-email"
               className="auth-input"
               type="email"
               value={email}
@@ -106,14 +107,15 @@ export default function RegisterPage() {
           </div>
 
           <div className="auth-field">
-            <label className="auth-label">ПАРОЛЬ</label>
+            <label className="auth-label" htmlFor="register-password">ПАРОЛЬ</label>
             <input
+              id="register-password"
               className={`auth-input${showError ? ' auth-input--error' : pwTouched && isValid ? ' auth-input--ok' : ''}`}
               type="password"
               value={password}
               onChange={e => { setPassword(e.target.value); setPwTouched(true) }}
               onBlur={() => setPwTouched(true)}
-              placeholder="Например: Travel#2025"
+              placeholder="Например: Traveller#2025"
               required
               autoComplete="new-password"
             />

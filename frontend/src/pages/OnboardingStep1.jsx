@@ -62,6 +62,17 @@ async function apiFetch(path) {
   return res.json()
 }
 
+// Карточки стран/городов — это div c onClick. Чтобы они были доступны с
+// клавиатуры (Enter/Space), навешиваем этот обработчик рядом с role="button".
+function onActivateKey(handler) {
+  return e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      handler()
+    }
+  }
+}
+
 // ── Icons ──────────────────────────────────────────────────────
 
 const IconSearch = () => (
@@ -412,7 +423,12 @@ export default function OnboardingStep1({ onContinue }) {
                 <div
                   key={city.id}
                   className="tr-city-row"
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={isSel}
+                  aria-label={city.name}
                   onClick={() => handleSelectCity(city)}
+                  onKeyDown={onActivateKey(() => handleSelectCity(city))}
                   style={{
                     padding: '14px 16px',
                     borderRadius: 12,
@@ -444,7 +460,12 @@ export default function OnboardingStep1({ onContinue }) {
             {canCreateCustomCity && (
               <div
                 className="tr-city-row"
+                role="button"
+                tabIndex={0}
+                aria-pressed={!!selectedCity?.isCustom}
+                aria-label={customCityName}
                 onClick={() => handleSelectCustomCity(customCityName)}
+                onKeyDown={onActivateKey(() => handleSelectCustomCity(customCityName))}
                 style={{
                   padding: '14px 16px',
                   borderRadius: 12,
@@ -648,7 +669,12 @@ export default function OnboardingStep1({ onContinue }) {
 
                     <div
                       className="tr-city-card"
+                      role="button"
+                      tabIndex={0}
+                      aria-pressed={isSel}
+                      aria-label={country.name}
                       onClick={() => handleSelectCountry(country)}
+                      onKeyDown={onActivateKey(() => handleSelectCountry(country))}
                       style={{
                         background: TR.surface,
                         borderRadius: 16,

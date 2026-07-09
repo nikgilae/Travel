@@ -37,8 +37,9 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="auth-field">
-            <label className="auth-label">EMAIL</label>
+            <label className="auth-label" htmlFor="login-email">EMAIL</label>
             <input
+              id="login-email"
               className="auth-input"
               type="email"
               value={email}
@@ -50,8 +51,9 @@ export default function LoginPage() {
           </div>
 
           <div className="auth-field">
-            <label className="auth-label">ПАРОЛЬ</label>
+            <label className="auth-label" htmlFor="login-password">ПАРОЛЬ</label>
             <input
+              id="login-password"
               className="auth-input"
               type="password"
               value={password}
