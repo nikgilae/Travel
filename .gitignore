@@ -13,3 +13,7 @@ CLAUDE.md
 .env
 .env.example
 .kilo
+.gstack/
+
+# Database dumps (may contain real user data — never commit)
+*.sql

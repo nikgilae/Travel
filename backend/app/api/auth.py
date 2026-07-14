@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.config import settings
+from app.core.events import log_event, EVENT_LOGIN
 from app.schemas.auth import RegisterRequest, LoginRequest, TokenResponse
 from app.services.auth import AuthService
 
@@ -96,6 +97,7 @@ async def login(
         user_id, access_token, token_type, expires_in, is_first_login.
     """
     user, token, is_first_login = await service.login(data.email, data.password)
+    log_event(EVENT_LOGIN, user_id=user.id)
     return TokenResponse(
         user_id=user.id,
         access_token=token,

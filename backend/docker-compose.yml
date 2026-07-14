@@ -7,8 +7,20 @@ services:
     restart: always
     env_file:
       - .env
+    environment:
+      # Долговечные логи (T7): пишем в /app/logs, смонтированный на volume ниже.
+      LOG_DIR: /app/logs
     ports:
       - "8000:8000"
+    volumes:
+      # Логи переживают redeploy контейнера (event-лог, ошибки).
+      - api_logs:/app/logs
+    # Ротация stdout-логов docker-драйвером, чтобы диск не забился.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     depends_on:
       db:
         condition: service_healthy
@@ -21,10 +33,10 @@ services:
       - .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-travel_db}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in backend/.env}
+      POSTGRES_DB: ${POSTGRES_DB:-travel_companion}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -35,3 +47,4 @@ services:
 
 volumes:
   postgres_data:
+  api_logs:

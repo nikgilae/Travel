@@ -14,3 +14,4 @@ from app.repositories.rule import (
 )
 from app.repositories.poi import POIRepository
 from app.repositories.trip import TripRepository, TripPOIRepository
+from app.repositories.message import MessageRepository

@@ -479,7 +479,7 @@ export default function ChatScreen({ mode, tripId, cityName, live = false }) {
         onSubmit={handleSubmit}
         style={{
           display: 'flex', gap: 10, alignItems: 'flex-end',
-          padding: '8px 16px 14px',
+          padding: '8px 16px 8px',
           borderTop: `1px solid ${T.hairline}`,
           flexShrink: 0, background: T.bg,
         }}
@@ -519,6 +519,19 @@ export default function ChatScreen({ mode, tripId, cityName, live = false }) {
           <SendIcon />
         </button>
       </form>
+
+      {/* Privacy & Trust: честная пометка о сохранении диалогов (волна 1). */}
+      <div style={{
+        flexShrink: 0, background: T.bg,
+        padding: '0 16px 10px', textAlign: 'center',
+      }}>
+        <span style={{
+          fontSize: 9, color: T.fgMute,
+          fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.02em',
+        }}>
+          Диалоги сохраняются, чтобы TourRhythm становился лучше
+        </span>
+      </div>
     </div>
   )
 }

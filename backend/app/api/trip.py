@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.events import log_event, EVENT_TRIP_CREATED, EVENT_GENERATE
 from app.dependencies import get_current_user
 from app.models.user import User
 from app.schemas.trip import (
@@ -68,7 +69,7 @@ async def create_trip(
     TripResponse
         Созданный объект поездки с trip_id.
     """
-    return await service.create(
+    trip = await service.create(
         user_id=current_user.id,
         country_id=data.country_id,
         city_id=data.city_id,
@@ -79,6 +80,8 @@ async def create_trip(
         start_date=data.start_date,
         end_date=data.end_date,
     )
+    log_event(EVENT_TRIP_CREATED, user_id=current_user.id, trip_id=trip.id)
+    return trip
 
 
 @router.get(
@@ -374,6 +377,12 @@ async def generate_trip(
         user_id=current_user.id,
         interests=data.interests,
         notes=data.notes,
+    )
+    log_event(
+        EVENT_GENERATE,
+        user_id=current_user.id,
+        trip_id=trip_id,
+        saved_pois_count=result.get("saved_pois_count"),
     )
     return TripGenerateResponse(**result)
 

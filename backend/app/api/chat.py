@@ -12,6 +12,9 @@ from app.config import settings
 from app.core.security import decode_access_token
 from app.dependencies import get_current_user
 from app.models.user import User
+from app.services.message_log import save_messages, extract_delta
+from app.core.events import log_event, EVENT_CHAT_MESSAGE
+from app.core.monitoring import capture_exception, notify_telegram
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +45,10 @@ async def general_chat(
     data: GeneralChatRequest,
     current_user: User = Depends(get_current_user),
 ) -> dict:
+    # Пишем сырой ход пользователя ДО вызова AI — если AI упадёт, диалог не потеряется.
+    await save_messages(current_user.id, None, [{"role": "user", "content": data.message}])
+    log_event(EVENT_CHAT_MESSAGE, user_id=current_user.id, trip_id=None, channel="general")
+
     messages = [{"role": "system", "content": GENERAL_SYSTEM_PROMPT}]
     for item in data.history[-20:]:  # keep last 20 turns max
         messages.append({"role": item.role, "content": item.content})
@@ -53,6 +60,10 @@ async def general_chat(
         max_tokens=600,
     )
     reply = response.choices[0].message.content
+
+    # Ответ ассистента — тоже best-effort.
+    await save_messages(current_user.id, None, [{"role": "assistant", "content": reply}])
+
     return {"reply": reply}
 
 @router.websocket("/{trip_id}/chat")
@@ -110,7 +121,14 @@ async def websocket_chat_endpoint(
         while True:
             # Ждем сообщение от клиента
             user_message = await websocket.receive_text()
-            
+
+            # Пишем сырой ход пользователя ДО агента — аварийные диалоги не теряются.
+            await save_messages(user_uuid, trip_id, [{"role": "user", "content": user_message}])
+            log_event(EVENT_CHAT_MESSAGE, user_id=user_uuid, trip_id=trip_id, channel="ws")
+
+            # Запоминаем длину истории, чтобы после агента забрать только новые ходы.
+            before_len = len(chat_history)
+
             # Передаем всё в ИИ
             ai_response = await agent_service.process_message(
                 messages=chat_history,
@@ -118,7 +136,10 @@ async def websocket_chat_endpoint(
                 trip_id=str(trip_id),
                 user_id=str(user_uuid)
             )
-            
+
+            # Ответы ассистента и вызовы инструментов — по дельте истории, best-effort.
+            await save_messages(user_uuid, trip_id, extract_delta(chat_history, before_len))
+
             # Отвечаем клиенту
             await websocket.send_json({
                 "sender": "ai",
@@ -128,5 +149,10 @@ async def websocket_chat_endpoint(
     except WebSocketDisconnect:
         logger.info(f"[WS Trip {trip_id}] Пользователь {user_uuid} отключился.")
     except Exception as e:
-        logger.error(f"[WS Trip {trip_id}] Внутренняя ошибка: {e}")
+        logger.exception(f"[WS Trip {trip_id}] Внутренняя ошибка")
+        # WS не проходит через HTTP exception-handlers — шлём ошибку в мониторинг тут.
+        capture_exception(e)
+        await notify_telegram(
+            f"🛑 WS_ERROR (trip {trip_id})\n{type(e).__name__}: {e}"
+        )
         await websocket.send_json({"sender": "system", "text": "Техническая ошибка сервера."})

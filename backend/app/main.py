@@ -10,6 +10,7 @@ from sqlalchemy import text
 from app.logging_config import setup_logging
 from app.core.database import AsyncSessionLocal
 from app.config import settings
+from app.core.monitoring import init_sentry, capture_exception, notify_telegram
 from app.api.auth import router as auth_router
 from app.api.geography import router as geo_router
 from app.api.rule import router as rule_router
@@ -24,10 +25,14 @@ from app.core.exceptions import (
 from app.api import chat
 from app.api.chat import general_router
 from app.api.places import router as places_router
+from app.api.client_errors import router as client_errors_router
 
 # Initialize logging first
 setup_logging()
 logger = logging.getLogger(__name__)
+
+# Инициализируем Sentry (no-op, если DSN не задан или пакет не установлен).
+init_sentry()
 
 app = FastAPI(
     title="Smart Travel Companion API",
@@ -230,11 +235,42 @@ async def sqlalchemy_error_handler(
         HTTP 500 с полями error_code и message.
     """
     logger.exception("Database error occurred")
+    # Раньше ошибка тут молча логировалась. Теперь — в Sentry + алерт фаундеру.
+    capture_exception(exc)
+    await notify_telegram(
+        f"🛑 DATABASE_ERROR (500)\n{request.method} {request.url.path}\n{type(exc).__name__}: {exc}"
+    )
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
             "error_code": "DATABASE_ERROR",
             "message": "An internal database error occurred",
+        },
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(
+    request: Request,
+    exc: Exception,
+) -> JSONResponse:
+    """
+    Ловит любую необработанную ошибку (не покрытую хендлерами выше).
+
+    Раньше такие ошибки отдавали дефолтный 500 и терялись — фаундер о них не
+    узнавал. Теперь каждая уходит в Sentry и дублируется в Telegram-бот фаундера.
+    Детали клиенту не раскрываем.
+    """
+    logger.exception("Unhandled exception occurred")
+    capture_exception(exc)
+    await notify_telegram(
+        f"🛑 INTERNAL_ERROR (500)\n{request.method} {request.url.path}\n{type(exc).__name__}: {exc}"
+    )
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "error_code": "INTERNAL_ERROR",
+            "message": "An internal server error occurred",
         },
     )
 
@@ -248,6 +284,7 @@ app.include_router(trip_router)
 app.include_router(chat.router)
 app.include_router(general_router)
 app.include_router(places_router)
+app.include_router(client_errors_router)
 
 
 # ── HEALTHCHECK ───────────────────────────────────────────────────────────────

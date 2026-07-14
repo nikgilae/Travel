@@ -1,10 +1,9 @@
 import logging
 import uuid
 import json
-import httpx
-from openai import AsyncOpenAI
 
 from app.services.trip import TripService
+from app.services.ai import client as ai_client
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -16,14 +15,10 @@ class TravelAgentService:
 
     def __init__(self, trip_service: TripService):
         self.trip_service = trip_service
-        
-        custom_timeout = httpx.Timeout(60.0)
-        self.client = AsyncOpenAI(
-            api_key=settings.AI_API_KEY,
-            base_url=settings.AI_BASE_URL,
-            timeout=custom_timeout,
-        ) 
-        
+
+        # Переиспользуем общий AsyncOpenAI из services/ai (T12) — не плодим клиентов.
+        self.client = ai_client
+
         self.model_name = settings.AI_MODEL
         
         self.system_prompt = """

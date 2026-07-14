@@ -2,6 +2,7 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundException, AlreadyExistsException, ForbiddenException
+from app.core.events import log_event, EVENT_DAY_FINALIZED, EVENT_POI_REMOVED
 from app.models.trip import Trip, TripPOI
 from app.repositories.trip import TripRepository, TripPOIRepository
 from app.repositories.poi import POIRepository
@@ -305,8 +306,8 @@ class TripService:
             raise NotFoundException("POI not found in this trip")
 
         await self.session.commit()
-        
-        
+        log_event(EVENT_POI_REMOVED, user_id=user_id, trip_id=trip_id, poi_id=poi_id)
+
     async def swap_poi_status(
         self,
         trip_id: uuid.UUID,
@@ -417,6 +418,10 @@ class TripService:
 
         await self.session.commit()
 
+        # Событие финализации логируем в сервисе: финализация идёт и через REST,
+        # и через AI-тул по WS — сервис единственная общая точка.
+        log_event(EVENT_DAY_FINALIZED, user_id=user_id, trip_id=trip_id, day_number=day_number)
+
         # 7. Возвращаем обновленную поездку
         return await self.trip_repo.get_with_details(trip_id)
 
@@ -475,3 +480,4 @@ class TripService:
         )
         await self.session.execute(stmt)
         await self.session.commit()
+        log_event(EVENT_POI_REMOVED, user_id=user_id, trip_id=trip_id, poi_id=poi_id)

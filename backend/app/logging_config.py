@@ -4,8 +4,10 @@ Supports both development (pretty) and production (JSON) formats.
 """
 
 import logging
+import os
 import sys
 from datetime import datetime
+from logging.handlers import RotatingFileHandler
 from typing import Any
 
 from app.config import settings
@@ -33,6 +35,25 @@ def setup_logging() -> None:
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
     root_logger.addHandler(handler)
+
+    # Долговечные логи (T7): если задан LOG_DIR — дублируем в файл с ротацией.
+    # В проде LOG_DIR монтируется на volume, поэтому event-лог и ошибки переживают
+    # redeploy. Всегда JSON-формат (structured), даже в DEBUG — файл для разбора.
+    if settings.LOG_DIR:
+        try:
+            os.makedirs(settings.LOG_DIR, exist_ok=True)
+            file_handler = RotatingFileHandler(
+                os.path.join(settings.LOG_DIR, "app.log"),
+                maxBytes=10 * 1024 * 1024,  # 10 МБ на файл
+                backupCount=5,               # храним 5 ротаций (~50 МБ суммарно)
+                encoding="utf-8",
+            )
+            file_handler.setLevel(log_level)
+            file_handler.setFormatter(JsonFormatter())
+            root_logger.addHandler(file_handler)
+        except OSError:
+            # Не смогли открыть файл (права/путь) — не роняем старт, остаёмся на stdout.
+            root_logger.warning("LOG_DIR=%s недоступен, файловый лог выключен", settings.LOG_DIR)
 
     # Reduce noise from third-party libraries
     logging.getLogger("uvicorn").setLevel(logging.WARNING)

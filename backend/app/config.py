@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     # Включает verbose SQL-логирование и другие отладочные функции.
     DEBUG: bool = False
 
+    # Директория для файловых логов. Пусто → пишем только в stdout (dev/тесты).
+    # В проде задаётся (например /app/logs) и монтируется на volume, чтобы логи
+    # (event-лог, ошибки) переживали redeploy контейнера.
+    LOG_DIR: str = ""
+
     # CORS origins — список доменов которым разрешён доступ к API.
     # Для разработки: "http://localhost:3000"
     # Для продакшена: "https://yourdomain.com"
@@ -59,9 +64,19 @@ class Settings(BaseSettings):
     GOOGLE_MAPS_API_KEY: str = ""
     ENRICH_COOLDOWN_HOURS: int = 24
 
+    # Видимость ошибок. Все опциональны — без них приложение работает как раньше.
+    # SENTRY_DSN пуст → Sentry выключен. TG_* заданы → каждая 5xx падает в личный
+    # Telegram-бот фаундера (fallback, если Sentry недоступен из РФ-инфраструктуры).
+    SENTRY_DSN: str = ""
+    TG_BOT_TOKEN: str = ""
+    TG_CHAT_ID: str = ""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
+        # Игнорировать переменные из .env, которые не являются настройками приложения
+        # (например POSTGRES_USER/PASSWORD/DB — их читает docker-compose для контейнера БД).
+        extra="ignore",
     )
 
     @property

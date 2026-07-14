@@ -43,13 +43,57 @@ const WEEKDAYS_FULL = ['Понедельник', 'Вторник', 'Среда',
 const MONTHS_FULL = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
 const TABS = ['ДНИ', 'КАРТА', 'БЮДЖЕТ']
 
-const BUDGET_PER_DAY = { low: 4000, medium: 10000, high: 22000 }
-const BUDGET_CATS = [
-  { icon: '🏨', label: 'Жильё',          pct: 40 },
-  { icon: '🍽', label: 'Еда',             pct: 30 },
-  { icon: '🎫', label: 'Входные билеты',  pct: 20 },
-  { icon: '🚇', label: 'Транспорт',       pct: 10 },
+// ── Бюджет: парсинг оценок мест в валюте страны ──────────────
+// budget_estimate приходит от AI уже в валюте страны назначения (напр. «120 юаней/чел»).
+// Мы складываем реальные суммы по местам дня и показываем в этой валюте — без перевода
+// в рубли. Жильё и транспорт считаются отдельно (в табе — заметкой).
+const CURRENCY_TOKENS = [
+  { re: /руб|₽|\brub\b/i,   sym: '₽'   },
+  { re: /юан|cny|\brmb\b/i, sym: '¥'   },
+  { re: /€|евро|\beur\b/i,  sym: '€'   },
+  { re: /\$|долл|\busd\b/i, sym: '$'   },
+  { re: /£|фунт|\bgbp\b/i,  sym: '£'   },
+  { re: /йен|\bjpy\b/i,     sym: '¥'   },
+  { re: /лир|₺|\btry\b/i,   sym: '₺'   },
+  { re: /бат|\bthb\b/i,     sym: '฿'   },
+  { re: /рупи|\binr\b/i,    sym: '₹'   },
+  { re: /тенге|₸|\bkzt\b/i, sym: '₸'   },
+  { re: /злот|\bpln\b/i,    sym: 'zł'  },
+  { re: /вон|₩|\bkrw\b/i,   sym: '₩'   },
+  { re: /дирхам|\baed\b/i,  sym: 'AED' },
 ]
+
+function detectCurrency(s) {
+  for (const c of CURRENCY_TOKENS) if (c.re.test(s)) return c.sym
+  return null
+}
+
+function toNumber(t) {
+  let x = String(t).replace(/\s/g, '')
+  if (/,\d{1,2}$/.test(x)) x = x.replace(',', '.')   // запятая как десятичный разделитель
+  else x = x.replace(/,/g, '')                       // иначе запятая — разделитель тысяч
+  const n = parseFloat(x)
+  return Number.isFinite(n) ? n : null
+}
+
+// Разбирает строку оценки в { amount, currency, perPerson } или null, если чисел нет.
+function parseEstimate(str) {
+  if (!str) return null
+  const s = String(str).toLowerCase().trim()
+  if (/беспл|free/.test(s)) return { amount: 0, currency: detectCurrency(s), perPerson: false }
+  const nums = s.match(/\d[\d\s.,]*\d|\d/g)
+  if (!nums) return null
+  let amount
+  if (nums.length >= 2 && /\d\s*[-–—]\s*\d/.test(s)) {
+    const a = toNumber(nums[0]), b = toNumber(nums[1])
+    amount = (a != null && b != null) ? (a + b) / 2 : (a ?? b)   // диапазон → середина
+  } else {
+    amount = toNumber(nums[0])
+  }
+  if (amount == null) return null
+  const perPerson = /чел|перс|person|человек/.test(s)
+  return { amount, currency: detectCurrency(s), perPerson }
+}
 
 const CURVE_PATH = 'M0,45 C20,42 30,42 40,38 C50,30 60,15 80,12 C100,9 120,18 140,28 C160,38 175,40 195,30 C215,20 230,18 250,22 C265,25 275,30 280,35'
 const CURVE_FILL = 'M0,45 C20,42 30,42 40,38 C50,30 60,15 80,12 C100,9 120,18 140,28 C160,38 175,40 195,30 C215,20 230,18 250,22 C265,25 275,30 280,35 L280,55 L0,55 Z'
@@ -560,10 +604,39 @@ function ListTab({ allPois }) {
 function BudgetTab({ trip, poisByDay, numDays }) {
   const [openDay, setOpenDay] = useState(null)
 
-  const dailyRate   = BUDGET_PER_DAY[trip?.budget ?? 'medium']
-  const totalBudget = dailyRate * numDays
   const budgetLabel = { low: 'ECONOMY', medium: 'COMFORT', high: 'LUX' }[trip?.budget ?? 'medium']
-  const totalPois   = Object.values(poisByDay).reduce((sum, d) => sum + d.length, 0)
+  const groupSize   = trip?.group_size ?? 1
+
+  // Бюджет считаем по ОСНОВНЫМ местам дня (реальный план, без запасных).
+  const mainPoisForDay = (d) => (poisByDay[d] ?? []).filter(p => p.poi_status === 'main')
+
+  // Вклад места в бюджет дня: разобранная оценка × размер группы, если цена «на человека».
+  const contributionOf = (p) => {
+    const parsed = parseEstimate(p.budget_estimate)
+    if (!parsed) return null
+    return parsed.amount * (parsed.perPerson ? groupSize : 1)
+  }
+
+  // Валюта поездки — самая частая среди распознанных в оценках мест.
+  const tripCurrency = useMemo(() => {
+    const counts = {}
+    Object.values(poisByDay).flat().forEach(p => {
+      const c = parseEstimate(p.budget_estimate)?.currency
+      if (c) counts[c] = (counts[c] ?? 0) + 1
+    })
+    const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]
+    return top ? top[0] : ''
+  }, [poisByDay])
+
+  const dayVisitSum = (d) => mainPoisForDay(d).reduce((s, p) => s + (contributionOf(p) ?? 0), 0)
+
+  const days          = Array.from({ length: numDays }, (_, i) => i + 1)
+  const totalVisits   = days.reduce((s, d) => s + dayVisitSum(d), 0)
+  const totalMainPois = days.reduce((s, d) => s + mainPoisForDay(d).length, 0)
+
+  const fmt   = (n) => Math.round(n).toLocaleString('ru-RU')
+  const cur   = tripCurrency
+  const money = (n) => (cur ? `${fmt(n)} ${cur}` : fmt(n))
 
   const getDayDate = (d) => {
     if (!trip?.start_date) return null
@@ -579,7 +652,7 @@ function BudgetTab({ trip, poisByDay, numDays }) {
     return `${wd}, ${date.getDate()} ${MONTHS_FULL[date.getMonth()]}`
   }
 
-  if (totalPois === 0) {
+  if (totalMainPois === 0) {
     return (
       <div style={{ padding: '52px 22px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
         <div style={{ fontSize: 36 }}>💸</div>
@@ -591,7 +664,7 @@ function BudgetTab({ trip, poisByDay, numDays }) {
           fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: TR.fgMute,
           textAlign: 'center', lineHeight: 1.65, letterSpacing: 0.2, maxWidth: 270,
         }}>
-          Бюджет рассчитывается на основе выбранных мест. Добавь места в маршрут чтобы увидеть примерную стоимость.
+          Бюджет складывается из оценок по местам маршрута. Добавь места в план, чтобы увидеть примерную стоимость.
         </div>
       </div>
     )
@@ -611,13 +684,13 @@ function BudgetTab({ trip, poisByDay, numDays }) {
           fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
           letterSpacing: '0.22em', color: TR.fgMute,
            marginBottom: 10,
-        }}>ИТОГО НА ПОЕЗДКУ</div>
+        }}>ИТОГО ЗА ПОСЕЩЕНИЯ</div>
 
         <div style={{
           fontFamily: 'Onest, sans-serif', fontWeight: 600, fontSize: 32,
           lineHeight: 1, letterSpacing: '-0.03em', color: TR.fg, marginBottom: 12,
         }}>
-          ₽{totalBudget.toLocaleString('ru-RU')}
+          {money(totalVisits)}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -630,39 +703,35 @@ function BudgetTab({ trip, poisByDay, numDays }) {
           <span style={{
             fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
             color: TR.fgMute, letterSpacing: 0.4,
-          }}>{numDays} дней · {totalPois} мест</span>
+          }}>{numDays} дней · {totalMainPois} мест</span>
+        </div>
+
+        <div style={{
+          marginTop: 12, fontSize: 10, color: TR.fgMute,
+          fontFamily: 'JetBrains Mono, monospace', lineHeight: 1.55,
+        }}>
+          Сумма оценок по местам маршрута{groupSize > 1 ? ` · на группу ${groupSize} чел.` : ''}.
+          Жильё и транспорт — отдельно (см. ниже).
         </div>
       </div>
 
-      {/* ── Block 2: Categories ── */}
+      {/* ── Block 2: Жильё и транспорт (оценивается отдельно) ── */}
       <div style={{
         background: TR.surface, borderRadius: 16,
         border: '1px solid ' + TR.hairline,
-        overflow: 'hidden',
+        padding: '14px 20px 16px',
         boxShadow: 'none',
       }}>
-        <div style={{ padding: '14px 20px 10px', borderBottom: '1px solid rgba(10,11,12,0.08)' }}>
-          <div style={{
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
-            letterSpacing: '0.22em', color: TR.fgMute, 
-          }}>ПО КАТЕГОРИЯМ</div>
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
+          letterSpacing: '0.22em', color: TR.fgMute, marginBottom: 8,
+        }}>🏨 ЖИЛЬЁ И ТРАНСПОРТ</div>
+        <div style={{
+          fontFamily: 'Onest, sans-serif', fontSize: 12, color: TR.fg, lineHeight: 1.6,
+        }}>
+          Сильно зависят от твоего выбора (класс жилья, способ передвижения), поэтому
+          в сумму за посещения не входят — заложи их отдельно сверху.
         </div>
-        {BUDGET_CATS.map((cat, i) => (
-          <div key={cat.label} style={{
-            padding: '12px 20px',
-            display: 'flex', alignItems: 'center', gap: 12,
-            borderBottom: i < BUDGET_CATS.length - 1 ? '1px solid rgba(10,11,12,0.06)' : 'none',
-          }}>
-            <span style={{ fontSize: 17, lineHeight: 1, flexShrink: 0 }}>{cat.icon}</span>
-            <span style={{
-              flex: 1,
-              fontFamily: 'Onest, sans-serif', fontWeight: 600, fontSize: 13, color: TR.fg,
-            }}>{cat.label}</span>
-            <span style={{
-              fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: TR.fg, fontWeight: 600,
-            }}>~₽{Math.round(totalBudget * cat.pct / 100).toLocaleString('ru-RU')}</span>
-          </div>
-        ))}
       </div>
 
       {/* ── Block 3: Per day ── */}
@@ -679,11 +748,12 @@ function BudgetTab({ trip, poisByDay, numDays }) {
           }}>ПО ДНЯМ</div>
         </div>
 
-        {Array.from({ length: numDays }, (_, i) => i + 1).map((d, idx) => {
-          const dayPois = poisByDay[d] ?? []
+        {days.map((d, idx) => {
+          const dayPois = mainPoisForDay(d)
           const isOpen  = openDay === d
           const label   = formatDayLabel(d)
           const isLast  = idx === numDays - 1
+          const sum     = dayVisitSum(d)
 
           return (
             <div key={d}>
@@ -715,7 +785,7 @@ function BudgetTab({ trip, poisByDay, numDays }) {
                   <span style={{
                     fontFamily: 'JetBrains Mono, monospace', fontSize: 12,
                     color: TR.fg, fontWeight: 600,
-                  }}>~₽{dailyRate.toLocaleString('ru-RU')}</span>
+                  }}>~{money(sum)}</span>
                   {dayPois.length > 0 && (
                     <span style={{ fontSize: 8, color: TR.fgMute, lineHeight: 1 }}>
                       {isOpen ? '▲' : '▼'}
@@ -726,25 +796,44 @@ function BudgetTab({ trip, poisByDay, numDays }) {
 
               {isOpen && dayPois.length > 0 && (
                 <div style={{ borderBottom: !isLast ? '1px solid rgba(10,11,12,0.06)' : 'none' }}>
-                  {dayPois.map((p) => (
-                    <div key={p.poi.id} style={{
-                      padding: '9px 20px 9px 38px',
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      borderTop: '1px solid rgba(10,11,12,0.05)',
-                      background: 'rgba(10,11,12,0.02)',
-                      gap: 10,
-                    }}>
-                      <span style={{ fontSize: 12, color: TR.fg, lineHeight: 1.3, flex: 1 }}>
-                        {p.poi.name}
-                      </span>
-                      {p.budget_estimate && (
+                  {dayPois.map((p) => {
+                    const c = contributionOf(p)
+                    return (
+                      <div key={p.poi.id} style={{
+                        padding: '9px 20px 9px 38px',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        borderTop: '1px solid rgba(10,11,12,0.05)',
+                        background: 'rgba(10,11,12,0.02)',
+                        gap: 10,
+                      }}>
+                        <span style={{ fontSize: 12, color: TR.fg, lineHeight: 1.3, flex: 1 }}>
+                          {p.poi.name}
+                        </span>
                         <span style={{
                           fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
                           color: TR.fgMute, flexShrink: 0,
-                        }}>{p.budget_estimate}</span>
-                      )}
-                    </div>
-                  ))}
+                        }}>
+                          {c != null ? `≈${money(c)}` : (p.budget_estimate || '—')}
+                        </span>
+                      </div>
+                    )
+                  })}
+                  {/* Подытог — чтобы перечисленное в списке визуально складывалось в сумму дня. */}
+                  <div style={{
+                    padding: '9px 20px 9px 38px',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    borderTop: '1px solid rgba(10,11,12,0.08)',
+                    background: 'rgba(10,11,12,0.02)', gap: 10,
+                  }}>
+                    <span style={{
+                      fontSize: 11, color: TR.fg, fontWeight: 600, flex: 1,
+                      fontFamily: 'Onest, sans-serif',
+                    }}>Итого за день</span>
+                    <span style={{
+                      fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
+                      color: TR.fg, fontWeight: 700, flexShrink: 0,
+                    }}>~{money(sum)}</span>
+                  </div>
                 </div>
               )}
             </div>

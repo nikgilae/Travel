@@ -105,3 +105,20 @@ Copy `.env.example` to `.env` and fill in:
 - All primary keys are UUIDs
 - CORS is configured for `localhost:3000` — frontend dev server port
 - API docs available at `/docs` (Swagger) and `/redoc` when server is running
+
+## gstack Workflow
+
+This project uses [gstack](https://github.com/garrytan/gstack) — a set of skills organized as a sprint pipeline: **Think → Plan → Build → Review → Test → Ship → Reflect**. Reach for the right stage instead of running skills ad-hoc.
+
+- **Think / Plan**: `/office-hours` (reframe an idea), `/spec` (vague intent → executable spec), `/autoplan` (CEO + design + eng review)
+- **Review**: `/review` (staff-engineer review + auto-fix), `/investigate` (root-cause debugging), `/cso` (security: OWASP + STRIDE)
+- **Test**: `/qa` (real Chromium, drives flows, generates regression tests), `/qa-only` (report only)
+- **Ship**: `/ship` (tests → PR), `/land-and-deploy` (merge → deploy → verify), `/canary` (post-deploy monitoring)
+- **Reflect**: `/retro`
+
+### Safety (this repo has a live PostgreSQL DB + SQL dumps)
+- Prefer read-only skills first: `/office-hours`, `/review`, `/investigate`, `/qa-only`.
+- Turn on `/guard` (= `/careful` + `/freeze`) before letting skills run destructive commands (`DROP TABLE`, `rm -rf`, force-push) or touch migrations.
+- `/ship` and `/land-and-deploy` perform real git/PR/deploy actions — only run them on an explicit request.
+
+Run `/gstack-upgrade` to stay current.

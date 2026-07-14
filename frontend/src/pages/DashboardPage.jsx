@@ -97,8 +97,13 @@ function TripCard({ trip, meta, onClick, onDelete, isDeleting, isSelected, onTog
           }}
         />
       )}
-      {/* Top row: city + days badge */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+      {/* Top row: city + days badge.
+          Если показан кружок выбора (absolute, top/right 8, ширина 24) — резервируем
+          справа место, чтобы бейдж «N дн» не оказывался под кружком. */}
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+        marginBottom: 8, paddingRight: onToggleSelect ? 30 : 0,
+      }}>
         <div>
           <div style={{
             fontSize: 18, fontWeight: 600,
