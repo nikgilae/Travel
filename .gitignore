@@ -17,3 +17,4 @@ CLAUDE.md
 
 # Database dumps (may contain real user data — never commit)
 *.sql
+.prd
