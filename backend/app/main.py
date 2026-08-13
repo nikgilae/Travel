@@ -21,6 +21,8 @@ from app.core.exceptions import (
     AlreadyExistsException,
     UnauthorizedException,
     ForbiddenException,
+    BadRequestException,
+    AIGenerationError,
 )
 from app.api import chat
 from app.api.chat import general_router
@@ -206,6 +208,88 @@ async def forbidden_handler(
         content={
             "error_code": "FORBIDDEN",
             "message": exc.detail,
+        },
+    )
+
+
+@app.exception_handler(BadRequestException)
+async def bad_request_handler(
+    request: Request,
+    exc: BadRequestException,
+) -> JSONResponse:
+    """
+    Обработчик ошибки 400 Bad Request.
+
+    Запрос прошёл валидацию схемы, но противоречит бизнес-правилам
+    (например, генерация маршрута для поездки без дат). Раньше такие случаи
+    падали голым ValueError и превращались в 500.
+
+    Parameters
+    ----------
+    request : Request
+        Входящий HTTP запрос.
+    exc : BadRequestException
+        Исключение с описанием того, что нужно исправить.
+
+    Returns
+    -------
+    JSONResponse
+        HTTP 400 с полями error_code, message, detail.
+    """
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={
+            "error_code": "BAD_REQUEST",
+            "message": exc.detail,
+            "detail": exc.detail,
+        },
+    )
+
+
+@app.exception_handler(AIGenerationError)
+async def ai_generation_error_handler(
+    request: Request,
+    exc: AIGenerationError,
+) -> JSONResponse:
+    """
+    Обработчик ошибки 502 — AI не смог сгенерировать маршрут.
+
+    Сбой внешнего сервиса, а не наша логика: битый JSON, таймаут провайдера
+    или места, которых нет в нашей базе. Раньше это маскировалось под HTTP 200
+    с пустым планом — пользователь не понимал, что сломалось.
+
+    В теле отдаём ``retryable`` — фронт по этому флагу решает, показывать ли
+    кнопку «Попробовать ещё раз». False для сбоев, которые повтор не лечит
+    (неверный ключ провайдера, обрезка ответа по max_tokens).
+
+    Уходит в Sentry для разбора долей неудачных генераций, но НЕ в Telegram:
+    сбои AI-провайдера ожидаемы, и во время волны алерты превратились бы в спам.
+    Telegram остаётся за настоящими 500.
+
+    Parameters
+    ----------
+    request : Request
+        Входящий HTTP запрос.
+    exc : AIGenerationError
+        Исключение с понятным пользователю описанием сбоя.
+
+    Returns
+    -------
+    JSONResponse
+        HTTP 502 с полями error_code, message, detail, retryable.
+    """
+    logger.error(
+        "AI generation failed: %s %s — %s (retryable=%s)",
+        request.method, request.url.path, exc.detail, exc.retryable,
+    )
+    capture_exception(exc)
+    return JSONResponse(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        content={
+            "error_code": "AI_GENERATION_FAILED",
+            "message": exc.detail,
+            "detail": exc.detail,
+            "retryable": exc.retryable,
         },
     )
 

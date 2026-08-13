@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useParams } from 'react-router-dom'
 import { useOnboarding } from './store/onboardingStore.jsx'
 
+import LandingPage          from './pages/LandingPage'
 import LoginPage            from './pages/LoginPage'
 import RegisterPage         from './pages/RegisterPage'
 import DashboardPage        from './pages/DashboardPage'
@@ -119,6 +120,9 @@ function OnboardingFlow() {
           update({
             start_date: fmtDate(dates.startDay),
             end_date:   calcEndDate(dates.startDay, dates.duration),
+            // Даты изменились — старая (возможно, уже созданная) поездка
+            // в этом прохождении онбординга больше не актуальна.
+            created_trip_id: null,
           })
         }
         setStep(4)
@@ -145,6 +149,9 @@ function OnboardingFlow() {
         update({
           city_id:    selectedCity.cityId,
           country_id: selectedCity.countryId,
+          // Город/страна изменились — старая (возможно, уже созданная) поездка
+          // в этом прохождении онбординга больше не актуальна.
+          created_trip_id: null,
         })
         setStep(2)
       }}
@@ -158,8 +165,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Auth */}
-        <Route path="/"         element={<LoginPage />} />
+        {/* Landing + Auth */}
+        <Route path="/"         element={<LandingPage />} />
+        <Route path="/login"    element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
 
         {/* Onboarding (no nav bar) */}

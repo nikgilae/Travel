@@ -36,8 +36,17 @@ class Base(DeclarativeBase):
 
 # Dependency для FastAPI — предоставляет сессию БД в роутеры.
 # Открывает сессию перед запросом и закрывает после — даже при ошибке.
+# При любом исключении откатывает незавершённую транзакцию: сервисы владеют
+# commit(), но не должны сами звать rollback() — откат экспайрит весь identity map
+# сессии (включая current_user), и следующее же обращение к ORM-объекту в
+# эндпоинте или хендлере упало бы MissingGreenlet, превращая осмысленную ошибку
+# в 500. Здесь откат происходит после того, как эндпоинт закончил работу.
 # Использование:
 #   async def endpoint(db: AsyncSession = Depends(get_db)):
 async def get_db():
     async with AsyncSessionLocal() as session:
-        yield session
+        try:
+            yield session
+        except Exception:
+            await session.rollback()
+            raise

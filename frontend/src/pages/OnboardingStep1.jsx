@@ -62,6 +62,29 @@ async function apiFetch(path) {
   return res.json()
 }
 
+async function apiPost(path, body) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${getToken()}`,
+    },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const payload = await res.json().catch(() => null)
+    throw new Error(payload?.message ?? payload?.detail ?? `Ошибка сервера (${res.status})`)
+  }
+  return res.json()
+}
+
+// «  сатка  » → «Сатка». Без нормализации справочник обрастает дублями,
+// которые отличаются только регистром и лишними пробелами.
+function normalizeCityName(raw) {
+  const trimmed = raw.trim().replace(/\s+/g, ' ')
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1)
+}
+
 // Карточки стран/городов — это div c onClick. Чтобы они были доступны с
 // клавиатуры (Enter/Space), навешиваем этот обработчик рядом с role="button".
 function onActivateKey(handler) {
@@ -214,6 +237,7 @@ export default function OnboardingStep1({ onContinue }) {
   const [selectedCity, setSelectedCity] = useState(null)
   const [loading, setLoading] = useState(true)
   const [citiesLoading, setCitiesLoading] = useState(false)
+  const [creatingCity, setCreatingCity] = useState(false)
   const [error, setError] = useState(null)
   const cityScrollRef = useRef(null)
   const countryScrollRef = useRef(null)
@@ -267,17 +291,59 @@ export default function OnboardingStep1({ onContinue }) {
       isCustom: true,
     }
     setSelectedCity(customCity)
-    update({ city_id: null }) // Custom cities don't have real IDs
+    // Настоящий id появится на «Продолжить» — город заводится в справочнике
+    // через POST /cities. До тех пор в сторе осознанно null.
+    update({ city_id: null })
   }
 
-  function handleContinue() {
-    if (!selectedCountry || !selectedCity) return
+  // Свой город: в справочнике его нет, поэтому заводим по-настоящему и получаем
+  // реальный UUID. Раньше сюда уходил null, и POST /trips падал с 422
+  // «Input validation failed» — поездка не создавалась вообще.
+  // Создаём именно здесь, а не в handleSelectCustomCity: иначе справочник
+  // засорялся бы городами, которые человек потыкал и передумал.
+  async function handleContinue() {
+    if (!selectedCountry || !selectedCity || creatingCity) return
+
+    let cityId = selectedCity.id
+
+    if (selectedCity.isCustom) {
+      const name = normalizeCityName(selectedCity.name)
+      // Город мог появиться, пока человек шёл по шагам, или его завёл кто-то
+      // другой — не плодим «Сатка» рядом с «сатка».
+      const known = (citiesMap[selectedCountry.id] ?? []).find(
+        c => normalizeCityName(c.name).toLowerCase() === name.toLowerCase()
+      )
+      if (known) {
+        cityId = known.id
+      } else {
+        setCreatingCity(true)
+        setError(null)
+        try {
+          const created = await apiPost('/cities', {
+            country_id: selectedCountry.id,
+            name,
+            content: 'Город добавлен пользователем при создании маршрута.',
+          })
+          cityId = created.id
+          setCitiesMap(prev => ({
+            ...prev,
+            [selectedCountry.id]: [...(prev[selectedCountry.id] ?? []), created],
+          }))
+        } catch (err) {
+          setError(`Не получилось добавить город «${name}». ${err.message}`)
+          setCreatingCity(false)
+          return
+        }
+        setCreatingCity(false)
+      }
+    }
+
     onContinue?.({
       n: selectedCity.name,
       sub: selectedCountry.name,
       days: '7–10 дней',
       code: selectedCity.name.slice(0, 3).toUpperCase(),
-      cityId: selectedCity.isCustom ? null : selectedCity.id,
+      cityId,
       countryId: selectedCountry.id,
     })
   }
@@ -499,8 +565,12 @@ export default function OnboardingStep1({ onContinue }) {
           {/* CTA — always visible */}
           <CtaBar
             onClick={handleContinue}
-            disabled={!selectedCity}
-            label={selectedCity ? `Продолжить с ${selectedCity.name}` : 'Выберите город'}
+            disabled={!selectedCity || creatingCity}
+            label={
+              creatingCity
+                ? 'Добавляю город…'
+                : selectedCity ? `Продолжить с ${selectedCity.name}` : 'Выберите город'
+            }
             icon={<IconArrowRight />}
           />
 

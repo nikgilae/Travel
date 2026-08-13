@@ -194,7 +194,10 @@ class TripGenerateResponse(BaseModel):
     summary: str
     total_budget_estimate: str
     days: list[GeneratedDayResponse]
+    # Сколько мест реально легло в БД и сколько предложил AI. Расхождение —
+    # сигнал, что план на странице поездки окажется беднее ответа генерации.
     saved_pois_count: int
+    proposed_pois_count: int = 0
 
 
 class TripPOISwapRequest(BaseModel):

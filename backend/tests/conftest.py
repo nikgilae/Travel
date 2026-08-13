@@ -169,12 +169,21 @@ class FakeMessage:
 
 
 class FakeCompletion:
-    def __init__(self, message: FakeMessage):
-        self.choices = [type("Choice", (), {"message": message})()]
+    def __init__(self, message: FakeMessage, finish_reason: str | None = None):
+        self.choices = [
+            type("Choice", (), {"message": message, "finish_reason": finish_reason})()
+        ]
 
 
-def make_completion(content=None, tool_calls=None) -> FakeCompletion:
-    return FakeCompletion(FakeMessage(content=content, tool_calls=tool_calls))
+def make_completion(content=None, tool_calls=None, finish_reason=None) -> FakeCompletion:
+    return FakeCompletion(
+        FakeMessage(content=content, tool_calls=tool_calls), finish_reason=finish_reason
+    )
+
+
+class FakeEmptyChoicesCompletion:
+    """Ответ AI без choices — воспроизводит `choices == []` от провайдера."""
+    choices: list = []
 
 
 @pytest.fixture
@@ -202,5 +211,55 @@ def mock_ai(monkeypatch):
     ctrl = _Controller()
     monkeypatch.setattr(
         ai_module.client.chat.completions, "create", AsyncMock(side_effect=ctrl._create)
+    )
+    return ctrl
+
+
+# ── Мок AI-клиента генерации маршрута (отдельный от чатового) ─────────────────
+# generate_trip() ходит через app.services.ai.gen_client, а не через
+# app.services.ai.client — это два разных объекта (свой read-таймаут и без
+# ретраев SDK, см. app/services/ai.py). mock_ai выше его не перехватывает,
+# поэтому нужен отдельный фикс.
+
+@pytest.fixture
+def mock_gen_ai(monkeypatch):
+    """
+    Подменяет клиент генерации маршрута (app.services.ai.gen_client.chat.completions.create).
+
+    В очередь (`mock_gen_ai.queue`) можно класть:
+      - FakeCompletion — вернётся как ответ провайдера;
+      - экземпляр BaseException — будет поднят вместо ответа (эмуляция сетевых
+        сбоев/ошибок провайдера: APITimeoutError, AuthenticationError, ...);
+      - произвольный async-callable(*args, **kwargs) — будет awaited, полезно
+        чтобы эмулировать «медленную» попытку (например, с asyncio.sleep) перед
+        успехом/ошибкой, не тратя на это реальный бюджет времени в проде.
+
+    Когда очередь пуста — отдаётся `mock_gen_ai.default`.
+    Все вызовы (их kwargs) складываются в `mock_gen_ai.calls` — по длине этого
+    списка проверяем, сколько раз реально дозвонились до провайдера.
+    """
+    from unittest.mock import AsyncMock
+    import app.services.ai as ai_module
+
+    class _GenController:
+        def __init__(self):
+            self.queue = []
+            self.calls = []
+            self.default = make_completion(
+                content='{"summary": "ok", "total_budget_estimate": "", "days": []}'
+            )
+
+        async def _create(self, *args, **kwargs):
+            self.calls.append(kwargs)
+            item = self.queue.pop(0) if self.queue else self.default
+            if isinstance(item, BaseException):
+                raise item
+            if callable(item):
+                return await item(*args, **kwargs)
+            return item
+
+    ctrl = _GenController()
+    monkeypatch.setattr(
+        ai_module.gen_client.chat.completions, "create", AsyncMock(side_effect=ctrl._create)
     )
     return ctrl

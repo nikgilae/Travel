@@ -1,3 +1,4 @@
+import uuid
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest_asyncio
@@ -7,7 +8,9 @@ from sqlalchemy.exc import SQLAlchemyError
 import app.main as main_module
 from app.main import app
 from app.core.database import get_db
+from app.core.exceptions import AIGenerationError
 from app.services.trip import TripService
+from app.services.trip_ai import TripAIService
 
 
 @pytest_asyncio.fixture
@@ -74,7 +77,39 @@ class TestErrorHandlers:
 
     async def test_known_exceptions_still_work(self, error_client, auth_headers):
         """Регрессия: обычные ошибки (404 на чужой/несуществующий трип) не сломаны."""
-        import uuid
         resp = await error_client.get(f"/trips/{uuid.uuid4()}", headers=auth_headers)
         assert resp.status_code == 404
         assert resp.json()["error_code"] == "RESOURCE_NOT_FOUND"
+
+    async def test_ai_generation_error_returns_502_with_retryable_and_alerts_sentry_only(
+        self, error_client, auth_headers, monkeypatch
+    ):
+        """
+        П.12 T8: AIGenerationError из TripAIService.generate → 502 с телом
+        {error_code, message, detail, retryable}, capture_exception вызван,
+        а notify_telegram — НЕТ (сбои AI-провайдера ожидаемы, не должны спамить
+        Telegram фаундера — это отличает 502 от настоящих 500).
+        """
+        cap = MagicMock()
+        notify = AsyncMock()
+        monkeypatch.setattr(main_module, "capture_exception", cap)
+        monkeypatch.setattr(main_module, "notify_telegram", notify)
+
+        async def boom(self, *a, **k):
+            raise AIGenerationError("AI недоступен", retryable=False)
+        monkeypatch.setattr(TripAIService, "generate", boom)
+
+        resp = await error_client.post(
+            f"/trips/{uuid.uuid4()}/generate",
+            json={"interests": ["еда"]},
+            headers=auth_headers,
+        )
+
+        assert resp.status_code == 502
+        body = resp.json()
+        assert body["error_code"] == "AI_GENERATION_FAILED"
+        assert body["message"] == "AI недоступен"
+        assert body["detail"] == "AI недоступен"
+        assert body["retryable"] is False
+        cap.assert_called_once()
+        notify.assert_not_awaited()

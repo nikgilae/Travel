@@ -1,4 +1,5 @@
 import uuid
+import time
 import logging
 import random
 from datetime import datetime, timedelta
@@ -6,7 +7,11 @@ from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.core.exceptions import NotFoundException
+from app.core.exceptions import (
+    AIGenerationError,
+    BadRequestException,
+    NotFoundException,
+)
 from app.models.trip import Trip, TripPOI
 from app.repositories.trip import TripRepository, TripPOIRepository
 from app.repositories.poi import POIRepository
@@ -16,6 +21,10 @@ from app.services.ai import generate_trip
 from app.services.poi import POIService
 
 logger = logging.getLogger(__name__)
+
+# Исход генерации, который надо отличать в приборах от успеха и от сбоя:
+# запрос пришёл на уже наполненную поездку, AI не вызывался.
+GENERATE_OUTCOME_SKIPPED_EXISTING = "skipped_existing"
 
 
 class TripAIService:
@@ -49,11 +58,44 @@ class TripAIService:
             raise NotFoundException("Trip not found")
 
         if not trip.start_date or not trip.end_date:
-            raise ValueError("Для генерации маршрута у поездки должны быть указаны даты")
+            raise BadRequestException(
+                "Для генерации маршрута у поездки должны быть указаны даты"
+            )
 
         calculated_days = (trip.end_date - trip.start_date).days + 1
         if calculated_days <= 0:
-            raise ValueError("Дата окончания должна быть больше или равна дате начала")
+            raise BadRequestException(
+                "Дата окончания должна быть больше или равна дате начала"
+            )
+
+        # ── 1b. План уже есть — короткое замыкание до вызова AI ───────────────
+        # Повторный /generate на наполненной поездке НЕ должен дописывать места.
+        # При temperature=0.7 AI каждый раз предлагает другой набор, и проверка
+        # дублей ниже пропускает большинство предложений как «новые»: замер на
+        # живой БД дал 29 → 40 → 51 место за три повтора, а sequence_order
+        # второго прогона начинался заново с 1 и сталкивался с первым.
+        # Реальный сценарий — клиент оборвал запрос по своему бюджету времени,
+        # сервер досчитал и сохранил план, человек жмёт «Попробовать снова».
+        # Проверка стоит ДО загрузки POI города, обогащения и вызова AI, чтобы
+        # не платить провайдеру (8–30 с и деньги) за результат, который выбросим.
+        existing_pois = await self.trip_poi_repo.get_by_trip(trip_id)
+        if existing_pois:
+            logger.info(
+                "Поездка %s: в плане уже %d мест — повторная генерация пропущена, "
+                "AI не вызывался",
+                trip_id, len(existing_pois),
+            )
+            return {
+                "trip_id": trip_id,
+                "summary": trip.ai_summary or "",
+                "total_budget_estimate": trip.total_budget_estimate or "",
+                # days пустой намеренно: страница плана читает маршрут из БД,
+                # пересборка days из TripPOI — отдельная задача.
+                "days": [],
+                "saved_pois_count": 0,
+                "proposed_pois_count": 0,
+                "outcome": GENERATE_OUTCOME_SKIPPED_EXISTING,
+            }
 
         # ── 2. Загружаем город и страну ───────────────────────────────────────
         city = await self.city_repo.get_by_id(trip.city_id)
@@ -66,10 +108,12 @@ class TripAIService:
 
         now = datetime.utcnow()
         cooldown = timedelta(hours=settings.ENRICH_COOLDOWN_HOURS)
-        needs_enrichment = (
+        needs_enrichment = settings.GOOGLE_MAPS_ENABLED and (
             city.last_enriched_at is None
             or (now - city.last_enriched_at) >= cooldown
         )
+        if not settings.GOOGLE_MAPS_ENABLED:
+            logger.info("Google Maps выключен (GOOGLE_MAPS_ENABLED=false) — обогащение пропущено")
 
         if needs_enrichment:
             logger.info(
@@ -91,7 +135,7 @@ class TripAIService:
                 "Попробуйте позже или выберите другой город."
             )
 
-        MAX_POIS_FOR_AI = 100
+        MAX_POIS_FOR_AI = 40 if settings.DEMO_FAST_GENERATION else 100
         if len(city_pois) > MAX_POIS_FOR_AI:
             city_pois = random.sample(city_pois, MAX_POIS_FOR_AI)
         logger.info("Отправляем в AI %d POI для города '%s'", len(city_pois), city.name)
@@ -121,6 +165,7 @@ class TripAIService:
         ]
 
         # ── 5. Вызываем AI ────────────────────────────────────────────────────
+        _t_ai = time.perf_counter()
         ai_result = await generate_trip(
             city_name=city.name,
             country_name=country.name,
@@ -132,10 +177,19 @@ class TripAIService:
             pois=pois_with_rules,
             city_rules=city_rules,
             notes=notes,
+            fast=settings.DEMO_FAST_GENERATION,
+        )
+        logger.info(
+            "AI-генерация маршрута заняла %.1f сек (fast=%s)",
+            time.perf_counter() - _t_ai, settings.DEMO_FAST_GENERATION,
         )
 
         # ── 6. Сохраняем пул мест в БД (FR 2.9) ──────────────────────────────
+        # Считаем исходы раздельно: «место уже в поездке» и «места нет в базе» —
+        # это принципиально разные ситуации, и путать их в одной ошибке нельзя.
         saved_count = 0
+        skipped_duplicates = 0
+        proposed = 0
 
         def _calc_end_time(start_time: str | None, duration_hours: float | None) -> str | None:
             if not start_time or not duration_hours:
@@ -155,25 +209,28 @@ class TripAIService:
             day_number: int,
             day_theme: str | None,
             sequence_order: float,
-        ):
+        ) -> str:
+            """Вернуть исход: 'saved' | 'duplicate' | 'skipped'."""
             poi_id_str = poi_item.get("poi_id")
             if not poi_id_str:
                 logger.warning("[day %d] poi_id отсутствует, пропускаем", day_number)
-                return 0
+                return "skipped"
             try:
                 poi_uuid = uuid.UUID(poi_id_str)
             except ValueError:
                 logger.warning("[day %d] Невалидный poi_id '%s', пропускаем", day_number, poi_id_str)
-                return 0
+                return "skipped"
 
             poi = await self.poi_repo.get_by_id(poi_uuid)
             if not poi:
                 logger.warning("[day %d] POI %s не найден в БД, пропускаем", day_number, poi_id_str)
-                return 0
+                return "skipped"
 
             existing = await self.trip_poi_repo.get_by_trip_and_poi(trip_id, poi_uuid)
             if existing:
-                return 0
+                # Место уже в поездке — это не сбой (типичный случай: повторный
+                # /generate после клиентского таймаута).
+                return "duplicate"
 
             st = poi_item.get("start_time")
             dh = poi_item.get("duration_hours")
@@ -201,8 +258,8 @@ class TripAIService:
                     )
             except Exception as e:
                 logger.error("[day %d] Ошибка сохранения POI %s: %s", day_number, poi_id_str, e)
-                return 0
-            return 1
+                return "skipped"
+            return "saved"
 
         for day in ai_result.get("days", []):
             current_day_num = day.get("day", 1)
@@ -215,14 +272,17 @@ class TripAIService:
                 poi_item.setdefault("duration_hours", 2.0)
                 poi_item.setdefault("budget_estimate", "Не указано")
                 poi_item.setdefault("ai_tip", "")
-                n = await _save_poi_to_pool(
+                proposed += 1
+                outcome = await _save_poi_to_pool(
                     poi_item, status="main", selected=True,
                     day_number=current_day_num, day_theme=current_day_theme,
                     sequence_order=float(main_order),
                 )
-                saved_count += n
-                if n:
+                if outcome == "saved":
+                    saved_count += 1
                     main_order += 1
+                elif outcome == "duplicate":
+                    skipped_duplicates += 1
 
             alt_order = main_order + 100  # запасные идут после основных
 
@@ -232,16 +292,66 @@ class TripAIService:
                 poi_item.setdefault("duration_hours", 1.5)
                 poi_item.setdefault("budget_estimate", "Не указано")
                 poi_item.setdefault("ai_tip", "")
-                n = await _save_poi_to_pool(
+                proposed += 1
+                outcome = await _save_poi_to_pool(
                     poi_item, status="additional", selected=False,
                     day_number=current_day_num, day_theme=current_day_theme,
                     sequence_order=float(alt_order),
                 )
-                saved_count += n
-                if n:
+                if outcome == "saved":
+                    saved_count += 1
                     alt_order += 1
+                elif outcome == "duplicate":
+                    skipped_duplicates += 1
 
             logger.info("[day %d] сохранено %d основных + запасных мест", current_day_num, main_order - 1)
+
+        if saved_count and saved_count < proposed * 0.5:
+            logger.warning(
+                "Генерация для поездки %s: сохранено %d из %d предложенных мест "
+                "(дублей %d) — план в БД заметно беднее ответа AI",
+                trip_id, saved_count, proposed, skipped_duplicates,
+            )
+
+        # ── Второй рубеж честной ошибки ──────────────────────────────────────
+        # Сохранять нечего. Различаем два принципиально разных случая:
+        #   а) поездка уже наполнена — после короткого замыкания в п.1b сюда
+        #      попадает только гонка: две генерации стартовали одновременно на
+        #      пустой поездке, первая успела сохранить план. Отдаём его
+        #      идемпотентно, иначе человек заперт в вечном 502;
+        #   б) в поездке пусто и AI предложил только неизвестные нам места —
+        #      вот это настоящий сбой, коммит здесь дал бы HTTP 200 с пустым планом.
+        if saved_count == 0:
+            existing_pois = await self.trip_poi_repo.get_by_trip(trip_id)
+            if existing_pois or skipped_duplicates:
+                logger.info(
+                    "Генерация для поездки %s: новых мест не добавлено "
+                    "(дублей %d, уже в поездке %d) — отдаём существующий план",
+                    trip_id, skipped_duplicates, len(existing_pois),
+                )
+                return {
+                    "trip_id": trip_id,
+                    "summary": trip.ai_summary or ai_result.get("summary", ""),
+                    "total_budget_estimate": (
+                        trip.total_budget_estimate
+                        or ai_result.get("total_budget_estimate", "")
+                    ),
+                    "days": ai_result.get("days", []),
+                    "saved_pois_count": 0,
+                    "proposed_pois_count": proposed,
+                }
+
+            logger.error(
+                "Генерация для поездки %s: AI вернул %d дней и %d мест, но ни одно "
+                "не нашлось в нашей базе — отдаём ошибку",
+                trip_id, len(ai_result.get("days", [])), proposed,
+            )
+            # rollback здесь не зовём: откат делает get_db на выходе из запроса
+            # (иначе экспайрится весь identity map сессии, включая current_user).
+            raise AIGenerationError(
+                "Ни одно из предложенных мест не нашлось в нашей базе. "
+                "Попробуйте сгенерировать ещё раз."
+            )
 
         trip.ai_summary = ai_result.get("summary")
         trip.total_budget_estimate = ai_result.get("total_budget_estimate")
@@ -255,4 +365,5 @@ class TripAIService:
             "total_budget_estimate": ai_result.get("total_budget_estimate", ""),
             "days": ai_result.get("days", []),
             "saved_pois_count": saved_count,
+            "proposed_pois_count": proposed,
         }
