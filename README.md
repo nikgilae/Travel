@@ -98,6 +98,8 @@ API docs available at:
 | `AI_API_KEY` | ✅ | AI provider API key | `sk-...` |
 | `AI_BASE_URL` | ❌ | AI API base URL | `https://api.openai.com/v1` |
 | `AI_MODEL` | ❌ | AI model to use | `gpt-4o-mini` |
+| `AI_GENERATION_BUDGET_SECONDS` | ❌ | Hard time cap for `/trips/{id}/generate` (all AI attempts). Must stay below the frontend request timeout (45s) | `30` |
+| `AI_READ_TIMEOUT_SECONDS` | ❌ | Read timeout for a single trip-generation call to the AI provider | `18` |
 | `GOOGLE_MAPS_API_KEY` | ❌ | Google Places API key | `...` |
 
 ## 📚 API Endpoints

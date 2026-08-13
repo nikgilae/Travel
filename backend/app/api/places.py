@@ -19,6 +19,8 @@ async def find_place(
     _user: User = Depends(get_current_user),
 ):
     """Найти place_id по тексту (проксирует Google Places FindPlace)."""
+    if not settings.GOOGLE_MAPS_ENABLED:
+        raise HTTPException(status_code=404, detail="Поиск по Google Maps временно отключён")
     resp = await _http.get(
         f"{GMAPS_BASE}/findplacefromtext/json",
         params={
@@ -66,6 +68,8 @@ async def nearby_places(
     _user: User = Depends(get_current_user),
 ):
     """Поиск реальных мест рядом через Google Places Nearby Search."""
+    if not settings.GOOGLE_MAPS_ENABLED:
+        return []
     params: dict = {
         "location": f"{lat},{lon}",
         "radius": radius,

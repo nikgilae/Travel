@@ -135,7 +135,7 @@ export default function RegisterPage() {
 
         <p className="auth-switch">
           Уже есть аккаунт?{' '}
-          <Link to="/" className="auth-link">Войти</Link>
+          <Link to="/login" className="auth-link">Войти</Link>
         </p>
       </div>
     </div>
