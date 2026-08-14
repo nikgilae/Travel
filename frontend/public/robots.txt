@@ -1,0 +1,105 @@
+User-agent: Yandex
+Allow: /
+Disallow: /dashboard
+Disallow: /trip
+Disallow: /onboarding
+Disallow: /login
+Disallow: /register
+
+User-agent: YandexBot
+Allow: /
+Disallow: /dashboard
+Disallow: /trip
+Disallow: /onboarding
+Disallow: /login
+Disallow: /register
+
+User-agent: Googlebot
+Allow: /
+Disallow: /dashboard
+Disallow: /trip
+Disallow: /onboarding
+Disallow: /login
+Disallow: /register
+
+User-agent: GPTBot
+Allow: /
+Disallow: /dashboard
+Disallow: /trip
+Disallow: /onboarding
+Disallow: /login
+Disallow: /register
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /dashboard
+Disallow: /trip
+Disallow: /onboarding
+Disallow: /login
+Disallow: /register
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /dashboard
+Disallow: /trip
+Disallow: /onboarding
+Disallow: /login
+Disallow: /register
+
+User-agent: Claude-User
+Allow: /
+Disallow: /dashboard
+Disallow: /trip
+Disallow: /onboarding
+Disallow: /login
+Disallow: /register
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /dashboard
+Disallow: /trip
+Disallow: /onboarding
+Disallow: /login
+Disallow: /register
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /dashboard
+Disallow: /trip
+Disallow: /onboarding
+Disallow: /login
+Disallow: /register
+
+User-agent: Claude-SearchBot
+Allow: /
+Disallow: /dashboard
+Disallow: /trip
+Disallow: /onboarding
+Disallow: /login
+Disallow: /register
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /dashboard
+Disallow: /trip
+Disallow: /onboarding
+Disallow: /login
+Disallow: /register
+
+User-agent: Perplexity-User
+Allow: /
+Disallow: /dashboard
+Disallow: /trip
+Disallow: /onboarding
+Disallow: /login
+Disallow: /register
+
+User-agent: *
+Disallow: /dashboard
+Disallow: /trip
+Disallow: /onboarding
+Disallow: /login
+Disallow: /register
+
+Sitemap: https://tourrhythm.ru/sitemap.xml
+Host: tourrhythm.ru

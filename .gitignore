@@ -17,4 +17,10 @@ CLAUDE.md
 
 # Database dumps (may contain real user data — never commit)
 *.sql
+
 .prd
+
+
+# Содержит боевые секреты (POSTGRES_PASSWORD, TG_BOT_TOKEN)
+DEPLOY_HANDOFF.md
+>>>>>>> 1768bd927d0594ef8e35d816d83a04f43098022b

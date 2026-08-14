@@ -1,3 +1,4 @@
+import time
 import uuid
 
 from fastapi import APIRouter, Depends, status
@@ -5,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.events import log_event, EVENT_TRIP_CREATED, EVENT_GENERATE
+from app.core.exceptions import AIGenerationError
 from app.dependencies import get_current_user
 from app.models.user import User
 from app.schemas.trip import (
@@ -372,17 +374,43 @@ async def generate_trip(
     TripGenerateResponse
         Сгенерированный маршрут с summary, days, saved_pois_count.
     """
-    result = await service.generate(
-        trip_id=trip_id,
-        user_id=current_user.id,
-        interests=data.interests,
-        notes=data.notes,
-    )
+    # user_id забираем ДО вызова: при ошибке сессия откатывается в get_db,
+    # а откат экспайрит ORM-объекты — обращение к current_user.id после этого
+    # ушло бы в БД из уже закрытого контекста.
+    user_id = current_user.id
+    started_at = time.perf_counter()
+    try:
+        result = await service.generate(
+            trip_id=trip_id,
+            user_id=user_id,
+            interests=data.interests,
+            notes=data.notes,
+        )
+    except AIGenerationError as exc:
+        # Без этого доля неудачных генераций не считалась бы по логам вовсе:
+        # событие писалось только на успехе.
+        log_event(
+            EVENT_GENERATE,
+            user_id=user_id,
+            trip_id=trip_id,
+            status="failed",
+            reason=str(exc.detail)[:200],
+            retryable=exc.retryable,
+            duration_sec=round(time.perf_counter() - started_at, 1),
+        )
+        raise
+    # Повтор на уже наполненной поездке — не успех генерации и не сбой, у него
+    # свой статус ("skipped_existing"), иначе в приборах волны он раздувал бы
+    # долю успешных генераций.
+    outcome = result.pop("outcome", None)
     log_event(
         EVENT_GENERATE,
-        user_id=current_user.id,
+        user_id=user_id,
         trip_id=trip_id,
+        status=outcome or "ok",
         saved_pois_count=result.get("saved_pois_count"),
+        proposed_pois_count=result.get("proposed_pois_count"),
+        duration_sec=round(time.perf_counter() - started_at, 1),
     )
     return TripGenerateResponse(**result)
 

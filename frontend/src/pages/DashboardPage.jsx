@@ -416,7 +416,7 @@ export default function DashboardPage() {
           <ProfileButton onLogout={() => {
             localStorage.removeItem('access_token')
             localStorage.removeItem('user_email')
-            navigate('/')
+            navigate('/login')
           }} />
         </div>
         <h1 style={{

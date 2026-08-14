@@ -11,6 +11,12 @@ const INITIAL = {
   end_date:          null,
   interests:         [],        // for /generate
   notes:             '',        // final open question — for /generate
+  created_trip_id:   null,      // id поездки, уже созданной в текущем прохождении
+                                 // онбординга (T5, "честные ошибки") — повтор после
+                                 // сбоя генерации не должен создавать вторую поездку;
+                                 // сбрасывается в null при смене city_id/country_id/дат
+                                 // (см. App.jsx), иначе после смены города переиспользуется
+                                 // старая поездка.
 }
 
 const OnboardingContext = createContext(null)
