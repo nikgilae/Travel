@@ -23,4 +23,6 @@ CLAUDE.md
 
 # Содержит боевые секреты (POSTGRES_PASSWORD, TG_BOT_TOKEN)
 DEPLOY_HANDOFF.md
->>>>>>> 1768bd927d0594ef8e35d816d83a04f43098022b
+
+# Зависимости ставятся из package-lock.json, в репозитории им не место
+node_modules/
