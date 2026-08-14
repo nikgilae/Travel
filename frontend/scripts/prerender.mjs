@@ -28,16 +28,42 @@ import { randomBytes, createHash } from 'node:crypto'
 import net from 'node:net'
 import { EventEmitter } from 'node:events'
 import http from 'node:http'
-
+import { readdirSync, existsSync } from 'node:fs'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DIST_DIR = path.join(__dirname, '..', 'dist')
 const INDEX_HTML = path.join(DIST_DIR, 'index.html')
 const ROOT_PLACEHOLDER = '<div id="root"></div>'
 
-const CHROME_PATH =
-  process.env.PRERENDER_CHROME_PATH ||
-  '/home/nazar-berest/.cache/ms-playwright/chromium-1208/chrome-linux64/chrome'
 
+
+function findChromePath() {
+  if (process.env.PRERENDER_CHROME_PATH) return process.env.PRERENDER_CHROME_PATH
+
+  const cacheDirs = [
+    process.env.PLAYWRIGHT_BROWSERS_PATH,
+    path.join(os.homedir(), '.cache', 'ms-playwright'),
+  ].filter(Boolean)
+
+  for (const dir of cacheDirs) {
+    if (!existsSync(dir)) continue
+    const chromiumFolders = readdirSync(dir)
+      .filter((name) => name.startsWith('chromium-') && !name.includes('headless'))
+      .sort()
+      .reverse() // берём самую свежую версию
+
+    for (const folder of chromiumFolders) {
+      const candidate = path.join(dir, folder, 'chrome-linux64', 'chrome')
+      if (existsSync(candidate)) return candidate
+    }
+  }
+
+  fail(
+    'не найден бинарник Chromium ни в PRERENDER_CHROME_PATH, ни в кеше Playwright — ' +
+      'убедитесь, что перед этим шагом выполнен "npx playwright install chromium"'
+  )
+}
+
+const CHROME_PATH = findChromePath()
 const REQUIRED_PHRASE = 'Что ты будешь делать в поездке каждый день?'
 const MIN_VISIBLE_CHARS = 500
 
