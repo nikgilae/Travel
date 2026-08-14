@@ -36,8 +36,15 @@ const ROOT_PLACEHOLDER = '<div id="root"></div>'
 
 
 
+// Возвращает путь к браузеру или null. Именно null, а не падение: пререндер
+// полезен, но он не стоит того, чтобы блокировать выкат продукта.
 function findChromePath() {
-  if (process.env.PRERENDER_CHROME_PATH) return process.env.PRERENDER_CHROME_PATH
+  // Путь задан явно: это осознанное намерение, поэтому опечатку не проглатываем.
+  if (process.env.PRERENDER_CHROME_PATH) {
+    const p = process.env.PRERENDER_CHROME_PATH
+    if (!existsSync(p)) fail(`PRERENDER_CHROME_PATH указывает на несуществующий файл: ${p}`)
+    return p
+  }
 
   const cacheDirs = [
     process.env.PLAYWRIGHT_BROWSERS_PATH,
@@ -52,15 +59,27 @@ function findChromePath() {
       .reverse() // берём самую свежую версию
 
     for (const folder of chromiumFolders) {
-      const candidate = path.join(dir, folder, 'chrome-linux64', 'chrome')
-      if (existsSync(candidate)) return candidate
+      for (const rel of ['chrome-linux64/chrome', 'chrome-linux/chrome',
+                         'chrome-mac/Chromium.app/Contents/MacOS/Chromium']) {
+        const candidate = path.join(dir, folder, ...rel.split('/'))
+        if (existsSync(candidate)) return candidate
+      }
     }
   }
 
-  fail(
-    'не найден бинарник Chromium ни в PRERENDER_CHROME_PATH, ни в кеше Playwright — ' +
-      'убедитесь, что перед этим шагом выполнен "npx playwright install chromium"'
-  )
+  // Браузер может быть установлен системно, тогда качать его не нужно вовсе.
+  const systemPaths = [
+    process.env.CHROME_PATH,
+    process.env.PUPPETEER_EXECUTABLE_PATH,
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/snap/bin/chromium',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  ].filter(Boolean)
+
+  return systemPaths.find((p) => existsSync(p)) || null
 }
 
 const CHROME_PATH = findChromePath()
@@ -381,6 +400,28 @@ function launchChrome(userDataDir) {
 // ───────────────────────── основной сценарий ─────────────────────────
 
 async function main() {
+  // Браузера может не быть: сорвалась загрузка, чужая машина, чистый CI.
+  // Пропускаем шаг, но громко, потому что без него страница невидима для
+  // Яндекса, Алисы и ИИ-ботов, а внешне сайт выглядит рабочим.
+  if (!CHROME_PATH) {
+    console.warn([
+      '',
+      '='.repeat(72),
+      'ПРЕРЕНДЕР ПРОПУЩЕН: браузер не найден.',
+      'Сборка продолжится, но в index.html останется пустой #root,',
+      'то есть для поисковиков и ИИ-ботов страница будет пустой.',
+      'Как включить: "npx playwright install chromium", системный Chrome',
+      'или переменная PRERENDER_CHROME_PATH.',
+      'Чтобы падать вместо пропуска: PRERENDER_REQUIRED=1.',
+      '='.repeat(72),
+      '',
+    ].join('\n'))
+    if (process.env.PRERENDER_REQUIRED === '1') {
+      fail('пререндер обязателен (PRERENDER_REQUIRED=1), но браузер не найден')
+    }
+    process.exit(0)
+  }
+
   const originalHtml = await readFile(INDEX_HTML, 'utf8').catch(() => {
     fail(`не найден ${INDEX_HTML} — похоже, "vite build" не отработал перед этим шагом`)
   })
