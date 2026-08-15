@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { register, login } from '../api/auth'
 import { setToken } from '../utils/authToken'
+import { ymGoal } from '../utils/metrika'
 import './AuthPage.css'
 
 const PW_RULES = [
@@ -76,6 +77,7 @@ export default function RegisterPage() {
       const data = await login(email, password)
       setToken(data.access_token)
       localStorage.setItem('user_email', email)
+      ymGoal('signup')
       // После регистрации всегда на онбординг
       navigate('/onboarding')
     } catch (err) {

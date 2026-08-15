@@ -8,6 +8,7 @@
     <meta name="description" content="TourRhythm собирает маршрут поездки по дням из мест, которые реально существуют, и перестраивает его по разговору с AI-агентом, если планы поменялись.">
 
     <meta property="og:type" content="website">
+    <link rel="canonical" href="https://tourrhythm.ru/">
     <meta property="og:url" content="https://tourrhythm.ru">
     <meta property="og:title" content="TourRhythm · маршрут на каждый день поездки">
     <meta property="og:description" content="TourRhythm собирает маршрут поездки по дням из мест, которые реально существуют, и перестраивает его по разговору с AI-агентом, если планы поменялись.">
@@ -19,9 +20,25 @@
     <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/onest-400-cyrillic.woff2">
 
     <script src="https://maps.googleapis.com/maps/api/js?key=%VITE_GOOGLE_MAPS_API_KEY%&libraries=places&language=ru&loading=async" async defer></script>
+
+    <!-- Yandex.Metrika counter -->
+    <script type="text/javascript">
+        (function(m,e,t,r,i,k,a){
+            m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+            m[i].l=1*new Date();
+            for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+            k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
+        })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=111624537', 'ym');
+
+        ym(111624537, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", referrer: document.referrer, url: location.href, accurateTrackBounce:true, trackLinks:true});
+    </script>
+    <!-- /Yandex.Metrika counter -->
   </head>
   <body>
     <div id="root"></div>
+    <!-- Пиксель Метрики для браузеров без JS. Живёт в body: <div> внутри <head>
+         невалиден, парсер закрывает head раньше времени и Vite не разбирает файл. -->
+    <noscript><div><img src="https://mc.yandex.ru/watch/111624537" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

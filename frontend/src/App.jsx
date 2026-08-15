@@ -18,6 +18,7 @@ import OnboardingBudget     from './pages/OnboardingBudget'
 import OnboardingFinalQuestion from './pages/OnboardingFinalQuestion'
 import BottomTabBar, { RouteIcon, ChatIcon, NearbyIcon } from './components/BottomTabBar'
 import ProtectedRoute       from './components/ProtectedRoute'
+import MetrikaTracker       from './components/MetrikaTracker'
 
 // ── Helpers ────────────────────────────────────────────────
 
@@ -164,6 +165,7 @@ function OnboardingFlow() {
 export default function App() {
   return (
     <BrowserRouter>
+      <MetrikaTracker />
       <Routes>
         {/* Landing + Auth */}
         <Route path="/"         element={<LandingPage />} />
