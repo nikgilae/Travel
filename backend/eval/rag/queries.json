@@ -1,0 +1,53 @@
+{
+  "queries": [
+    {
+      "id": "cultural_1",
+      "query": "история музеи архитектура museum church art gallery mosque temple place of worship"
+    },
+    {
+      "id": "cultural_2",
+      "query": "хочу посмотреть достопримечательности и старину museum art gallery church"
+    },
+    {
+      "id": "food_1",
+      "query": "гастро-фокус рынки рестораны food cafe bakery"
+    },
+    {
+      "id": "food_2",
+      "query": "хочу вкусно позавтракать в кафе food cafe bakery"
+    },
+    {
+      "id": "nature_1",
+      "query": "парки природа прогулки park natural feature aquarium"
+    },
+    {
+      "id": "nature_2",
+      "query": "хочу погулять на природе park natural feature"
+    },
+    {
+      "id": "night_1",
+      "query": "ночная жизнь бары концерты bar night club"
+    },
+    {
+      "id": "night_2",
+      "query": "хочу потусить вечером в баре bar night club"
+    },
+    {
+      "id": "relaxed_1",
+      "query": "неспешно без суеты relaxed spokoyno"
+    },
+    {
+      "id": "relaxed_2",
+      "query": "хочу отдохнуть спокойно без спешки relaxed"
+    },
+    {
+      "id": "active_1",
+      "query": "больше мест и событий насыщенная программа active"
+    },
+    {
+      "id": "active_2",
+      "query": "хочу насыщенный день с активностями active"
+    }
+  ],
+  "_comment": "Запросы построены на 6 тегах интересов из frontend/src/pages/OnboardingStyle.jsx:17-22. Английские категорийные слова (museum, cafe, bar, park и т.п.) добавлены намеренно: retrieval_evaluator.py токенизирует только ASCII a-zA-Z0-9 (regex \\b[a-zA-Z0-9]+\\b), кириллица не индексируется вообще. Корпус POI состоит из капитализированных Google Place types на английском (app/core/maps.py:54) — без явных категорийных слов в запросе TF-IDF лексически не может найти совпадение, см. факт 5 плана RAG-POI-PLAN.md."
+}
