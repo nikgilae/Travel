@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 import time
 import logging
@@ -12,12 +13,14 @@ from app.core.exceptions import (
     BadRequestException,
     NotFoundException,
 )
+from app.models.poi import POI
 from app.models.trip import Trip, TripPOI
 from app.repositories.trip import TripRepository, TripPOIRepository
 from app.repositories.poi import POIRepository
 from app.repositories.rule import CityRuleRepository, POIRuleRepository
 from app.repositories.geography import CityRepository, CountryRepository
 from app.services.ai import generate_trip
+from app.services.embedding import get_embedding
 from app.services.poi import POIService
 
 logger = logging.getLogger(__name__)
@@ -25,6 +28,13 @@ logger = logging.getLogger(__name__)
 # Исход генерации, который надо отличать в приборах от успеха и от сбоя:
 # запрос пришёл на уже наполненную поездку, AI не вызывался.
 GENERATE_OUTCOME_SKIPPED_EXISTING = "skipped_existing"
+
+# Свой потолок на весь retrieval-заход (embedding + запрос к БД), меньше
+# AI_GENERATION_BUDGET_SECONDS=30s с большим запасом на сам AI-вызов после
+# него. get_embedding сам может занять до ~60с (3 попытки × read-таймаут) —
+# это дольше всего бюджета генерации, поэтому здесь отдельный, более жёсткий
+# потолок, а не переиспользование AI_READ_TIMEOUT_SECONDS.
+RAG_RETRIEVAL_TIMEOUT_SECONDS = 5.0
 
 
 class TripAIService:
@@ -42,6 +52,43 @@ class TripAIService:
         self.country_repo = CountryRepository(session)
         self.city_rule_repo = CityRuleRepository(session)
         self.poi_rule_repo = POIRuleRepository(session)
+
+    async def _select_city_pois(
+        self,
+        city_id: uuid.UUID,
+        city_pois: list[POI],
+        interests: list[str],
+        notes: str | None,
+        max_pois: int,
+    ) -> list[POI]:
+        """
+        Выбрать не больше max_pois POI города для промпта AI.
+
+        За settings.RAG_POI_RETRIEVAL_ENABLED — top-k по семантической
+        близости к interests+notes, ограничено RAG_RETRIEVAL_TIMEOUT_SECONDS;
+        при любом сбое (таймаут, сеть, провайдер эмбеддингов) — тот же
+        защитный стиль, что у обогащения Google Maps (см. ниже в generate()):
+        явный, грепаемый лог отката (не общий warning — иначе "flag on и
+        работает" и "flag on и тихо откатился" неотличимы в логах) и
+        random.sample. Флаг off — поведение байт-в-байт как до этой итерации.
+        """
+        if settings.RAG_POI_RETRIEVAL_ENABLED:
+            query_text = ", ".join(interests) + (f"\n{notes}" if notes else "")
+            try:
+                query_embedding = await asyncio.wait_for(
+                    get_embedding(query_text), timeout=RAG_RETRIEVAL_TIMEOUT_SECONDS
+                )
+                return await self.poi_repo.get_relevant_for_trip(city_id, query_embedding, max_pois)
+            except Exception as e:
+                logger.warning(
+                    "RAG_RETRIEVAL_FALLBACK: retrieval POI не удался (city_id=%s) — "
+                    "откат на random.sample. %s: %s",
+                    city_id, type(e).__name__, e,
+                )
+
+        if len(city_pois) > max_pois:
+            return random.sample(city_pois, max_pois)
+        return city_pois
 
     async def generate(
         self,
@@ -136,8 +183,9 @@ class TripAIService:
             )
 
         MAX_POIS_FOR_AI = 40 if settings.DEMO_FAST_GENERATION else 100
-        if len(city_pois) > MAX_POIS_FOR_AI:
-            city_pois = random.sample(city_pois, MAX_POIS_FOR_AI)
+        city_pois = await self._select_city_pois(
+            trip.city_id, city_pois, interests, notes, MAX_POIS_FOR_AI
+        )
         logger.info("Отправляем в AI %d POI для города '%s'", len(city_pois), city.name)
 
         pois_with_rules = []

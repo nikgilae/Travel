@@ -1,3 +1,4 @@
+import random
 from uuid import UUID
 
 from geoalchemy2.functions import ST_DWithin, ST_GeogFromWKB, ST_MakePoint, ST_SetSRID
@@ -70,3 +71,31 @@ class POIRepository(BaseRepository[POI]):
             select(POI).where(POI.id.in_(ids))
         )
         return list(result.scalars().all())
+
+    async def get_relevant_for_trip(
+        self, city_id: UUID, query_embedding: list[float], limit: int
+    ) -> list[POI]:
+        """
+        Top-k POI города по косинусной близости к query_embedding.
+
+        Graceful degradation: если POI с embedding в городе меньше limit,
+        дозаполняет остаток случайной выборкой из POI без embedding — тот же
+        random.sample, что раньше применялся к городу целиком.
+        """
+        result = await self.session.execute(
+            select(POI)
+            .where(POI.city_id == city_id, POI.embedding.isnot(None))
+            .order_by(POI.embedding.cosine_distance(query_embedding))
+            .limit(limit)
+        )
+        relevant = list(result.scalars().all())
+
+        if len(relevant) < limit:
+            missing = limit - len(relevant)
+            result = await self.session.execute(
+                select(POI).where(POI.city_id == city_id, POI.embedding.is_(None))
+            )
+            without_embedding = list(result.scalars().all())
+            relevant += random.sample(without_embedding, min(missing, len(without_embedding)))
+
+        return relevant
