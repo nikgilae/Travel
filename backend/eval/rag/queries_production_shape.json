@@ -1,0 +1,17 @@
+{
+  "queries": [
+    {"id": "cultural_tag_only", "query": "cultural"},
+    {"id": "cultural_with_notes", "query": "cultural\nхочу увидеть старый город и музеи"},
+    {"id": "food_tag_only", "query": "food"},
+    {"id": "food_with_notes", "query": "food\nищем аутентичную местную кухню"},
+    {"id": "nature_tag_only", "query": "nature"},
+    {"id": "nature_with_notes", "query": "nature\nхотим погулять по паркам"},
+    {"id": "night_tag_only", "query": "night"},
+    {"id": "night_with_notes", "query": "night\nищем бары и клубы"},
+    {"id": "relaxed_tag_only", "query": "relaxed"},
+    {"id": "relaxed_with_notes", "query": "relaxed\nхочу отдохнуть без спешки"},
+    {"id": "active_tag_only", "query": "active"},
+    {"id": "active_with_notes", "query": "active\nхочу насыщенный день с активностями"}
+  ],
+  "_comment": "Запросы байт-в-байт воспроизводят построение query_text в TripAIService._select_city_pois (backend/app/services/trip_ai.py): ', '.join(interests) + notes. В отличие от eval/rag/queries.json (Итерация 0, TF-IDF), здесь НЕТ подставленных англоязычных синонимов — interests это буквально теги онбординга (frontend/src/pages/OnboardingStyle.jsx:17-22) как они приходят в проде. Это основной набор для go/no-go решения Итерации 3; queries.json прогоняется вторым, вспомогательным прогоном для контекста."
+}
