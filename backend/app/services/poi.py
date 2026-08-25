@@ -10,8 +10,18 @@ from app.repositories.rule import POIRuleRepository
 import logging
 from sqlalchemy import select
 from app.core.maps import GoogleMapsClient
+from app.services.embedding import build_poi_text, get_embedding
 
 logger = logging.getLogger(__name__)
+
+# get_embedding сам может занять до ~54с (3 попытки × AI_READ_TIMEOUT_SECONDS=18s)
+# при деградации провайдера. _set_embedding вызывается синхронно в create() и,
+# особенно, в цикле enrich_city_from_google() — там до 20+ кандидатов подряд,
+# то есть без этого потолка один медленный провайдер мог бы держать запрос
+# генерации маршрута минутами, хотя формально ничего не "падает" (embedding
+# просто nullable и добирается backfill'ом). Тот же принцип и число, что
+# RAG_RETRIEVAL_TIMEOUT_SECONDS в trip_ai.py.
+EMBEDDING_HOOK_TIMEOUT_SECONDS = 5.0
 
 
 class POIService:
@@ -31,6 +41,28 @@ class POIService:
         self.session = session
         self.poi_repo = POIRepository(session)
         self.poi_rule_repo = POIRuleRepository(session)
+
+    @staticmethod
+    async def _set_embedding(poi: POI) -> None:
+        """
+        Посчитать и проставить embedding для нового POI.
+
+        Не должно ронять создание POI: при сбое или таймауте embedding-вызова
+        (сеть, провайдер) — предупреждение в лог, poi.embedding остаётся None.
+        Retrieval (Итерация 2) уже спроектирован с graceful degradation на
+        такой случай. Жёсткий потолок EMBEDDING_HOOK_TIMEOUT_SECONDS — иначе
+        get_embedding сам может занять до ~54с (3 ретрая), а это вызывается
+        синхронно в критическом пути generate() (enrich_city_from_google).
+        """
+        try:
+            poi.embedding = await asyncio.wait_for(
+                get_embedding(build_poi_text(poi)), timeout=EMBEDDING_HOOK_TIMEOUT_SECONDS
+            )
+        except Exception as e:
+            logger.warning(
+                "Не удалось посчитать embedding для POI %s: %s: %s",
+                poi.id, type(e).__name__, e,
+            )
 
     async def create(
         self,
@@ -82,6 +114,7 @@ class POIService:
             city_id=city_id,
             google_place_id=google_place_id,
         )
+        await self._set_embedding(poi)
         await self.session.commit()
         return poi
 
@@ -254,7 +287,7 @@ class POIService:
                 continue
 
             geom = ST_SetSRID(ST_MakePoint(lon, lat), 4326)
-            await self.poi_repo.create(
+            poi = await self.poi_repo.create(
                 name=name,
                 description=place.get("description", "Интересное место"),
                 information=place.get("information", ""),
@@ -263,6 +296,7 @@ class POIService:
                 city_id=city_id,
                 google_place_id=gid,
             )
+            await self._set_embedding(poi)
             added_count += 1
 
         if added_count > 0:

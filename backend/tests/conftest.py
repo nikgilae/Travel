@@ -27,6 +27,12 @@ async def db_session():
     )
 
     async with engine.begin() as conn:
+        # Base.metadata.create_all не создаёт расширения — раньше postgis
+        # предполагался включённым на тестовой БД вручную. Явно создаём оба
+        # здесь же, иначе Geometry/Vector колонки падают непредсказуемо на
+        # свежей тестовой БД (например, в CI).
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.run_sync(Base.metadata.create_all)
 
     session_factory = async_sessionmaker(

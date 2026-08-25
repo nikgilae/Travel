@@ -64,6 +64,11 @@ class Settings(BaseSettings):
     GOOGLE_MAPS_API_KEY: str = ""
     ENRICH_COOLDOWN_HOURS: int = 24
 
+    # Модель эмбеддингов для семантического retrieval POI (app/services/embedding.py).
+    # Размерность зашита в миграции колонки pois.embedding (EMBEDDING_DIM в
+    # app/models/poi.py) — смена модели на другую размерность требует новой миграции.
+    AI_EMBEDDING_MODEL: str = "openai/text-embedding-3-large"
+
     # Жёсткий потолок времени на генерацию маршрута (все попытки суммарно, секунды).
     # Фронт рвёт запрос на 45 сек, поэтому здесь оставляем запас на до-AI часть
     # (загрузка POI и правил города) и на сохранение пула в БД: 30 + запас < 45.
@@ -96,6 +101,19 @@ class Settings(BaseSettings):
     # запасное место в день, короткие подсказки) укладывает генерацию в ~8-10 сек
     # вместо ~20+. False → обычный богатый пул мест.
     DEMO_FAST_GENERATION: bool = False
+
+    # Семантический (embedding) отбор POI для промпта AI вместо random.sample.
+    # RELEASE-флаг (не operational, в отличие от GOOGLE_MAPS_ENABLED выше) —
+    # временный, до решения go/no-go в Итерации 3 (retrieval_evaluator на
+    # реалистичном k, см. RAG-POI-PLAN.md). После решения: go → флаг и ветка
+    # random.sample в _select_city_pois удаляются совсем (random.sample
+    # остаётся только как fallback при сбое); no-go без Итерации 4 → флаг и
+    # мёртвый код удаляются тоже. Не оставлять "на всякий случай" дольше
+    # решения — бэкстоп: 90 дней от мержа Итерации 2 либо явное решение в
+    # Итерации 3, что наступит раньше (см. "Журнал решений" в плане).
+    # При сбое retrieval — автоматический откат на random.sample
+    # (_select_city_pois), логируется как RAG_RETRIEVAL_FALLBACK.
+    RAG_POI_RETRIEVAL_ENABLED: bool = False
 
     # Видимость ошибок. Все опциональны — без них приложение работает как раньше.
     # SENTRY_DSN пуст → Sentry выключен. TG_* заданы → каждая 5xx падает в личный

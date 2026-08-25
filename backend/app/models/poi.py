@@ -1,12 +1,18 @@
 import uuid
 
 from geoalchemy2 import Geometry
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import String, Text, Boolean, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 from geoalchemy2.shape import to_shape
+
+# Размерность вектора зависит от модели эмбеддинга (settings.AI_EMBEDDING_MODEL,
+# сейчас openai/text-embedding-3-large = 3072). Смена модели на другую размерность
+# требует новой миграции.
+EMBEDDING_DIM = 3072
 
 
 class POI(Base):
@@ -34,6 +40,10 @@ class POI(Base):
     is_indoor : bool
         True если место внутри здания (музей, ресторан).
         Влияет на логику маршрута (приоритет крытых мест в дождь).
+    embedding : list[float] or None
+        Векторное представление текста POI (name + description + information)
+        для семантического retrieval. None, пока не посчитан backfill'ом
+        или синхронным хуком в POIService.
     rules : list[POIRule]
         Правила посещения через связующую таблицу.
     trip_pois : list[TripPOI]
@@ -73,12 +83,17 @@ class POI(Base):
     trip_pois: Mapped[list["TripPOI"]] = relationship(back_populates="poi")
     
     google_place_id: Mapped[str | None] = mapped_column(
-        String(255), 
-        unique=True, 
-        nullable=True, 
+        String(255),
+        unique=True,
+        nullable=True,
         index=True
     )
-    
+
+    embedding: Mapped[list[float] | None] = mapped_column(
+        Vector(EMBEDDING_DIM),
+        nullable=True,
+    )
+
     @property
     def lat(self) -> float:
         """Достает широту из PostGIS объекта geom"""
