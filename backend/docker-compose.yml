@@ -30,7 +30,9 @@ services:
         condition: service_healthy
 
   db:
-    image: postgis/postgis:15-3.4-alpine
+    build:
+      context: .
+      dockerfile: db.Dockerfile
     container_name: travel_db
     restart: always
     env_file:
