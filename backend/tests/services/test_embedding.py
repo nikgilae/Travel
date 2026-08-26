@@ -45,8 +45,12 @@ class TestBuildPoiText:
         poi = _FakePOI(name="Парк", description="Городской парк", information=None)
         assert build_poi_text(poi) == build_poi_text(poi)
 
-    def test_prefers_ai_description_over_description_and_information(self):
-        """Итерация 4: обогащённый текст важнее сырых Google Place types."""
+    def test_ai_description_appends_after_description_and_information(self):
+        """
+        Итерация 4 (после регрессии recall@k с полной заменой, iteration4-report.md):
+        ai_description ДОПОЛНЯЕТ текст, не заменяет — категориальные слова
+        Google Place types в description остаются в тексте эмбеддинга.
+        """
         poi = _FakePOI(
             name="Кафе у моря",
             description="Cafe, establishment",
@@ -54,7 +58,8 @@ class TestBuildPoiText:
             ai_description="Уютное кафе с видом на закат, популярно у местных.",
         )
         assert build_poi_text(poi) == (
-            "Кафе у моря\nУютное кафе с видом на закат, популярно у местных."
+            "Кафе у моря\nCafe, establishment\nРейтинг Google: 4.5 (100 отзывов)"
+            "\nУютное кафе с видом на закат, популярно у местных."
         )
 
     def test_falls_back_to_description_when_ai_description_absent(self):

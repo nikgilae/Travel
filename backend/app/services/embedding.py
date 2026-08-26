@@ -33,18 +33,22 @@ def build_poi_text(poi: POI) -> str:
     """
     Собрать текст POI для эмбеддинга.
 
-    Если есть ai_description (Итерация 4, обогащение через Google editorial_summary
-    или саммари отзывов — см. app.services.poi_description) — используем name +
-    ai_description, это более насыщенный и точный текст, чем сырые Google Place
-    types. Иначе — прежняя логика: name + description + information. None-поля
-    пропускаются. Единственное место, где считается этот текст — используется
-    и синхронными хуками записи, и scripts/backfill_poi_embeddings.py, и
-    scripts/export_poi_corpus.py, чтобы не разъезжаться при изменении полей POI.
+    ai_description (Итерация 4, обогащение через Google editorial_summary или
+    саммари отзывов — см. app.services.poi_description) ДОПОЛНЯЕТ текст, не
+    заменяет его. Первая версия (замена целиком) прошла оценку с регрессией:
+    recall@k по 4 категориальным тегам просел равномерно (iteration4-report.md,
+    RAG-POI-PLAN.md) — ground_truth.json размечен по совпадению Google Place
+    types, которые буквально есть в description, но не гарантированы в
+    свободном ai_description. Дополнение сохраняет это лексическое совпадение
+    и добавляет нарративный текст поверх. None-поля пропускаются. Единственное
+    место, где считается этот текст — используется и синхронными хуками
+    записи, и scripts/backfill_poi_embeddings.py, и scripts/export_poi_corpus.py,
+    чтобы не разъезжаться при изменении полей POI.
     """
-    if poi.ai_description:
-        parts = [part for part in (poi.name, poi.ai_description) if part]
-    else:
-        parts = [part for part in (poi.name, poi.description, poi.information) if part]
+    parts = [
+        part for part in (poi.name, poi.description, poi.information, poi.ai_description)
+        if part
+    ]
     return "\n".join(parts)
 
 
