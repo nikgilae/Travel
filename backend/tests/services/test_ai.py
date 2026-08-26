@@ -292,3 +292,33 @@ class TestAIClientConfiguration:
     def test_chat_and_generation_clients_are_distinct_objects(self):
         """Регрессия ловушки T8: мок одного клиента не должен покрывать другой."""
         assert ai_module.client.chat.completions is not ai_module.gen_client.chat.completions
+
+
+class TestMainPoisInterestPriorityInstruction:
+    """
+    Мини-фикс: промпт должен явно ограничивать долю "известных
+    достопримечательностей" не по интересам в main_pois (не более одной на
+    день), а не запрещать их совсем — реальный прод-кейс показал 3 из 3
+    main_pois дня были музей/собор/башня при интересах food/night/relaxed,
+    хотя retrieval передал AI релевантные food/night места (RAG-POI-PLAN.md).
+    """
+
+    async def _sent_prompt(self, mock_gen_ai, **overrides) -> str:
+        mock_gen_ai.queue = [make_completion(content=_valid_payload(days=1))]
+        await _call(days=1, **overrides)
+        return mock_gen_ai.calls[-1]["messages"][-1]["content"]
+
+    async def test_normal_prompt_limits_landmarks_to_one_per_day(self, mock_gen_ai):
+        prompt = await self._sent_prompt(mock_gen_ai, fast=False, interests=["food", "night"])
+        assert "не более" in prompt
+        assert "интерес" in prompt.lower()
+
+    async def test_fast_prompt_limits_landmarks_to_one_per_day(self, mock_gen_ai):
+        prompt = await self._sent_prompt(mock_gen_ai, fast=True, interests=["food", "night"])
+        assert "не более" in prompt
+        assert "интерес" in prompt.lower()
+
+    async def test_prompt_mentions_declared_interests_verbatim(self, mock_gen_ai):
+        """Инструкция должна ссылаться на реально переданные интересы, не общие слова."""
+        prompt = await self._sent_prompt(mock_gen_ai, fast=False, interests=["food", "night"])
+        assert "food, night" in prompt
