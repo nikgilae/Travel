@@ -14,10 +14,11 @@ from app.services.embedding import build_poi_text, get_embedding, MAX_EMBEDDING_
 
 
 class _FakePOI:
-    def __init__(self, name=None, description=None, information=None):
+    def __init__(self, name=None, description=None, information=None, ai_description=None):
         self.name = name
         self.description = description
         self.information = information
+        self.ai_description = ai_description
 
 
 def _fake_response(vector: list[float]):
@@ -43,6 +44,29 @@ class TestBuildPoiText:
     def test_deterministic(self):
         poi = _FakePOI(name="Парк", description="Городской парк", information=None)
         assert build_poi_text(poi) == build_poi_text(poi)
+
+    def test_prefers_ai_description_over_description_and_information(self):
+        """Итерация 4: обогащённый текст важнее сырых Google Place types."""
+        poi = _FakePOI(
+            name="Кафе у моря",
+            description="Cafe, establishment",
+            information="Рейтинг Google: 4.5 (100 отзывов)",
+            ai_description="Уютное кафе с видом на закат, популярно у местных.",
+        )
+        assert build_poi_text(poi) == (
+            "Кафе у моря\nУютное кафе с видом на закат, популярно у местных."
+        )
+
+    def test_falls_back_to_description_when_ai_description_absent(self):
+        poi = _FakePOI(
+            name="Кафе у моря",
+            description="Cafe, establishment",
+            information="Рейтинг Google: 4.5 (100 отзывов)",
+            ai_description=None,
+        )
+        assert build_poi_text(poi) == (
+            "Кафе у моря\nCafe, establishment\nРейтинг Google: 4.5 (100 отзывов)"
+        )
 
 
 class TestGetEmbedding:

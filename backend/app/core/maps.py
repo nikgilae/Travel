@@ -12,6 +12,7 @@ class GoogleMapsClient:
     def __init__(self):
         self.api_key = settings.GOOGLE_MAPS_API_KEY
         self.base_url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
+        self.details_url = "https://maps.googleapis.com/maps/api/place/details/json"
 
     async def search_places(self, query: str) -> list[dict]:
         """
@@ -73,3 +74,53 @@ class GoogleMapsClient:
                         "information": information
                     })
             return results
+
+    async def get_place_details(self, place_id: str) -> dict:
+        """
+        Получить editorial_summary и reviews места через Place Details API.
+
+        Text Search (search_places выше) их не отдаёт — нужен отдельный вызов
+        по place_id. Источник для обогащения корпуса (Итерация 4, RAG-POI-PLAN.md):
+        editorial_summary — курируемый Google текст, reviews — сырые отзывы для
+        LLM-суммаризации. Тот же стиль отказоустойчивости, что у search_places:
+        сбой сети/API — пустой dict, не исключение (вызывающий код должен уметь
+        работать без обогащения).
+        """
+        if not self.api_key:
+            logger.warning("GOOGLE_MAPS_API_KEY не установлен!")
+            return {}
+
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.get(
+                    self.details_url,
+                    params={
+                        "place_id": place_id,
+                        "fields": "editorial_summary,reviews",
+                        "key": self.api_key,
+                        "language": "ru",
+                    },
+                    timeout=10.0
+                )
+                response.raise_for_status()
+                data = response.json()
+            except httpx.RequestError as e:
+                logger.error(f"Ошибка HTTP при запросе Place Details к Google API: {e}")
+                return {}
+
+            if data.get("status") != "OK":
+                logger.warning(
+                    "Place Details для %s вернул статус %s", place_id, data.get("status")
+                )
+                return {}
+
+            result = data.get("result", {})
+            editorial_summary = result.get("editorial_summary", {}).get("overview")
+            reviews = [
+                r["text"] for r in result.get("reviews", []) if r.get("text")
+            ]
+
+            return {
+                "editorial_summary": editorial_summary,
+                "reviews": reviews,
+            }

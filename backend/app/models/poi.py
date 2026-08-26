@@ -41,9 +41,16 @@ class POI(Base):
         True если место внутри здания (музей, ресторан).
         Влияет на логику маршрута (приоритет крытых мест в дождь).
     embedding : list[float] or None
-        Векторное представление текста POI (name + description + information)
-        для семантического retrieval. None, пока не посчитан backfill'ом
-        или синхронным хуком в POIService.
+        Векторное представление текста POI (ai_description, если есть, иначе
+        name + description + information) для семантического retrieval.
+        None, пока не посчитан backfill'ом или синхронным хуком в POIService.
+    ai_description : str or None
+        Обогащённое описание места (Итерация 4 RAG-POI-PLAN.md) — по
+        убыванию достоверности: editorial_summary Google, саммари отзывов
+        или None, если обогащение не проводилось/не дало результата.
+    ai_description_source : str or None
+        Источник ai_description: "google_editorial" / "reviews_summary" /
+        "category_fallback" / None (не обогащалось).
     rules : list[POIRule]
         Правила посещения через связующую таблицу.
     trip_pois : list[TripPOI]
@@ -92,6 +99,11 @@ class POI(Base):
     embedding: Mapped[list[float] | None] = mapped_column(
         Vector(EMBEDDING_DIM),
         nullable=True,
+    )
+
+    ai_description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ai_description_source: Mapped[str | None] = mapped_column(
+        String(50), nullable=True
     )
 
     @property
