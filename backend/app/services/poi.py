@@ -23,6 +23,11 @@ logger = logging.getLogger(__name__)
 # RAG_RETRIEVAL_TIMEOUT_SECONDS в trip_ai.py.
 EMBEDDING_HOOK_TIMEOUT_SECONDS = 5.0
 
+# Сколько эмбеддингов считаем одновременно в _set_embeddings (обогащение
+# города). Окно, а не «все разом»: у провайдера свои лимиты, а выигрыш от
+# ширины дальше десятка запросов уже незаметен на фоне их задержки.
+EMBEDDING_CONCURRENCY = 8
+
 
 class POIService:
     """
@@ -63,6 +68,32 @@ class POIService:
                 "Не удалось посчитать embedding для POI %s: %s: %s",
                 poi.id, type(e).__name__, e,
             )
+
+    async def _set_embeddings(self, pois: list[POI]) -> None:
+        """
+        То же, что _set_embedding, но для пачки мест сразу.
+
+        Обогащение свежего города добавляет не «20+ кандидатов», как считалось
+        при написании EMBEDDING_HOOK_TIMEOUT_SECONDS, а полторы-две сотни, и
+        по одному подряд это десятки секунд чистого ожидания сети. Здесь они
+        идут параллельно, окном EMBEDDING_CONCURRENCY, чтобы не устраивать
+        провайдеру эмбеддингов залп на двести запросов разом.
+
+        Поведение на отказ не меняется: каждый вызов по-прежнему сам гасит
+        свою ошибку и оставляет embedding пустым (его доберёт
+        scripts/backfill_poi_embeddings.py), поэтому gather здесь не может
+        уронить обогащение целиком.
+        """
+        if not pois:
+            return
+
+        semaphore = asyncio.Semaphore(EMBEDDING_CONCURRENCY)
+
+        async def _one(poi: POI) -> None:
+            async with semaphore:
+                await self._set_embedding(poi)
+
+        await asyncio.gather(*(_one(poi) for poi in pois))
 
     async def create(
         self,
@@ -262,8 +293,10 @@ class POIService:
         logger.info("Google Maps вернул %d уникальных кандидатов для '%s'", len(candidates), city_name)
 
         # Проверяем каждый кандидат против БД и добавляем новые
-        # Используем poi_repo.create() напрямую — commit один в конце
-        added_count = 0
+        # Используем poi_repo.create() напрямую — commit один в конце.
+        # Эмбеддинги считаются не здесь, а одной пачкой после цикла: внутри
+        # цикла это был последовательный сетевой вызов на каждое место.
+        created: list[POI] = []
         for place in candidates:
             name = place.get("name")
             lat = place.get("coordinates", {}).get("lat")
@@ -296,9 +329,11 @@ class POIService:
                 city_id=city_id,
                 google_place_id=gid,
             )
-            await self._set_embedding(poi)
-            added_count += 1
+            created.append(poi)
 
+        await self._set_embeddings(created)
+
+        added_count = len(created)
         if added_count > 0:
             await self.session.commit()
 

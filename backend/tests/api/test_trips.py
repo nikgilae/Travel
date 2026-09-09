@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import uuid
@@ -7,6 +8,7 @@ import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 
 import app.services.ai as ai_module
+import app.services.trip_ai as trip_ai_module
 from app.main import app
 from app.core.database import get_db
 from app.config import settings as app_settings
@@ -580,3 +582,49 @@ class TestTripGenerate:
 
         assert resp.status_code == 400
         assert resp.json()["error_code"] == "BAD_REQUEST"
+
+    async def test_generate_does_not_wait_for_city_enrichment(
+        self, client, auth_headers, db_session, test_country, test_city,
+        mock_gen_ai, monkeypatch,
+    ):
+        """
+        Обогащение города не держит запрос генерации.
+
+        Регрессия на главную поломку прода: раньше обогащение шло синхронно
+        внутри /generate (20 запросов в Google + эмбеддинг на каждое новое
+        место), и человек с неразогретым городом упирался в обрыв соединения
+        на фронте. Здесь обогащение подменено задачей, которая не закончится
+        никогда: если генерация начнёт её ждать, тест не повиснет, а упадёт
+        по своему таймауту.
+
+        Фикстуры no_google_enrichment тут намеренно нет — проверяем именно
+        включённый GOOGLE_MAPS_ENABLED, при котором обогащение положено.
+        """
+        monkeypatch.setattr(app_settings, "GOOGLE_MAPS_ENABLED", True)
+
+        scheduled = []
+
+        def _fake_schedule(city_id, city_name):
+            scheduled.append((city_id, city_name))
+            return asyncio.get_running_loop().create_future()  # никогда не завершится
+
+        monkeypatch.setattr(trip_ai_module.city_enrichment, "schedule", _fake_schedule)
+
+        trip_id = await _create_trip_with_dates(client, auth_headers, test_country, test_city, days=1)
+        pois = await _create_pois(db_session, test_city, n=2)
+        mock_gen_ai.queue = [make_completion(content=_ai_payload_for_pois(pois))]
+
+        resp = await asyncio.wait_for(
+            client.post(
+                f"/trips/{trip_id}/generate",
+                json={"interests": ["история"]},
+                headers=auth_headers,
+            ),
+            timeout=10,
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["saved_pois_count"] == 2
+        # Обогащение при этом всё-таки заведено, просто в фоне.
+        assert len(scheduled) == 1
+        assert scheduled[0][1] == test_city.name

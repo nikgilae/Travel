@@ -3,7 +3,6 @@ import uuid
 import time
 import logging
 import random
-from datetime import datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,7 +20,7 @@ from app.repositories.rule import CityRuleRepository, POIRuleRepository
 from app.repositories.geography import CityRepository, CountryRepository
 from app.services.ai import generate_trip
 from app.services.embedding import get_embedding
-from app.services.poi import POIService
+from app.services import city_enrichment
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +35,13 @@ GENERATE_OUTCOME_SKIPPED_EXISTING = "skipped_existing"
 # потолок, а не переиспользование AI_READ_TIMEOUT_SECONDS.
 RAG_RETRIEVAL_TIMEOUT_SECONDS = 5.0
 
+# Сколько ждём фоновое обогащение, когда город пустой и генерировать не из чего.
+# Считается от бюджета: AI_GENERATION_BUDGET_SECONDS=30 на весь запрос, сам
+# вызов AI занимает 20-26 с на живых замерах, фронт рвёт соединение на 45 с.
+# Отсюда потолок ожидания — единицы секунд, а не «сколько понадобится»: не
+# успели — человек получает внятное «через минуту», а не оборванное соединение.
+COLD_START_ENRICH_TIMEOUT_SECONDS = 8.0
+
 
 class TripAIService:
     """
@@ -47,7 +53,6 @@ class TripAIService:
         self.trip_repo = TripRepository(session)
         self.trip_poi_repo = TripPOIRepository(session)
         self.poi_repo = POIRepository(session)
-        self.poi_service = POIService(session)
         self.city_repo = CityRepository(session)
         self.country_repo = CountryRepository(session)
         self.city_rule_repo = CityRuleRepository(session)
@@ -148,38 +153,42 @@ class TripAIService:
         city = await self.city_repo.get_by_id(trip.city_id)
         country = await self.country_repo.get_by_id(trip.country_id)
 
-        # ── 3. Обогащение через Google Maps (кулдаун-контроль) ─────────────────
+        # ── 3. Обогащение через Google Maps (в фоне, не в этом запросе) ────────
+        # Раньше обогащение шло здесь же, синхронно, и съедало бюджет генерации
+        # целиком (разбор — в docstring app/services/city_enrichment.py).
+        # Теперь запрос только ставит задачу и идёт к AI на тех местах, что уже
+        # есть; свежесобранные приедут к следующей генерации по этому городу.
         city_pois = await self.poi_repo.get_by_city(trip.city_id)
 
-        city = await self.city_repo.get_by_id(trip.city_id)
-
-        now = datetime.utcnow()
-        cooldown = timedelta(hours=settings.ENRICH_COOLDOWN_HOURS)
-        needs_enrichment = settings.GOOGLE_MAPS_ENABLED and (
-            city.last_enriched_at is None
-            or (now - city.last_enriched_at) >= cooldown
-        )
-        if not settings.GOOGLE_MAPS_ENABLED:
-            logger.info("Google Maps выключен (GOOGLE_MAPS_ENABLED=false) — обогащение пропущено")
-
-        if needs_enrichment:
+        if city_enrichment.is_due(city):
             logger.info(
-                "Город '%s': запускаем обогащение через Google Maps (last_enriched_at=%s)",
-                city.name, city.last_enriched_at,
+                "Город '%s': обогащение отправлено в фон (last_enriched_at=%s, "
+                "мест сейчас %d)",
+                city.name, city.last_enriched_at, len(city_pois),
             )
-            try:
-                added = await self.poi_service.enrich_city_from_google(trip.city_id, city.name)
-                logger.info("Google Maps: добавлено %d новых POI для '%s'", added, city.name)
-                await self.city_repo.update(city.id, last_enriched_at=datetime.utcnow())
-                await self.session.commit()
+            task = city_enrichment.schedule(city.id, city.name)
+
+            # Единственный случай, когда ждём: город пустой и генерировать
+            # не из чего. shield — чтобы наш таймаут не убил саму задачу:
+            # она доработает в фоне и следующая попытка человека будет тёплой.
+            if not city_pois and task is not None:
+                try:
+                    await asyncio.wait_for(
+                        asyncio.shield(task),
+                        timeout=COLD_START_ENRICH_TIMEOUT_SECONDS,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "Холодный старт города '%s': за %.0f с мест не дождались "
+                        "(%s) — обогащение продолжается в фоне",
+                        city.name, COLD_START_ENRICH_TIMEOUT_SECONDS, type(e).__name__,
+                    )
                 city_pois = await self.poi_repo.get_by_city(trip.city_id)
-            except Exception as e:
-                logger.warning("Обогащение через Google Maps не удалось: %s", e)
 
         if not city_pois:
             raise NotFoundException(
-                f"В нашей базе нет мест для города {city.name}. "
-                "Попробуйте позже или выберите другой город."
+                f"Мы ещё собираем места для города {city.name}. "
+                "Попробуйте сгенерировать маршрут через минуту."
             )
 
         MAX_POIS_FOR_AI = 40 if settings.DEMO_FAST_GENERATION else 100

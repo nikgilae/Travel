@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import AlreadyExistsException, NotFoundException
 from app.models.geography import Country, City
 from app.repositories.geography import CountryRepository, CityRepository
+from app.services import city_enrichment
 
 
 class CountryService:
@@ -151,6 +152,13 @@ class CityService:
             content=content,
         )
         await self.session.commit()
+
+        # Город только что заведён, мест у него ноль. Начинаем собирать их
+        # прямо сейчас, в фоне: в онбординге между выбором города и кнопкой
+        # генерации человек ещё проходит даты, бюджет и интересы, и этой форы
+        # обычно хватает, чтобы к генерации город был уже не пустой.
+        city_enrichment.schedule(city.id, city.name)
+
         return city
 
     async def get_all_by_country(self, country_id) -> list[City]:
