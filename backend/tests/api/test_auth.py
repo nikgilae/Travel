@@ -17,6 +17,30 @@ class TestAuthAPI:
         assert "user_id" in data
         assert data["token_type"] == "bearer"
 
+    async def test_register_accepts_eight_chars_without_special(self, client: AsyncClient):
+        """
+        Восемь символов без спецсимвола — валидный пароль.
+
+        Регрессия на снятую стену: требование «12 символов + спецсимвол»
+        называли вслух три независимых человека на интервью, это первый
+        экран каждого нового пользователя.
+        """
+        response = await client.post("/auth/register", json={
+            "email": "short-pw@test.com",
+            "password": "Parol123",
+        })
+
+        assert response.status_code == 201, response.text
+
+    async def test_register_rejects_seven_chars(self, client: AsyncClient):
+        """Граница снизу: семь символов по-прежнему не проходят."""
+        response = await client.post("/auth/register", json={
+            "email": "too-short-pw@test.com",
+            "password": "Parol12",
+        })
+
+        assert response.status_code == 422
+
     async def test_register_duplicate_email(self, client: AsyncClient):
         """Повторная регистрация с тем же email — возвращает 409."""
         await client.post("/auth/register", json={

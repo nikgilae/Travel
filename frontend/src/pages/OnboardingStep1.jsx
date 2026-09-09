@@ -85,6 +85,10 @@ function normalizeCityName(raw) {
   return trimmed.charAt(0).toUpperCase() + trimmed.slice(1)
 }
 
+// Что принимаем за название города: буквы, пробел, дефис. Цифры и знаки
+// отсекаем здесь, а не на бэкенде, чтобы человек увидел это сразу.
+const CITY_NAME_RE = /^[а-яА-ЯёЁa-zA-Z\s-]+$/
+
 // Карточки стран/городов — это div c onClick. Чтобы они были доступны с
 // клавиатуры (Enter/Space), навешиваем этот обработчик рядом с role="button".
 function onActivateKey(handler) {
@@ -275,11 +279,17 @@ export default function OnboardingStep1({ onContinue }) {
     if (cityScrollRef.current) cityScrollRef.current.scrollTop = 0
   }
 
-  function handleSelectCity(city) {
-    setSelectedCity(prev => prev?.id === city.id ? null : city)
-    // Only update city_id if it's a real city from the database
-    if (city.id) {
-      update({ city_id: city.id })
+  // Город человек вписывает, а не выбирает из списка, поэтому выбором
+  // становится сам текст поля. Совпадение с уже заведённым городом ищется
+  // на «Продолжить» по названию (handleContinue) — там же, где и раньше.
+  function handleCityInput(value) {
+    setCitySearch(value)
+    const name = normalizeCityName(value)
+    if (name.length >= 2 && CITY_NAME_RE.test(name)) {
+      handleSelectCustomCity(name)
+    } else {
+      setSelectedCity(null)
+      update({ city_id: null })
     }
   }
 
@@ -365,13 +375,12 @@ export default function OnboardingStep1({ onContinue }) {
       .sort((a, b) => a.name.localeCompare(b.name, 'ru'))
   }
 
-  const cities = selectedCountry ? (citiesMap[selectedCountry.id] ?? []) : []
-  const dq = citySearch.trim().toLowerCase()
-  const displayedCities = !dq ? cities : cities.filter(c => c.name.toLowerCase().includes(dq))
-
-  // Determine if user can create a custom city
-  const canCreateCustomCity = dq && displayedCities.length === 0 && dq.length >= 2 && /^[а-яА-ЯёЁa-zA-Z\s\-]+$/.test(citySearch.trim())
-  const customCityName = canCreateCustomCity ? citySearch.trim() : null
+  // Справочник городов страны по-прежнему загружается, но больше не
+  // показывается. Раньше он был списком выбора, и человек читал его как
+  // «поддерживаются только эти города»: на интервью 30.08 человек
+  // остановился на «нету Чэнду», хотя Чэнду в базе есть. Теперь список
+  // нужен ровно для одного — узнать на «Продолжить» уже заведённый город
+  // по названию и не создать его дубль.
 
   // ── Phone shell (flex column, full height) ─────────────────
 
@@ -422,6 +431,11 @@ export default function OnboardingStep1({ onContinue }) {
             </div>
           </div>
 
+          {/* Списка под полем больше нет, поэтому экран короткий: разводим
+              заголовок с полем по оптическому центру, иначе половина экрана
+              под ними читается как «тут что-то не догрузилось». */}
+          <div style={{ flex: 0.8 }} />
+
           {/* Title */}
           <div style={{ flexShrink: 0, padding: '0 22px 14px' }}>
             <h1 style={{
@@ -429,147 +443,44 @@ export default function OnboardingStep1({ onContinue }) {
               fontWeight: 600, fontSize: 28, lineHeight: 1.1,
               letterSpacing: '-0.02em', color: TR.fg, margin: 0,
             }}>
-              ВЫБЕРИТЕ ГОРОД
+              ВПИШИТЕ ГОРОД
             </h1>
           </div>
 
-          {/* Search */}
+          {/* Ввод города */}
           <div style={{ flexShrink: 0, padding: '0 22px 12px' }}>
             <SearchInput
               value={citySearch}
-              onChange={setCitySearch}
-              placeholder="Поиск города"
+              onChange={handleCityInput}
+              placeholder="Название города"
             />
           </div>
 
-          {/* Section label */}
-          {dq && (
+          {/* Пояснение вместо списка городов */}
+          <div style={{ flexShrink: 0, padding: '0 22px' }}>
             <div style={{
-              flexShrink: 0, padding: '0 22px 8px',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+              fontFamily: 'Onest, sans-serif', fontSize: 14, lineHeight: 1.45,
+              color: TR.fgMute, margin: 0,
             }}>
-              <div style={{
-                fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
-                letterSpacing: '0.22em', textTransform: 'uppercase',
-                color: TR.fg, fontWeight: 600,
-              }}>
-                РЕЗУЛЬТАТЫ / {displayedCities.length + (canCreateCustomCity ? 1 : 0)}
-              </div>
+              Подойдёт любой город страны, не только крупный. Впишите его так,
+              как называете сами. Если города у нас ещё нет, соберём места
+              под него сами.
             </div>
-          )}
-
-          {/* Scrollable city list */}
-          <div
-            ref={cityScrollRef}
-            style={{ flex: 1, overflowY: 'auto', padding: '0 22px 8px' }}
-          >
-            {citiesLoading && (
-              <div style={{
-                padding: '40px 0', textAlign: 'center',
-                fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
-                color: TR.fgMute, letterSpacing: 1,
-              }}>
-                ЗАГРУЗКА···
-              </div>
-            )}
-
-            {!citiesLoading && displayedCities.length === 0 && (
-              <div style={{
-                padding: '24px 0', textAlign: 'center',
-                fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
-                color: TR.fgMute, letterSpacing: 1,
-              }}>
-                {dq ? 'НИЧЕГО НЕ НАЙДЕНО' : 'НЕТ ГОРОДОВ'}
-              </div>
-            )}
-
-            {!citiesLoading && displayedCities.map(city => {
-              const isSel = city.id === selectedCity?.id
-              return (
-                <div
-                  key={city.id}
-                  className="tr-city-row"
-                  role="button"
-                  tabIndex={0}
-                  aria-pressed={isSel}
-                  aria-label={city.name}
-                  onClick={() => handleSelectCity(city)}
-                  onKeyDown={onActivateKey(() => handleSelectCity(city))}
-                  style={{
-                    padding: '14px 16px',
-                    borderRadius: 12,
-                    background: isSel ? TR.lime : TR.surface,
-                    border: '1px solid ' + (isSel ? TR.fg : TR.hairline),
-                    marginBottom: 8,
-                    cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    transition: 'background 0.15s ease, border-color 0.15s ease',
-                    boxShadow: isSel ? '0 0 0 3px rgba(185,255,61,0.3)' : 'none',
-                  }}
-                >
-                  <span style={{
-                    fontFamily: 'Onest, sans-serif',
-                    fontSize: 16, fontWeight: isSel ? 600 : 500,
-                    color: TR.fg, letterSpacing: '-0.005em',
-                  }}>
-                    {city.name}
-                  </span>
-                  {isSel && (
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                      <path d="M3 8 L7 12 L13 4" stroke={TR.fg} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  )}
-                </div>
-              )
-            })}
-
-            {canCreateCustomCity && (
-              <div
-                className="tr-city-row"
-                role="button"
-                tabIndex={0}
-                aria-pressed={!!selectedCity?.isCustom}
-                aria-label={customCityName}
-                onClick={() => handleSelectCustomCity(customCityName)}
-                onKeyDown={onActivateKey(() => handleSelectCustomCity(customCityName))}
-                style={{
-                  padding: '14px 16px',
-                  borderRadius: 12,
-                  background: selectedCity?.isCustom ? TR.lime : TR.surface,
-                  border: '1px solid ' + (selectedCity?.isCustom ? TR.fg : TR.hairlineSt),
-                  marginBottom: 8,
-                  cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  transition: 'background 0.15s ease, border-color 0.15s ease',
-                  boxShadow: selectedCity?.isCustom ? '0 0 0 3px rgba(185,255,61,0.3)' : 'none',
-                }}
-              >
-                <span style={{
-                  fontFamily: 'Onest, sans-serif',
-                  fontSize: 16, fontWeight: selectedCity?.isCustom ? 600 : 500,
-                  color: TR.fg, letterSpacing: '-0.005em',
-                }}>
-                  {customCityName}
-                </span>
-                {selectedCity?.isCustom && (
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M3 8 L7 12 L13 4" stroke={TR.fg} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                )}
-              </div>
-            )}
-
-            <div style={{ height: 8 }} />
           </div>
 
+          <div style={{ flex: 1 }} />
+
           {/* CTA — always visible */}
+          {/* citiesLoading держит кнопку: справочник страны нужен на
+              «Продолжить», чтобы узнать уже заведённый город по названию.
+              Нажатие до его загрузки завело бы дубль. */}
           <CtaBar
             onClick={handleContinue}
-            disabled={!selectedCity || creatingCity}
+            disabled={!selectedCity || creatingCity || citiesLoading}
             label={
               creatingCity
                 ? 'Добавляю город…'
-                : selectedCity ? `Продолжить с ${selectedCity.name}` : 'Выберите город'
+                : selectedCity ? `Продолжить с ${selectedCity.name}` : 'Впишите город'
             }
             icon={<IconArrowRight />}
           />

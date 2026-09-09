@@ -14,11 +14,11 @@ class RegisterRequest(BaseModel):
         Email адрес. Pydantic автоматически валидирует формат.
     password : str
         Пароль. Минимум 8 символов, должен содержать
-        заглавную букву и цифру.
+        заглавную букву, строчную букву и цифру.
     """
 
     email: EmailStr
-    password: str = Field(..., min_length=12, max_length=128)
+    password: str = Field(..., min_length=8, max_length=128)
 
     @field_validator("password")
     @classmethod
@@ -27,11 +27,16 @@ class RegisterRequest(BaseModel):
         Проверить сложность пароля.
 
         Requirements:
-        - Минимум 12 символов
+        - Минимум 8 символов
         - Хотя бы одна заглавная буква
         - Хотя бы одна строчная буква
         - Хотя бы одна цифра
-        - Хотя бы один специальный символ (!@#$%^&* и т.д.)
+
+        Было 12 символов и обязательный спецсимвол. Это самый называемый
+        вслух дефект на интервьюях («12 символов, это как таски в игре»,
+        «а зачем? ну нет, это очень сложно», три независимых человека —
+        launch/onboarding-batch-1.md §2), и первая же стена на входе.
+        Требование спецсимвола снято, длина снижена до 8.
 
         Parameters
         ----------
@@ -48,19 +53,14 @@ class RegisterRequest(BaseModel):
         ValueError
             Если пароль не соответствует требованиям.
         """
-        if len(v) < 12:
-            raise ValueError("Пароль должен содержать минимум 12 символов")
+        if len(v) < 8:
+            raise ValueError("Пароль должен содержать минимум 8 символов")
         if not any(c.isupper() for c in v):
             raise ValueError("Пароль должен содержать хотя бы одну заглавную букву")
         if not any(c.islower() for c in v):
             raise ValueError("Пароль должен содержать хотя бы одну строчную букву")
         if not any(c.isdigit() for c in v):
             raise ValueError("Пароль должен содержать хотя бы одну цифру")
-        if not any(not c.isalnum() for c in v):
-            raise ValueError(
-                "Пароль должен содержать хотя бы один специальный символ "
-                "(!@#$%^&*_-+=[]{}|;:,.<>?)"
-            )
         return v
 
 
