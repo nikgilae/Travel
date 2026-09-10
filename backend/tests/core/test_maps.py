@@ -112,3 +112,65 @@ class TestGetPlaceDetails:
         result = await client.get_place_details("place123")
 
         assert result == {}
+
+
+class TestSearchPlaces:
+    """
+    Отказ Google приходит с кодом 200, причина лежит в поле status.
+
+    Регрессия на реальный случай 09.09.2026: у проекта был выключен биллинг,
+    все 20 поисковых запросов возвращали REQUEST_DENIED с пустым results, и
+    обогащение городов молча «успешно» добавляло ноль мест. В логах это
+    выглядело как «в городе ничего не нашлось», а не как поломка.
+    """
+
+    async def test_request_denied_logs_error_and_returns_empty(
+        self, monkeypatch, google_maps_client, caplog
+    ):
+        _patch_httpx(monkeypatch, response=_FakeResponse({
+            "status": "REQUEST_DENIED",
+            "error_message": "You must enable Billing on the Google Cloud Project",
+            "results": [],
+        }))
+
+        with caplog.at_level("ERROR"):
+            result = await google_maps_client.search_places("Музеи Краби")
+
+        assert result == []
+        assert "REQUEST_DENIED" in caplog.text
+
+    async def test_zero_results_is_not_an_error(
+        self, monkeypatch, google_maps_client, caplog
+    ):
+        """Пустой город — обычный ответ, не повод кричать в лог."""
+        _patch_httpx(monkeypatch, response=_FakeResponse({
+            "status": "ZERO_RESULTS",
+            "results": [],
+        }))
+
+        with caplog.at_level("ERROR"):
+            result = await google_maps_client.search_places("Музеи Нигде")
+
+        assert result == []
+        assert "REQUEST_DENIED" not in caplog.text
+
+    async def test_ok_status_returns_parsed_places(self, monkeypatch, google_maps_client):
+        _patch_httpx(monkeypatch, response=_FakeResponse({
+            "status": "OK",
+            "results": [{
+                "place_id": "abc123",
+                "name": "Пляж Ао Нанг",
+                "geometry": {"location": {"lat": 8.03, "lng": 98.82}},
+                "types": ["natural_feature", "point_of_interest"],
+                "rating": 4.5,
+                "user_ratings_total": 120,
+                "formatted_address": "Краби, Таиланд",
+            }],
+        }))
+
+        result = await google_maps_client.search_places("Пляжи Краби")
+
+        assert len(result) == 1
+        assert result[0]["google_place_id"] == "abc123"
+        assert result[0]["name"] == "Пляж Ао Нанг"
+        assert result[0]["coordinates"] == {"lat": 8.03, "lng": 98.82}

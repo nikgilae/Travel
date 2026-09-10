@@ -280,6 +280,9 @@ async def no_google_enrichment(monkeypatch):
     запрещена по правилам T8.
     """
     monkeypatch.setattr(app_settings, "GOOGLE_MAPS_ENABLED", False)
+    # И AI-фолбэк заодно: с ним пустой тестовый город пошёл бы за местами
+    # к модели, а сеть в тестах запрещена по тем же правилам T8.
+    monkeypatch.setattr(app_settings, "AI_POI_FALLBACK_ENABLED", False)
 
 
 @pytest_asyncio.fixture
@@ -628,3 +631,40 @@ class TestTripGenerate:
         # Обогащение при этом всё-таки заведено, просто в фоне.
         assert len(scheduled) == 1
         assert scheduled[0][1] == test_city.name
+
+class TestTripCityName:
+    """
+    Название города приходит с сервера, а не только из localStorage.
+
+    Иначе на любом устройстве, где не проходил онбординг (а именно ради
+    второго устройства человека и просят завести аккаунт), в заголовке
+    маршрута оказывается сырой UUID города.
+    """
+
+    async def test_trip_details_include_city_and_country_names(
+        self, client, auth_headers, test_country, test_city,
+    ):
+        trip_id = await _create_trip_with_dates(client, auth_headers, test_country, test_city)
+
+        resp = await client.get(f"/trips/{trip_id}", headers=auth_headers)
+
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert data["city_name"] == test_city.name
+        assert data["country_name"] == test_country.name
+
+    async def test_trip_list_still_works_without_loaded_relations(
+        self, client, auth_headers, test_country, test_city,
+    ):
+        """
+        Список поездок не грузит город и страну.
+
+        Свойства city_name/country_name обязаны на это отвечать None, а не
+        уводить сессию в ленивую загрузку (MissingGreenlet и 500 на списке).
+        """
+        await _create_trip_with_dates(client, auth_headers, test_country, test_city)
+
+        resp = await client.get("/trips", headers=auth_headers)
+
+        assert resp.status_code == 200, resp.text
+        assert len(resp.json()) == 1

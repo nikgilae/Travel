@@ -150,8 +150,15 @@ class TripResponse(BaseModel):
 class TripWithPOIsResponse(TripResponse):
     """
     Схема ответа с поездкой и полным пулом/маршрутом.
+
+    city_name и country_name отдаются только здесь: этот эндпоинт грузит
+    город и страну одним запросом (TripRepository.get_with_details), а
+    остальные — нет. Нужны фронту, чтобы название города на экране маршрута
+    не зависело от localStorage того устройства, где шёл онбординг.
     """
     pois: list[TripPOIResponse] = []
+    city_name: Optional[str] = None
+    country_name: Optional[str] = None
 
 
 class TripGenerateRequest(BaseModel):

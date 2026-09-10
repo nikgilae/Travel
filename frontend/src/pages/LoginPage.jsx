@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { login } from '../api/auth'
 import { setToken } from '../utils/authToken'
+import { clearGuest } from '../utils/guestSession'
 import './AuthPage.css'
 
 export default function LoginPage() {
@@ -18,6 +19,9 @@ export default function LoginPage() {
     try {
       const data = await login(email, password)
       setToken(data.access_token)
+      // Вошли в настоящий аккаунт: гостевого флага здесь быть не должно,
+      // иначе плашка «сохраните маршрут» придёт к уже сохранённому человеку.
+      clearGuest()
       localStorage.setItem('user_email', email)
       // Маршрутизация в зависимости от is_first_login
       const destination = data.is_first_login ? '/onboarding' : '/dashboard/routes'

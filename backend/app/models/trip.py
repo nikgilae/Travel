@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, date
 
-from sqlalchemy import Float, Boolean, Index
+from sqlalchemy import Float, Boolean, Index, inspect
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import ENUM
 from sqlalchemy import Integer, Date, DateTime, Float, ForeignKey, func, CheckConstraint, ARRAY, String, Text
@@ -126,6 +126,28 @@ class Trip(Base):
         cascade="all, delete-orphan",
         order_by="TripPOI.sequence_order", # <-- Добавленная сортировка
     )
+
+    # Названия города и страны для ответа API. Без них фронт знает только
+    # city_id и берёт название из localStorage, а значит на чужом устройстве
+    # (ровно то, ради чего человека просят завести аккаунт) в заголовке
+    # маршрута показывается сырой UUID.
+    #
+    # Проверка на unloaded обязательна: TripResponse отдаётся и там, где
+    # city/country не подгружены (создание поездки, список поездок), а
+    # ленивая загрузка в async-сессии падает с MissingGreenlet.
+    @property
+    def city_name(self) -> str | None:
+        return self._related_name("city")
+
+    @property
+    def country_name(self) -> str | None:
+        return self._related_name("country")
+
+    def _related_name(self, relation: str) -> str | None:
+        if relation in inspect(self).unloaded:
+            return None
+        related = getattr(self, relation)
+        return related.name if related else None
 
 
 class TripPOI(Base):

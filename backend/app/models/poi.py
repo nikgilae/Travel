@@ -106,6 +106,13 @@ class POI(Base):
         String(50), nullable=True
     )
 
+    # Откуда взялось место. NULL — как раньше (Google Places или сид базы).
+    # 'ai_fallback' — место названо AI-моделью по памяти, потому что Google
+    # был недоступен (см. AI_POI_FALLBACK_ENABLED в app/config.py). У таких
+    # мест приблизительные координаты и нет google_place_id; признак нужен,
+    # чтобы их можно было вычистить одним запросом, когда Google оживёт.
+    source: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
+
     @property
     def lat(self) -> float:
         """Достает широту из PostGIS объекта geom"""

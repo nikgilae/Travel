@@ -149,6 +149,67 @@ class POIService:
         await self.session.commit()
         return poi
 
+    async def create_invented_pois(
+        self,
+        city_id: uuid.UUID,
+        places: list[dict],
+    ) -> int:
+        """
+        Сохранить места, названные AI-моделью (app.services.poi_invention).
+
+        Отличий от обогащения через Google два: у мест нет google_place_id,
+        поэтому дедуп идёт по названию внутри города, и каждое помечается
+        source='ai_fallback' — по этому признаку их вычищают, когда Places API
+        снова заработает.
+
+        Parameters
+        ----------
+        city_id : uuid.UUID
+            Город, которому принадлежат места.
+        places : list[dict]
+            Разобранный ответ модели: name, description, information,
+            lat, lng, is_indoor.
+
+        Returns
+        -------
+        int
+            Сколько мест реально добавлено.
+        """
+        if not places:
+            return 0
+
+        existing = await self.poi_repo.get_by_city(city_id)
+        known = {p.name.strip().lower() for p in existing}
+
+        created: list[POI] = []
+        for place in places:
+            name = place["name"]
+            if name.strip().lower() in known:
+                continue
+            known.add(name.strip().lower())
+
+            geom = None
+            if place.get("lat") is not None and place.get("lng") is not None:
+                geom = ST_SetSRID(ST_MakePoint(place["lng"], place["lat"]), 4326)
+
+            poi = await self.poi_repo.create(
+                name=name,
+                description=place.get("description") or "Интересное место",
+                information=place.get("information") or "",
+                geom=geom,
+                is_indoor=place.get("is_indoor", False),
+                city_id=city_id,
+                source="ai_fallback",
+            )
+            created.append(poi)
+
+        await self._set_embeddings(created)
+
+        if created:
+            await self.session.commit()
+
+        return len(created)
+
     async def get_all(self) -> list[POI]:
         """
         Получить все POI.

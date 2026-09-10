@@ -18,6 +18,7 @@ import OnboardingBudget     from './pages/OnboardingBudget'
 import OnboardingFinalQuestion from './pages/OnboardingFinalQuestion'
 import BottomTabBar, { RouteIcon, ChatIcon, NearbyIcon } from './components/BottomTabBar'
 import ProtectedRoute       from './components/ProtectedRoute'
+import GuestGate            from './components/GuestGate'
 import MetrikaTracker       from './components/MetrikaTracker'
 
 // ── Helpers ────────────────────────────────────────────────
@@ -172,11 +173,12 @@ export default function App() {
         <Route path="/login"    element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
 
-        {/* Onboarding (no nav bar) */}
+        {/* Onboarding (no nav bar). GuestGate вместо ProtectedRoute: сюда
+            пускают без аккаунта, гостевой заводится молча. */}
         <Route path="/onboarding" element={
-          <ProtectedRoute>
+          <GuestGate>
             <OnboardingFlow />
-          </ProtectedRoute>
+          </GuestGate>
         } />
 
         {/* Level 1 — Dashboard */}

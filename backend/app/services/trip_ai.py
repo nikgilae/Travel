@@ -160,21 +160,22 @@ class TripAIService:
         # есть; свежесобранные приедут к следующей генерации по этому городу.
         city_pois = await self.poi_repo.get_by_city(trip.city_id)
 
-        if city_enrichment.is_due(city):
+        enrichment_task = None
+        if city_enrichment.is_due(city, has_pois=bool(city_pois)):
             logger.info(
                 "Город '%s': обогащение отправлено в фон (last_enriched_at=%s, "
                 "мест сейчас %d)",
                 city.name, city.last_enriched_at, len(city_pois),
             )
-            task = city_enrichment.schedule(city.id, city.name)
+            enrichment_task = city_enrichment.schedule(city.id, city.name)
 
             # Единственный случай, когда ждём: город пустой и генерировать
             # не из чего. shield — чтобы наш таймаут не убил саму задачу:
             # она доработает в фоне и следующая попытка человека будет тёплой.
-            if not city_pois and task is not None:
+            if not city_pois and enrichment_task is not None:
                 try:
                     await asyncio.wait_for(
-                        asyncio.shield(task),
+                        asyncio.shield(enrichment_task),
                         timeout=COLD_START_ENRICH_TIMEOUT_SECONDS,
                     )
                 except Exception as e:
@@ -186,9 +187,19 @@ class TripAIService:
                 city_pois = await self.poi_repo.get_by_city(trip.city_id)
 
         if not city_pois:
+            # Два разных «мест нет», и человеку нужно разное действие.
+            # Задача ещё идёт — места вот-вот появятся, стоит подождать.
+            # Задача закончилась ни с чем — ни Google, ни модель этот город не
+            # знают, и повтор ничего не изменит: надо проверить название.
+            still_collecting = enrichment_task is not None and not enrichment_task.done()
+            if still_collecting:
+                raise NotFoundException(
+                    f"Ещё собираем места для города {city.name}. "
+                    "Попробуйте сгенерировать маршрут через минуту."
+                )
             raise NotFoundException(
-                f"Мы ещё собираем места для города {city.name}. "
-                "Попробуйте сгенерировать маршрут через минуту."
+                f"Не получилось собрать места для города {city.name}. "
+                "Проверьте название или выберите другой город."
             )
 
         MAX_POIS_FOR_AI = 40 if settings.DEMO_FAST_GENERATION else 100

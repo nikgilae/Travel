@@ -40,6 +40,21 @@ class GoogleMapsClient:
                 logger.error(f"Ошибка HTTP при запросе к Google API: {e}")
                 return []
 
+            # Google отвечает 200 даже на отказ, а причину кладёт в status.
+            # Без этой проверки REQUEST_DENIED (выключен биллинг, битый ключ,
+            # не включённое API) неотличим от «в этом городе ничего не нашлось»:
+            # запрос как будто прошёл, обогащение как будто отработало, город
+            # молча остаётся пустым. Именно так это и выглядело 09.09.2026,
+            # когда все 20 запросов возвращали REQUEST_DENIED.
+            status = data.get("status")
+            if status not in ("OK", "ZERO_RESULTS"):
+                logger.error(
+                    "Google Maps отказал: status=%s, error_message=%s, запрос=%r. "
+                    "Обогащение городов не работает, пока это не починено.",
+                    status, data.get("error_message"), query,
+                )
+                return []
+
             results = []
             
             # Парсим ответ от Google

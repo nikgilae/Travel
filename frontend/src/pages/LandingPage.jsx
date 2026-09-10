@@ -122,7 +122,7 @@ export default function LandingPage() {
 
             <div className="gap" style={{ '--g': 1.42, '--m': '26px' }}></div>
 
-            <Link className="cta r" style={{ '--d': '.58s' }} to="/register" onClick={() => ymGoal('cta_top')}>Собрать маршрут</Link>
+            <Link className="cta r" style={{ '--d': '.58s' }} to="/onboarding" onClick={() => ymGoal('cta_top')}>Собрать маршрут</Link>
             <p className="alt r" style={{ '--d': '.66s' }}>Уже есть аккаунт → <Link to="/login">Войти</Link></p>
 
             <div className="gap" style={{ '--g': .55, '--m': '16px' }}></div>
@@ -258,7 +258,7 @@ export default function LandingPage() {
             <h2 className="h r">Собери первый день прямо сейчас.</h2>
             <p className="sub r" style={{ '--d': '.08s' }}>План от эксперта по стране, который говорит с тобой и перестраивает маршрут под твои интересы.</p>
             <div className="gap" style={{ '--g': 0, '--m': 'clamp(28px, 5svh, 44px)' }}></div>
-            <Link className="cta r" style={{ '--d': '.16s' }} to="/register" onClick={() => ymGoal('cta_bottom')}>Собрать маршрут</Link>
+            <Link className="cta r" style={{ '--d': '.16s' }} to="/onboarding" onClick={() => ymGoal('cta_bottom')}>Собрать маршрут</Link>
             <p className="alt r" style={{ '--d': '.22s' }}>Уже есть аккаунт → <Link to="/login">Войти</Link></p>
           </div>
         </section>

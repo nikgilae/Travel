@@ -32,8 +32,10 @@ from datetime import datetime, timedelta
 from app.config import settings
 from app.core.database import AsyncSessionLocal
 from app.models.geography import City
-from app.repositories.geography import CityRepository
+from app.repositories.geography import CityRepository, CountryRepository
+from app.repositories.poi import POIRepository
 from app.services.poi import POIService
+from app.services.poi_invention import invent_city_pois
 
 logger = logging.getLogger(__name__)
 
@@ -44,15 +46,26 @@ logger = logging.getLogger(__name__)
 _in_flight: dict[uuid.UUID, asyncio.Task] = {}
 
 
-def is_due(city: City) -> bool:
+def is_due(city: City, has_pois: bool = True) -> bool:
     """
     Нужно ли обогащать этот город сейчас.
 
     Та же проверка кулдауна, что раньше стояла внутри generate(), вынесенная
     в одно место: её теперь спрашивают и создание города, и генерация.
+
+    Достаточно любого из двух источников мест: Google Places или память
+    модели. Выключены оба — заходить незачем.
+
+    Пустому городу кулдаун не помеха. Кулдаун защищает от лишних платных
+    запросов по городу, где места уже есть. Если мест ноль, то предыдущий
+    заход ничего не принёс (сейчас так заканчивается КАЖДЫЙ заход в Google:
+    биллинг выключен), и запирать человека на сутки не за что: он в этом
+    городе не может получить маршрут вообще.
     """
-    if not settings.GOOGLE_MAPS_ENABLED:
+    if not (settings.GOOGLE_MAPS_ENABLED or settings.AI_POI_FALLBACK_ENABLED):
         return False
+    if not has_pois:
+        return True
     if city.last_enriched_at is None:
         return True
     cooldown = timedelta(hours=settings.ENRICH_COOLDOWN_HOURS)
@@ -64,13 +77,15 @@ def schedule(city_id: uuid.UUID, city_name: str) -> asyncio.Task | None:
     Поставить обогащение города в фон и сразу вернуть управление.
 
     Возвращает задачу (в том числе уже идущую по этому городу) либо None,
-    если обогащение выключено флагом GOOGLE_MAPS_ENABLED. Вызывающему ждать
-    её не обязательно и по умолчанию не нужно.
+    если оба источника мест выключены (GOOGLE_MAPS_ENABLED и
+    AI_POI_FALLBACK_ENABLED). Вызывающему ждать её не обязательно и по
+    умолчанию не нужно.
     """
-    if not settings.GOOGLE_MAPS_ENABLED:
+    if not (settings.GOOGLE_MAPS_ENABLED or settings.AI_POI_FALLBACK_ENABLED):
         logger.info(
-            "Google Maps выключен (GOOGLE_MAPS_ENABLED=false) — "
-            "обогащение города '%s' пропущено", city_name,
+            "Источники мест выключены (GOOGLE_MAPS_ENABLED=false, "
+            "AI_POI_FALLBACK_ENABLED=false) — обогащение города '%s' пропущено",
+            city_name,
         )
         return None
 
@@ -97,9 +112,29 @@ async def _enrich(city_id: uuid.UUID, city_name: str) -> int:
     started = time.monotonic()
     async with AsyncSessionLocal() as session:
         try:
-            added = await POIService(session).enrich_city_from_google(city_id, city_name)
-            await CityRepository(session).update(city_id, last_enriched_at=datetime.utcnow())
-            await session.commit()
+            poi_service = POIService(session)
+
+            added = 0
+            if settings.GOOGLE_MAPS_ENABLED:
+                added = await poi_service.enrich_city_from_google(city_id, city_name)
+                await CityRepository(session).update(
+                    city_id, last_enriched_at=datetime.utcnow()
+                )
+                await session.commit()
+
+            # Google ничего не дал, а город так и стоит пустой. Пока биллинг
+            # в Google Cloud выключен, это происходит с КАЖДЫМ новым городом,
+            # и без фолбэка человек проходит весь онбординг ради сообщения
+            # «мест нет». Просим места у модели.
+            #
+            # Условие намеренно про пустой город, а не про added == 0: у города
+            # с местами ноль новинок — это нормальный повторный заход, туда
+            # подмешивать выдуманные места незачем.
+            if settings.AI_POI_FALLBACK_ENABLED and added == 0:
+                city = await CityRepository(session).get_by_id(city_id)
+                if city and not await POIRepository(session).get_by_city(city_id):
+                    added = await _fill_from_ai(poi_service, city, session)
+
             logger.info(
                 "Обогащение города '%s' завершено: +%d мест за %.1f с",
                 city_name, added, time.monotonic() - started,
@@ -112,3 +147,27 @@ async def _enrich(city_id: uuid.UUID, city_name: str) -> int:
                 city_name, time.monotonic() - started, type(e).__name__, e,
             )
             return 0
+
+
+async def _fill_from_ai(poi_service: POIService, city, session) -> int:
+    """
+    Наполнить пустой город местами из памяти модели.
+
+    Возврат ноль — обычный исход, а не сбой: модель могла не знать города
+    (опечатка, несуществующее название). Тогда город остаётся пустым, и
+    человек получает внятное сообщение вместо выдуманного маршрута.
+    """
+    country = await CountryRepository(session).get_by_id(city.country_id)
+    country_name = country.name if country else ""
+
+    logger.info(
+        "Город '%s' пуст после Google — спрашиваем места у модели "
+        "(AI_POI_FALLBACK_ENABLED=true)", city.name,
+    )
+    places = await invent_city_pois(city.name, country_name)
+    added = await poi_service.create_invented_pois(city.id, places)
+    logger.info(
+        "AI-фолбэк: городу '%s' добавлено %d мест (source=ai_fallback)",
+        city.name, added,
+    )
+    return added

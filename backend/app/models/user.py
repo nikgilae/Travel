@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import String, DateTime, func
+from sqlalchemy import String, DateTime, Boolean, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -23,6 +23,11 @@ class User(Base):
         Уникальный email адрес. Максимум 254 символа по RFC 5321.
     hashed_password : str
         Bcrypt хэш пароля. Всегда ровно 60 символов.
+    is_guest : bool
+        Аккаунт заведён автоматически, человек его не создавал и о нём
+        не знает. Онбординг начинается с такого аккаунта, чтобы человек
+        видел маршрут раньше, чем форму регистрации. Становится False,
+        когда человек вписывает свою почту (AuthService.claim).
     created_at : datetime
         Время создания записи. Устанавливается PostgreSQL через now().
     updated_at : datetime
@@ -47,6 +52,11 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(
         String(60),
         nullable=False,
+    )
+    is_guest: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default="false",
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime,

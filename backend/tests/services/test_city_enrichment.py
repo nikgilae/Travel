@@ -27,10 +27,23 @@ def _fake_city(last_enriched_at=None):
 
 class TestIsDue:
 
-    def test_flag_off_never_due(self, monkeypatch):
-        """GOOGLE_MAPS_ENABLED=false → не обогащаем даже пустой город."""
+    def test_both_sources_off_never_due(self, monkeypatch):
+        """Оба источника мест выключены → заходить незачем."""
         monkeypatch.setattr(city_enrichment.settings, "GOOGLE_MAPS_ENABLED", False)
+        monkeypatch.setattr(city_enrichment.settings, "AI_POI_FALLBACK_ENABLED", False)
         assert city_enrichment.is_due(_fake_city()) is False
+
+    def test_ai_fallback_alone_is_enough(self, monkeypatch):
+        """
+        Google выключен, но модель может назвать места — идём.
+
+        Ровно текущее состояние прода: биллинг в Google Cloud выключен,
+        Places API отказывает, единственный источник мест для нового города —
+        память модели.
+        """
+        monkeypatch.setattr(city_enrichment.settings, "GOOGLE_MAPS_ENABLED", False)
+        monkeypatch.setattr(city_enrichment.settings, "AI_POI_FALLBACK_ENABLED", True)
+        assert city_enrichment.is_due(_fake_city()) is True
 
     def test_never_enriched_is_due(self, monkeypatch):
         """Город, который не обогащали ни разу (свой город из онбординга)."""
@@ -44,6 +57,21 @@ class TestIsDue:
         city = _fake_city(last_enriched_at=datetime.utcnow() - timedelta(hours=1))
         assert city_enrichment.is_due(city) is False
 
+    def test_empty_city_ignores_cooldown(self, monkeypatch):
+        """
+        У города ноль мест — идём за ними, даже если заходили минуту назад.
+
+        Кулдаун бережёт платные запросы по городу, где места уже есть. Пустой
+        город означает, что прошлый заход ничего не дал, и сутки ожидания для
+        человека равны «этот город не работает».
+        """
+        monkeypatch.setattr(city_enrichment.settings, "GOOGLE_MAPS_ENABLED", True)
+        monkeypatch.setattr(city_enrichment.settings, "ENRICH_COOLDOWN_HOURS", 24)
+        city = _fake_city(last_enriched_at=datetime.utcnow() - timedelta(minutes=1))
+
+        assert city_enrichment.is_due(city, has_pois=False) is True
+        assert city_enrichment.is_due(city, has_pois=True) is False
+
     def test_cooldown_expired_is_due(self, monkeypatch):
         monkeypatch.setattr(city_enrichment.settings, "GOOGLE_MAPS_ENABLED", True)
         monkeypatch.setattr(city_enrichment.settings, "ENRICH_COOLDOWN_HOURS", 24)
@@ -53,8 +81,9 @@ class TestIsDue:
 
 class TestSchedule:
 
-    async def test_flag_off_returns_none_and_starts_nothing(self, monkeypatch):
+    async def test_all_sources_off_returns_none_and_starts_nothing(self, monkeypatch):
         monkeypatch.setattr(city_enrichment.settings, "GOOGLE_MAPS_ENABLED", False)
+        monkeypatch.setattr(city_enrichment.settings, "AI_POI_FALLBACK_ENABLED", False)
         started = []
         monkeypatch.setattr(city_enrichment, "_enrich", lambda *a: started.append(a))
 

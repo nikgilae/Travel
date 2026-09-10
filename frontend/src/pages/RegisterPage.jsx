@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { register, login } from '../api/auth'
 import { setToken } from '../utils/authToken'
+import { clearGuest } from '../utils/guestSession'
 import { ymGoal } from '../utils/metrika'
 import './AuthPage.css'
 
@@ -78,6 +79,7 @@ export default function RegisterPage() {
       await register(email, password)
       const data = await login(email, password)
       setToken(data.access_token)
+      clearGuest()
       localStorage.setItem('user_email', email)
       ymGoal('signup')
       // После регистрации всегда на онбординг

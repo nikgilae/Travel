@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import './TripPlanScreen.css'
 import TripMap from '../components/TripMap'
+import ClaimAccountModal from '../components/ClaimAccountModal'
+import { shouldAskToClaim } from '../utils/guestSession'
 
 const API_BASE = import.meta.env.VITE_API_URL
 const GMAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
@@ -954,6 +956,17 @@ export default function TripPlanScreen() {
   const [confirmDelete, setConfirmDelete] = useState(null) // { poiId, poiName }
   const [deleting, setDeleting]           = useState(false)
 
+  // Просьба сохранить маршрут. Приходит гостю после первого осознанного
+  // действия с маршрутом — убрал место, заменил место, зафиксировал день.
+  // Именно в этот момент маршрут из выданного становится своим; счётчик
+  // касаний такой же момент не отличает (человек, тыкавший наугад, получил
+  // бы плашку наравне с тем, кто вычеркнул три кафе).
+  const [claimOpen, setClaimOpen] = useState(false)
+
+  function askToClaim() {
+    if (shouldAskToClaim()) setClaimOpen(true)
+  }
+
   // finalize day
   const [finalizedDays, setFinalizedDays] = useState(new Set())
   const [finalizingDay, setFinalizingDay] = useState(null)
@@ -987,6 +1000,7 @@ export default function TripPlanScreen() {
         pois: prev.pois.filter(p => p.poi.id !== confirmDelete.poiId),
       }))
       setConfirmDelete(null)
+      askToClaim()
     } catch (e) {
       setError(e.message)
     } finally {
@@ -1013,6 +1027,7 @@ export default function TripPlanScreen() {
       setTrip(body)
       setFinalizedDays(prev => new Set([...prev, dayNum]))
       showToast(`МАРШРУТ ДНЯ ${dayNum} УТВЕРЖДЁН ✓`)
+      askToClaim()
     } catch (e) {
       console.error('[finalize] error:', e)
       showToast(`ОШИБКА: ${e.message}`)
@@ -1055,6 +1070,7 @@ export default function TripPlanScreen() {
       setTrip(updatedTrip)
       setReplacingPoiId(null)
       showToast(demotePoiId ? 'МЕСТО ЗАМЕНЕНО ✓' : 'МЕСТО ДОБАВЛЕНО ✓')
+      askToClaim()
     } catch (e) {
       showToast(`ОШИБКА: ${e.message}`)
     } finally {
@@ -1116,7 +1132,10 @@ export default function TripPlanScreen() {
     })
   }, [allPois, finalizedDays])
 
-  const cityName    = city?.n    ?? trip?.city_id ?? 'Маршрут'
+  // trip.city_name приходит с сервера и работает на любом устройстве;
+  // city?.n — из localStorage того телефона, где шёл онбординг. Без
+  // серверного значения на втором устройстве в заголовке был UUID города.
+  const cityName    = city?.n    ?? trip?.city_name ?? 'Маршрут'
   const cityCode    = city?.code ?? '—'
   const rhythmLabel = rhythm === 'slow' ? 'СПОКОЙНО' : rhythm === 'intense' ? 'НАСЫЩЕННО' : 'СБАЛАНСИРОВАННО'
   const groupLabel  = { solo: 'СОЛО', duo: 'ВДВОЁМ', family: 'СЕМЬЯ', friends: 'ДРУЗЬЯ', group: 'ГРУППА' }[groupType] ?? ''
@@ -1804,6 +1823,12 @@ export default function TripPlanScreen() {
       {toast && (
         <Toast message={toast} onDone={() => setToast(null)} />
       )}
+
+      <ClaimAccountModal
+        open={claimOpen}
+        onClose={() => setClaimOpen(false)}
+        onClaimed={() => { setClaimOpen(false); showToast('МАРШРУТ СОХРАНЁН ✓') }}
+      />
     </>
   )
 }

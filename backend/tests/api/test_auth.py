@@ -41,6 +41,81 @@ class TestAuthAPI:
 
         assert response.status_code == 422
 
+    async def test_guest_token_works_on_protected_endpoint(self, client: AsyncClient):
+        """
+        Гостевой вход даёт рабочий токен.
+
+        Смысл гостевого аккаунта в том, что онбординг (страны, города,
+        поездки) требует авторизации, а человек до маршрута не должен
+        видеть ни одной формы. Значит токен обязан открывать те же двери,
+        что и обычный.
+        """
+        resp = await client.post("/auth/guest")
+
+        assert resp.status_code == 201, resp.text
+        token = resp.json()["access_token"]
+
+        countries = await client.get(
+            "/countries", headers={"Authorization": f"Bearer {token}"}
+        )
+        assert countries.status_code == 200
+
+    async def test_claim_turns_guest_into_real_account(self, client: AsyncClient):
+        """После claim человек может войти обычным логином, id тот же."""
+        guest = (await client.post("/auth/guest")).json()
+        headers = {"Authorization": f"Bearer {guest['access_token']}"}
+
+        claim = await client.post(
+            "/auth/claim",
+            json={"email": "claimed@test.com", "password": "Parol123"},
+            headers=headers,
+        )
+
+        assert claim.status_code == 200, claim.text
+        assert claim.json()["user_id"] == guest["user_id"]
+
+        login = await client.post("/auth/login", json={
+            "email": "claimed@test.com",
+            "password": "Parol123",
+        })
+        assert login.status_code == 200
+        assert login.json()["user_id"] == guest["user_id"]
+
+    async def test_claim_twice_returns_409(self, client: AsyncClient):
+        """Второй claim по тому же аккаунту — уже не гость."""
+        guest = (await client.post("/auth/guest")).json()
+        headers = {"Authorization": f"Bearer {guest['access_token']}"}
+
+        await client.post(
+            "/auth/claim",
+            json={"email": "first@test.com", "password": "Parol123"},
+            headers=headers,
+        )
+        second = await client.post(
+            "/auth/claim",
+            json={"email": "second@test.com", "password": "Parol123"},
+            headers=headers,
+        )
+
+        assert second.status_code == 409
+        assert second.json()["error_code"] == "ALREADY_EXISTS"
+
+    async def test_claim_with_taken_email_returns_409(self, client: AsyncClient):
+        """Почта занята другим человеком — гость остаётся гостем."""
+        await client.post("/auth/register", json={
+            "email": "taken@test.com",
+            "password": "Password123!",
+        })
+        guest = (await client.post("/auth/guest")).json()
+
+        resp = await client.post(
+            "/auth/claim",
+            json={"email": "taken@test.com", "password": "Parol123"},
+            headers={"Authorization": f"Bearer {guest['access_token']}"},
+        )
+
+        assert resp.status_code == 409
+
     async def test_register_duplicate_email(self, client: AsyncClient):
         """Повторная регистрация с тем же email — возвращает 409."""
         await client.post("/auth/register", json={

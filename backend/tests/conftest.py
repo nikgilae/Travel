@@ -13,6 +13,29 @@ TABLES_TO_TRUNCATE = (
     "pois, rules, cities, countries, users"
 )
 
+# Схема тестовой БД пересобирается с нуля перед каждым прогоном.
+#
+# Так это устроено не из любви к чистоте: create_all умеет только создавать
+# недостающие таблицы и молча пропускает существующие. Стоило добавить колонку
+# в модель — и тестовая БД оставалась со старой таблицей, а тесты падали на
+# UndefinedColumnError в случайных местах, никак не связанных с правкой
+# (проверено трижды за два дня: pois.embedding, users.is_guest, pois.source).
+#
+# Страховка от беды: имя БД обязано содержать "test". Ошибиться и указать в
+# TEST_DATABASE_URL боевую базу — это уронить её целиком, поэтому проверка
+# стоит до первого drop, а не после.
+_SCHEMA_READY = False
+
+
+def _assert_test_database(url: str) -> None:
+    database = url.rsplit("/", 1)[-1].split("?", 1)[0]
+    if "test" not in database.lower():
+        raise RuntimeError(
+            f"TEST_DATABASE_URL указывает на базу '{database}', в имени которой "
+            "нет 'test'. Тесты пересоздают схему целиком и стёрли бы её. "
+            "Проверьте .env."
+        )
+
 
 @pytest_asyncio.fixture
 async def db_session():
@@ -26,6 +49,8 @@ async def db_session():
         echo=False,
     )
 
+    global _SCHEMA_READY
+
     async with engine.begin() as conn:
         # Base.metadata.create_all не создаёт расширения — раньше postgis
         # предполагался включённым на тестовой БД вручную. Явно создаём оба
@@ -33,6 +58,10 @@ async def db_session():
         # свежей тестовой БД (например, в CI).
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        if not _SCHEMA_READY:
+            _assert_test_database(settings.TEST_DATABASE_URL)
+            await conn.run_sync(Base.metadata.drop_all)
+            _SCHEMA_READY = True
         await conn.run_sync(Base.metadata.create_all)
 
     session_factory = async_sessionmaker(
